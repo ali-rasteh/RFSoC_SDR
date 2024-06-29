@@ -1,0 +1,47 @@
+{
+   "ActiveEmotionalView":"Default View",
+   "Default View_ScaleFactor":"0.746165",
+   "Default View_TopLeft":"-127,3",
+   "ExpandedHierarchyInLayout":"",
+   "guistr":"# # String gsaved with Nlview 7.5.8 2022-09-21 7111 VDI=41 GEI=38 GUI=JA:10.0 TLS
+#  -string -flagsOSRD
+preplace port S00_AXIS -pg 1 -lvl 0 -x 0 -y 580 -defaultsOSRD
+preplace port S01_AXIS -pg 1 -lvl 0 -x 0 -y 600 -defaultsOSRD
+preplace port S_AXI_LITE -pg 1 -lvl 0 -x 0 -y 400 -defaultsOSRD
+preplace port M_AXI_S2MM -pg 1 -lvl 5 -x 1440 -y 440 -defaultsOSRD
+preplace port port-id_aresetn -pg 1 -lvl 0 -x 0 -y 640 -defaultsOSRD
+preplace port port-id_aclk -pg 1 -lvl 0 -x 0 -y 620 -defaultsOSRD
+preplace port port-id_axi_resetn -pg 1 -lvl 0 -x 0 -y 520 -defaultsOSRD
+preplace port port-id_s2mm_introut -pg 1 -lvl 5 -x 1440 -y 480 -defaultsOSRD
+preplace portBus Din -pg 1 -lvl 0 -x 0 -y 60 -defaultsOSRD
+preplace inst axis_data_fifo_0 -pg 1 -lvl 3 -x 840 -y 320 -defaultsOSRD
+preplace inst util_vector_logic_0 -pg 1 -lvl 4 -x 1220 -y 70 -defaultsOSRD
+preplace inst util_vector_logic_1 -pg 1 -lvl 3 -x 840 -y 170 -defaultsOSRD
+preplace inst axis_subset_converter_0 -pg 1 -lvl 2 -x 520 -y 630 -defaultsOSRD
+preplace inst ADC_Reset -pg 1 -lvl 2 -x 520 -y 60 -defaultsOSRD
+preplace inst axis_combiner_0 -pg 1 -lvl 1 -x 190 -y 610 -defaultsOSRD
+preplace inst ADC_Enable -pg 1 -lvl 2 -x 520 -y 160 -defaultsOSRD
+preplace inst axi_dma_rx -pg 1 -lvl 4 -x 1220 -y 460 -defaultsOSRD
+preplace netloc ADC_Enable_Dout 1 2 1 NJ 160
+preplace netloc RFDC_adc_peripheral_aresetn 1 0 3 30 710 360 320 NJ
+preplace netloc RFDC_rst_peripheral_aresetn 1 0 4 NJ 520 NJ 520 NJ 520 NJ
+preplace netloc axi_dma_rx_s_axis_s2mm_tready 1 3 1 1040 80n
+preplace netloc axi_dma_tx_s2mm_introut 1 4 1 NJ 480
+preplace netloc axis_data_fifo_0_m_axis_tvalid 1 2 2 690 240 990
+preplace netloc usp_rf_data_converter_0_clk_adc2 1 0 4 40 700 370 390 690 410 1010
+preplace netloc util_vector_logic_0_Res 1 3 2 NJ 320 1400
+preplace netloc util_vector_logic_1_Res 1 3 1 1030 170n
+preplace netloc xlslice_0_Dout 1 2 2 NJ 60 NJ
+preplace netloc zynq_ultra_ps_e_0_emio_gpio_o 1 0 2 NJ 60 360
+preplace netloc axi_dma_tx_M_AXI_S2MM 1 4 1 NJ 440
+preplace netloc axi_interconnect_2_M02_AXI 1 0 4 NJ 400 NJ 400 NJ 400 NJ
+preplace netloc axis_combiner_0_M_AXIS 1 1 1 N 610
+preplace netloc axis_data_fifo_0_M_AXIS 1 3 1 1020 300n
+preplace netloc axis_subset_converter_0_M_AXIS 1 2 1 670 300n
+preplace netloc usp_rf_data_converter_0_m20_axis 1 0 1 NJ 580
+preplace netloc usp_rf_data_converter_0_m21_axis 1 0 1 NJ 600
+levelinfo -pg 1 0 190 520 840 1220 1440
+pagesize -pg 1 -db -bbox -sgen -130 0 1590 720
+"
+}
+0

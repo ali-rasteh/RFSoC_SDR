@@ -1,0 +1,75 @@
+{
+   "ActiveEmotionalView":"Default View",
+   "Default View_ScaleFactor":"0.441941",
+   "Default View_TopLeft":"-170,61",
+   "ExpandedHierarchyInLayout":"",
+   "guistr":"# # String gsaved with Nlview 7.5.8 2022-09-21 7111 VDI=41 GEI=38 GUI=JA:10.0 TLS
+#  -string -flagsOSRD
+preplace port sysref_in -pg 1 -lvl 0 -x -10 -y 890 -defaultsOSRD
+preplace port adc2_clk -pg 1 -lvl 0 -x -10 -y 800 -defaultsOSRD
+preplace port vin2_01 -pg 1 -lvl 0 -x -10 -y 870 -defaultsOSRD
+preplace port dac1_clk -pg 1 -lvl 0 -x -10 -y 850 -defaultsOSRD
+preplace port vout10 -pg 1 -lvl 7 -x 2890 -y 890 -defaultsOSRD
+preplace port dac0_clk -pg 1 -lvl 0 -x -10 -y 1030 -defaultsOSRD
+preplace port vout00 -pg 1 -lvl 7 -x 2890 -y 1070 -defaultsOSRD
+preplace portBus lmk_rst -pg 1 -lvl 7 -x 2890 -y 1140 -defaultsOSRD
+preplace inst zynq_ultra_ps_e_0 -pg 1 -lvl 4 -x 1650 -y 150 -defaultsOSRD
+preplace inst usp_rf_data_converter_0 -pg 1 -lvl 6 -x 2680 -y 1100 -defaultsOSRD
+preplace inst axi_interconnect_2 -pg 1 -lvl 5 -x 2260 -y 300 -defaultsOSRD
+preplace inst ps_rst_99M -pg 1 -lvl 4 -x 1650 -y 730 -defaultsOSRD
+preplace inst RFDC_dac -pg 1 -lvl 1 -x 210 -y 700 -defaultsOSRD
+preplace inst axi_intc_0 -pg 1 -lvl 6 -x 2680 -y 350 -defaultsOSRD
+preplace inst xlconcat_0 -pg 1 -lvl 5 -x 2260 -y 670 -defaultsOSRD
+preplace inst xlconstant_0 -pg 1 -lvl 6 -x 2680 -y 1350 -defaultsOSRD
+preplace inst smartconnect_0 -pg 1 -lvl 3 -x 1110 -y 400 -defaultsOSRD
+preplace inst RFDC_adc -pg 1 -lvl 1 -x 210 -y 500 -defaultsOSRD
+preplace inst smartconnect_1 -pg 1 -lvl 3 -x 1110 -y 100 -defaultsOSRD
+preplace inst TX_loop -pg 1 -lvl 2 -x 690 -y 510 -defaultsOSRD
+preplace inst RX_Logic -pg 1 -lvl 2 -x 690 -y 730 -defaultsOSRD
+preplace inst axis_broadcaster_0 -pg 1 -lvl 2 -x 690 -y 330 -defaultsOSRD
+preplace netloc RFDC_adc_peripheral_aresetn 1 1 4 480 410 930 300 NJ 300 2090
+preplace netloc RFDC_rst_peripheral_aresetn 1 1 5 470 610 970 480 NJ 480 2110 540 2470
+preplace netloc TX_loop_interrupt 1 2 3 NJ 540 NJ 540 2020
+preplace netloc axi_dma_rx_mm2s_introut 1 2 3 880 530 NJ 530 2030J
+preplace netloc axi_dma_tx_s2mm_introut 1 2 3 850 830 NJ 830 2090J
+preplace netloc axi_intc_0_irq 1 3 4 1290 -20 NJ -20 NJ -20 2820
+preplace netloc ps_rst_99M_peripheral_aresetn 1 4 2 2060 570 2520
+preplace netloc usp_rf_data_converter_0_clk_adc2 1 0 7 20 600 460 250 950 180 1260 10 2080 580 2440 880 2840
+preplace netloc usp_rf_data_converter_0_irq 1 4 3 2110 760 NJ 760 2850
+preplace netloc xlconcat_0_dout 1 5 1 2480 380n
+preplace netloc xlconstant_0_dout 1 6 1 2860J 1140n
+preplace netloc zynq_ultra_ps_e_0_emio_gpio_o 1 1 4 520 0 NJ 0 NJ 0 2010
+preplace netloc zynq_ultra_ps_e_0_pl_clk0 1 3 3 1280 20 2100 530 2510
+preplace netloc zynq_ultra_ps_e_0_pl_resetn0 1 0 5 30 840 390J 880 NJ 880 1260 880 2010
+preplace netloc S00_AXI_1 1 4 1 2110 80n
+preplace netloc TX_loop_M00_AXIS 1 1 2 530 600 850
+preplace netloc adc2_clk_1 1 0 6 NJ 800 420J 1010 NJ 1010 NJ 1010 NJ 1010 NJ
+preplace netloc axi_dma_rx_M_AXI_MM2S 1 2 1 860 80n
+preplace netloc axi_dma_tx_M_AXI_S2MM 1 2 1 960 380n
+preplace netloc axi_interconnect_2_M00_AXI 1 5 1 2540 260n
+preplace netloc axi_interconnect_2_M01_AXI 1 1 5 470 -40 NJ -40 NJ -40 NJ -40 2420
+preplace netloc axi_interconnect_2_M02_AXI 1 1 5 490 -30 NJ -30 NJ -30 NJ -30 2490
+preplace netloc axi_interconnect_2_M03_AXI 1 5 1 N 320
+preplace netloc axi_interconnect_2_M04_AXI 1 1 5 500 -10 NJ -10 NJ -10 NJ -10 2410
+preplace netloc axis_broadcaster_0_M00_AXIS 1 2 4 870J 310 NJ 310 2070J 550 2530
+preplace netloc axis_broadcaster_0_M01_AXIS 1 2 4 940J 320 NJ 320 2040J 560 2500
+preplace netloc dac0_clk_1 1 0 6 NJ 1030 NJ 1030 NJ 1030 NJ 1030 NJ 1030 NJ
+preplace netloc dac1_clk_1 1 0 6 NJ 850 NJ 850 NJ 850 NJ 850 NJ 850 2480
+preplace netloc smartconnect_0_M00_AXI 1 3 1 1270 80n
+preplace netloc smartconnect_1_M00_AXI 1 3 1 N 100
+preplace netloc sysref_in_1 1 0 6 NJ 890 NJ 890 NJ 890 NJ 890 NJ 890 2450J
+preplace netloc usp_rf_data_converter_0_m20_axis 1 1 6 510 860 NJ 860 NJ 860 NJ 860 NJ 860 2830
+preplace netloc usp_rf_data_converter_0_m21_axis 1 1 6 530 900 NJ 900 NJ 900 NJ 900 2490J 890 2820
+preplace netloc usp_rf_data_converter_0_vout00 1 6 1 N 1070
+preplace netloc usp_rf_data_converter_0_vout10 1 6 1 2860 890n
+preplace netloc vin2_01_1 1 0 6 NJ 870 NJ 870 NJ 870 NJ 870 NJ 870 2460J
+levelinfo -pg 1 -10 210 690 1110 1650 2260 2680 2890
+pagesize -pg 1 -db -bbox -sgen -130 -120 3130 1410
+"
+}
+{
+   "da_axi4_cnt":"1",
+   "da_clkrst_cnt":"6",
+   "da_rf_converter_usp_cnt":"2",
+   "da_zynq_ultra_ps_e_cnt":"1"
+}
