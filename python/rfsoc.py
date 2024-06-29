@@ -9,7 +9,7 @@ import time
 
 
 class rfsoc_2x2(object):
-    def __init__(self, lmkx_freq=None, n_samples=1024, dac_ads_ids=None):
+    def __init__(self, lmkx_freq=None, n_samples=1024, dac_adc_ids=None):
 
         self.n_samples = n_samples
 
@@ -20,10 +20,10 @@ class rfsoc_2x2(object):
         else:
             self.lmkx_freq = lmkx_freq
 
-        if dac_ads_ids is None:
+        if dac_adc_ids is None:
             self.dac_adc_ids = {'dac_tile_id': 1, 'dac_block_id': 0, 'adc_tile_id': 2, 'adc_block_id': 0}
         else:
-            self.dac_ads_ids = dac_ads_ids
+            self.dac_adc_ids = dac_adc_ids
 
         self.dac_tile_id = self.dac_adc_ids['dac_tile_id']
         self.dac_block_id = self.dac_adc_ids['dac_block_id']
@@ -39,6 +39,7 @@ class rfsoc_2x2(object):
         self.txtd = None
         self.rxtd = None
 
+        print("rfsoc_2x2 object initialization done")
 
     def load_bit_file(self, bit_file_path, verbose=False):
 
@@ -66,8 +67,11 @@ class rfsoc_2x2(object):
         self.gpio_dic['adc_enable'] = GPIO(GPIO.get_gpio_pin(3), 'out')
         self.gpio_dic['dac_reset'] = GPIO(GPIO.get_gpio_pin(4), 'out')
 
+        self.gpio_dic['dac_mux_sel'].write(0)
+        self.gpio_dic['dac_enable'].write(0)
+        self.gpio_dic['dac_reset'].write(0)
         self.gpio_dic['adc_enable'].write(0)
-        self.gpio_dic['adc_reset'].write(1)
+        self.gpio_dic['adc_reset'].write(0)
 
         print("PS-PL GPIOs initialization done")
 
@@ -97,7 +101,6 @@ class rfsoc_2x2(object):
 
         print("DAC Mixer Settings done")
 
-
     def adc_init(self, mix_freq_mhz, mix_phase_off, DynamicPLLConfig=None):
         if DynamicPLLConfig is None:
             PLLConfig = (0, 122.88, 3932.16)
@@ -122,7 +125,6 @@ class rfsoc_2x2(object):
 
         print("ADC Mixer Settings done")
 
-
     def dma_init(self):
 
         self.dma_tx = self.ol.TX_loop.axi_dma_tx.sendchannel
@@ -131,20 +133,21 @@ class rfsoc_2x2(object):
         self.dma_rx = self.ol.RX_Logic.axi_dma_rx.recvchannel
         print("RX DMA setup done")
 
-
     def load_data_to_tx_buffer(self, txtd):
         self.txtd = txtd
-        self.txtd *= (2 ** (self.dac_bits+1) - 1)
+        self.txtd *= (2 ** (self.dac_bits + 1) - 1)
         self.dac_tx_buffer[::2] = np.real(self.txtd)
         self.dac_tx_buffer[1::2] = np.imag(self.txtd)
 
+        print("Loading txtd data to DAC TX buffer done")
 
     def load_data_from_rx_buffer(self):
-        rx_data = np.array(self.adc_rx_buffer).astype(np.int16) / (2 ** (self.adc_bits+1) - 1)
+        rx_data = np.array(self.adc_rx_buffer).astype(np.int16) / (2 ** (self.adc_bits + 1) - 1)
         n_samples = np.shape(rx_data)[0]
         self.rxtd = [0 + 1j * 0] * n_samples
         self.rxtd = rx_data[::2] + 1j * rx_data[1::2]
 
+        print("Loading rxtd data from ADC RX buffer done")
 
     def send_frame(self):
         self.gpio_dic['dac_mux_sel'].write(0)
@@ -159,7 +162,6 @@ class rfsoc_2x2(object):
 
         print("Frame sent via DAC")
 
-
     def recv_frame_one(self):
 
         self.gpio_dic['adc_enable'].write(0)
@@ -173,4 +175,6 @@ class rfsoc_2x2(object):
 
         self.gpio_dic['adc_enable'].write(0)
         self.gpio_dic['adc_reset'].write(0)
+
+        print("Frame received from ADC")
 
