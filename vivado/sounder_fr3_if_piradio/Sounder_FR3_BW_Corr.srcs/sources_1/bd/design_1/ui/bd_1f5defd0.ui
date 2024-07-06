@@ -1,0 +1,68 @@
+{
+   "ActiveEmotionalView":"Default View",
+   "Default View_ScaleFactor":"0.425636",
+   "Default View_TopLeft":"249,-174",
+   "ExpandedHierarchyInLayout":"",
+   "guistr":"# # String gsaved with Nlview 7.5.8 2022-09-21 7111 VDI=41 GEI=38 GUI=JA:10.0 TLS
+#  -string -flagsOSRD
+preplace port sysref_in -pg 1 -lvl 0 -x -30 -y 730 -defaultsOSRD
+preplace port adc2_clk -pg 1 -lvl 0 -x -30 -y 600 -defaultsOSRD
+preplace port vin2_01 -pg 1 -lvl 0 -x -30 -y 1000 -defaultsOSRD
+preplace port dac1_clk -pg 1 -lvl 0 -x -30 -y 710 -defaultsOSRD
+preplace port vout10 -pg 1 -lvl 7 -x 2880 -y 790 -defaultsOSRD
+preplace portBus lmk_rst -pg 1 -lvl 7 -x 2880 -y 1070 -defaultsOSRD
+preplace inst zynq_ultra_ps_e_0 -pg 1 -lvl 4 -x 1660 -y 590 -defaultsOSRD
+preplace inst usp_rf_data_converter_0 -pg 1 -lvl 6 -x 2680 -y 830 -defaultsOSRD
+preplace inst axi_interconnect_2 -pg 1 -lvl 5 -x 2290 -y 210 -defaultsOSRD
+preplace inst ps_rst_99M -pg 1 -lvl 4 -x 1660 -y 130 -defaultsOSRD
+preplace inst RFDC_dac -pg 1 -lvl 1 -x 210 -y 1100 -defaultsOSRD
+preplace inst axi_intc_0 -pg 1 -lvl 6 -x 2680 -y 270 -defaultsOSRD
+preplace inst xlconcat_0 -pg 1 -lvl 5 -x 2290 -y 890 -defaultsOSRD
+preplace inst smartconnect_0 -pg 1 -lvl 3 -x 1030 -y 680 -defaultsOSRD
+preplace inst RFDC_adc -pg 1 -lvl 1 -x 210 -y 890 -defaultsOSRD
+preplace inst smartconnect_1 -pg 1 -lvl 3 -x 1030 -y 440 -defaultsOSRD
+preplace inst TX_loop -pg 1 -lvl 2 -x 620 -y 1090 -defaultsOSRD
+preplace inst RX_Logic -pg 1 -lvl 2 -x 620 -y 860 -defaultsOSRD
+preplace inst xlconstant_0 -pg 1 -lvl 6 -x 2680 -y 1070 -defaultsOSRD
+preplace netloc RFDC_adc_peripheral_aresetn 1 1 5 390 660 820 820 1300J 770 2110J 770 2470
+preplace netloc RFDC_rst_peripheral_aresetn 1 1 5 410 690 890J 780 NJ 780 2080 780 2440
+preplace netloc aclk_1 1 0 7 30 790 420 670 890 600 1240 460 2020 600 2480J 630 2830
+preplace netloc axi_dma_rx_mm2s_introut 1 2 3 870J 870 NJ 870 NJ
+preplace netloc axi_dma_tx_s2mm_introut 1 2 3 770 890 NJ 890 NJ
+preplace netloc axi_intc_0_irq 1 3 4 1300 720 2070J 620 NJ 620 2820
+preplace netloc ps_rst_99M_peripheral_aresetn 1 4 2 2090 420 2530
+preplace netloc usp_rf_data_converter_0_clk_adc2 1 0 7 30 1000 400 440 820 350 1280 350 2100 460 2460 1000 2820
+preplace netloc usp_rf_data_converter_0_irq 1 4 3 2140 640 NJ 640 2850
+preplace netloc xlconcat_0_dout 1 5 1 2500 300n
+preplace netloc xlconstant_0_dout 1 6 1 N 1070
+preplace netloc zynq_ultra_ps_e_0_emio_gpio_o 1 1 4 430 700 780J 840 NJ 840 2030
+preplace netloc zynq_ultra_ps_e_0_pl_clk0 1 3 3 1300 30 2060 610 2520
+preplace netloc zynq_ultra_ps_e_0_pl_resetn0 1 0 5 20 680 NJ 680 860J 830 1270 730 2020
+preplace netloc S00_AXI_1 1 4 1 2070 60n
+preplace netloc TX_loop_M00_AXIS 1 2 4 840J 860 1290J 740 NJ 740 NJ
+preplace netloc adc2_clk_1 1 0 6 -10J 360 NJ 360 NJ 360 1290J 450 NJ 450 2510J
+preplace netloc axi_dma_rx_M_AXI_MM2S 1 2 1 790 420n
+preplace netloc axi_dma_tx_M_AXI_S2MM 1 2 1 830 660n
+preplace netloc axi_interconnect_2_M00_AXI 1 5 1 2540 180n
+preplace netloc axi_interconnect_2_M01_AXI 1 1 5 440 -10 NJ -10 NJ -10 NJ -10 2440
+preplace netloc axi_interconnect_2_M02_AXI 1 1 5 450 0 NJ 0 NJ 0 NJ 0 2520
+preplace netloc axi_interconnect_2_M03_AXI 1 5 1 N 240
+preplace netloc dac1_clk_1 1 0 6 NJ 710 NJ 710 880J 790 NJ 790 NJ 790 2510J
+preplace netloc smartconnect_0_M00_AXI 1 3 1 1250J 520n
+preplace netloc smartconnect_1_M00_AXI 1 3 1 1260 440n
+preplace netloc sysref_in_1 1 0 6 NJ 730 NJ 730 770J 810 NJ 810 NJ 810 2490J
+preplace netloc usp_rf_data_converter_0_m20_axis 1 1 6 460 740 870J 760 NJ 760 2130J 660 NJ 660 2820
+preplace netloc usp_rf_data_converter_0_m21_axis 1 1 6 470 750 840J 770 1280J 750 2120J 650 NJ 650 2840
+preplace netloc usp_rf_data_converter_0_vout10 1 6 1 2860J 790n
+preplace netloc vin2_01_1 1 0 6 -10J 720 NJ 720 850J 800 NJ 800 NJ 800 NJ
+levelinfo -pg 1 -30 210 620 1030 1660 2290 2680 2880
+pagesize -pg 1 -db -bbox -sgen -190 -20 3020 1250
+"
+}
+{
+   "da_axi4_cnt":"1",
+   "da_board_cnt":"3",
+   "da_clkrst_cnt":"6",
+   "da_rf_converter_usp_cnt":"2",
+   "da_zynq_ultra_ps_e_cnt":"1"
+}
