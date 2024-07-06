@@ -9,7 +9,7 @@ import time
 
 
 class rfsoc_2x2(object):
-    def __init__(self, lmkx_freq=None, n_samples=1024, dac_adc_ids=None):
+    def __init__(self, lmkx_freq=None, dac_adc_fs=None, n_samples=1024, dac_adc_ids=None):
 
         self.n_samples = n_samples
 
@@ -19,6 +19,13 @@ class rfsoc_2x2(object):
             self.lmkx_freq['lmx_freq'] = 3932.16
         else:
             self.lmkx_freq = lmkx_freq
+
+        if dac_adc_fs is None:
+            self.dac_adc_fs = {}
+            self.dac_adc_fs['dac_fs'] = 245.76e6 * 4
+            self.dac_adc_fs['adc_fs'] = 245.76e6 * 4
+        else:
+            self.dac_adc_fs = dac_adc_fs
 
         if dac_adc_ids is None:
             self.dac_adc_ids = {'dac_tile_id': 1, 'dac_block_id': 0, 'adc_tile_id': 2, 'adc_block_id': 0}
@@ -33,8 +40,10 @@ class rfsoc_2x2(object):
         self.adc_bits = 12
         self.dac_bits = 14
 
-        self.adc_samp_rate_mhz = 4096
-        self.dac_samp_rate_mhz = 6554
+        self.adc_max_fs_mhz = 4096
+        self.dac_max_fs_mhz = 6554
+        self.adc_fs = 6554
+        self.dac_max_fs_mhz = 6554
 
         self.txtd = None
         self.rxtd = None
@@ -42,6 +51,8 @@ class rfsoc_2x2(object):
         print("rfsoc_2x2 object initialization done")
 
     def load_bit_file(self, bit_file_path, verbose=False):
+
+        print("Starting to load the bit-file")
 
         self.ol = Overlay(bit_file_path)
         if verbose:
@@ -116,7 +127,7 @@ class rfsoc_2x2(object):
         self.adc_block.MixerSettings['Freq'] = mix_freq_mhz
         self.adc_block.MixerSettings['PhaseOffset'] = mix_phase_off
         # self.adc_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_IMMEDIATE
-        self.adc_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_TILE
+        # self.adc_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_TILE
         self.adc_block.UpdateEvent(xrfdc.EVNT_SRC_TILE)
         self.adc_block.MixerSettings['Freq'] = mix_freq_mhz
         self.adc_tile.SetupFIFO(True)
@@ -156,10 +167,11 @@ class rfsoc_2x2(object):
         time.sleep(0.5)
         self.gpio_dic['dac_reset'].write(1)  # Reset OFF
         self.dma_tx.transfer(self.dac_tx_buffer)
-        self.dma_tx.wait()
+        # self.dma_tx.wait()
         self.gpio_dic['dac_mux_sel'].write(1)
         self.gpio_dic['dac_enable'].write(1)
 
+        self.dma_tx.wait()
         print("Frame sent via DAC")
 
     def recv_frame_one(self):
