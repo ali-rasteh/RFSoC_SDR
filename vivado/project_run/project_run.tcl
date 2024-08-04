@@ -21,6 +21,16 @@ set version [gets $version_fd]
 close $version_fd
 puts "Version read from the version file: $version"
 
+set version_list [split $version "-"]
+set last_index [expr {[llength $version_list] - 1}]
+set version_list [lreplace $version_list $last_index $last_index [expr {[lindex $version_list $last_index] + 1}]]
+set new_version [join $version_list "-"]
+set version_fd [open $version_file w]
+puts $version_fd $new_version
+close $version_fd
+puts "New version written to the version file: $new_version"
+
+
 set output_filename "${cur_project_name}_${version}_${current_date}"
 
 # Create a project - Modify accordingly if you are using an existing project
@@ -68,16 +78,6 @@ if {[file exists $hwh_file_path]} {
 } else {
     puts "Error: The original hwh file does not exist"
 }
-
-
-set version_list [split $version "-"]
-set last_index [expr {[llength $version_list] - 1}]
-set version_list [lreplace $version_list $last_index $last_index [expr {[lindex $version_list $last_index] + 1}]]
-set new_version [join $version_list "-"]
-set version_fd [open $version_file w]
-puts $version_fd $new_version
-close $version_fd
-puts "New version written to the version file: $new_version"
 
 
 set builds_file "${builds_path}/builds.txt"

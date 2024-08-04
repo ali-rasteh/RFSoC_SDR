@@ -1,5 +1,6 @@
 import numpy as np
 from numpy.fft import fft, fftshift, ifft
+from scipy.signal import firwin, lfilter, freqz
 import matplotlib.pyplot as plt
 import os
 import time
@@ -16,31 +17,43 @@ class signals(object):
 
         return
 
-    def generate_tone(self, f=10e6):
+    def generate_tone(self, f=10e6, sig_mode='tone_2'):
 
-        t = np.linspace(0, self.n_samples * (1/self.fs), self.n_samples)
+        # t = np.linspace(0, self.n_samples * (1/self.fs), self.n_samples)
+        t = np.arange(0, self.n_samples) / self.fs
         wt = np.multiply(2 * np.pi * f, t)
-        tone_td = np.cos(wt) + 1j * np.sin(wt + np.pi / 2)
+
+        if sig_mode=='tone_1':
+            tone_td = np.cos(wt) + 1j * np.sin(wt)
+        elif sig_mode=='tone_2':
+            tone_td = np.cos(wt) + 1j * np.cos(wt)
+            # tone_td = np.cos(wt)
+
+        tone_td /= np.max([np.abs(tone_td.real), np.abs(tone_td.imag)])
 
         print("Tone generation done")
 
         return tone_td
 
-    def generate_wideband(self, sc_min=-100, sc_max=100, mode='qam'):
+    def generate_wideband(self, bw=200e6, modulation='qam', sig_mode='wideband'):
+
+        sc_min = int(-(bw/2)*self.nfft/self.fs)
+        sc_max = int((bw/2)*self.nfft/self.fs)
         np.random.seed(self.seed)
-        if mode=='qam':
+        if modulation=='qam':
             sym = (1 + 1j, 1 - 1j, -1 + 1j, -1 - 1j)  # QAM symbols
         else:
             sym = ()
-            # raise ValueError('Invalid signal mode: ' + mode)
+            # raise ValueError('Invalid signal modulation: ' + modulation)
 
         # Create the wideband sequence in frequency-domain
         wb_fd = np.zeros((self.nfft,), dtype='complex')
-        if mode == 'qam':
+        if modulation == 'qam':
             wb_fd[((self.nfft >> 1) + sc_min):((self.nfft >> 1) + sc_max)] = np.random.choice(sym, len(range(sc_min, sc_max)))
         else:
             wb_fd[((self.nfft >> 1) + sc_min):((self.nfft >> 1) + sc_max)] = 1
-        wb_fd[((self.nfft >> 1) - 10):((self.nfft >> 1) + 10)] = 0
+        if sig_mode=='wideband_null':
+            wb_fd[((self.nfft >> 1) - 10):((self.nfft >> 1) + 10)] = 0
 
         wb_fd = fftshift(wb_fd, axes=0)
         # Convert the waveform to time-domain
@@ -112,18 +125,52 @@ class signals(object):
         return sig_1_adj, sig_2_adj, mse, err2sig_ratio
 
 
+    def filter(self, sig, center_freq=0, cutoff=50e6, fil_order=1000, plot=False):
+
+        filter_fir = firwin(fil_order, cutoff / self.fs)
+        t = np.arange(0, self.n_samples) / self.fs
+        om = np.linspace(-np.pi, np.pi, self.n_samples)
+        t_fil = t[:len(filter_fir)]
+        # filter_fir = np.exp(2 * np.pi * 1j * center_freq * t_fil) * filter_fir
+        filter_fir = self.freq_shift(filter_fir, shift=center_freq)
+
+        if plot:
+            plt.figure()
+            w, h = freqz(filter_fir, worN=om)
+            plt.plot(w / np.pi, 20 * np.log10(np.abs(h)), linewidth=1.0)
+            plt.title('Frequency response of the filter')
+            plt.xlabel(r'Normalized Frequency ($\times \pi$ rad/sample)')
+            plt.ylabel('Magnitude (dB)')
+            plt.show()
+
+        sig_fil = lfilter(filter_fir, 1, sig)
+
+        return sig_fil
+
+
+    def freq_shift(self, sig, shift=0):
+
+        t = np.arange(0, len(sig)) / self.fs
+        sig_shift = np.exp(2 * np.pi * 1j * shift * t) * sig
+
+        return sig_shift
+
+
     def channel_estimate(self, txtd, rxtd):
         txfd = np.fft.fft(txtd)
+        txfd += 1e-6
         rxfd = np.fft.fft(rxtd)
         H_est = rxfd * np.conj(txfd)
+        H_est = H_est / (np.abs(txfd)**2)
+        # H_est = rxfd / txfd
         h_est = ifft(H_est)
 
         t = np.arange(0, np.shape(h_est)[0])
         sig = np.abs(h_est) / np.max(np.abs(h_est))
         title = 'Channel response in the time domain'
         xlabel = 'Sample'
-        ylabel = 'Normalized Magnitude (dB)'
-        self.plot_signal(t, sig, scale='dB', title=title, xlabel=xlabel, ylabel=ylabel)
+        ylabel = 'Normalized Magnitude'
+        self.plot_signal(t, sig, scale='linear', title=title, xlabel=xlabel, ylabel=ylabel)
 
         return h_est
 
@@ -144,4 +191,5 @@ class signals(object):
         plt.title(title)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
+        plt.grid()
         plt.show()
