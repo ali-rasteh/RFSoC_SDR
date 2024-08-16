@@ -1,0 +1,38 @@
+{
+   "ActiveEmotionalView":"Default View",
+   "Default View_ScaleFactor":"0.777547",
+   "Default View_TopLeft":"-186,-107",
+   "ExpandedHierarchyInLayout":"",
+   "guistr":"# # String gsaved with Nlview 7.0r4  2019-12-20 bk=1.5203 VDI=41 GEI=36 GUI=JA:10.0 TLS
+#  -string -flagsOSRD
+preplace port port-id_dac_clk -pg 1 -lvl 0 -x 0 -y 190 -defaultsOSRD
+preplace port port-id_ddr4_clk -pg 1 -lvl 0 -x 0 -y 330 -defaultsOSRD
+preplace portBus Din -pg 1 -lvl 0 -x 0 -y 130 -defaultsOSRD
+preplace portBus dac_resetn -pg 1 -lvl 0 -x 0 -y 70 -defaultsOSRD
+preplace portBus dac_sresetn -pg 1 -lvl 5 -x 1080 -y 60 -defaultsOSRD
+preplace portBus ddr4_resetn_1 -pg 1 -lvl 0 -x 0 -y 390 -defaultsOSRD
+preplace portBus ddr4_sresetn -pg 1 -lvl 5 -x 1080 -y 380 -defaultsOSRD
+preplace inst dac_sresetn -pg 1 -lvl 1 -x 130 -y 130 -defaultsOSRD
+preplace inst sync_0 -pg 1 -lvl 3 -x 660 -y 310 -defaultsOSRD
+preplace inst sync_1 -pg 1 -lvl 3 -x 660 -y 170 -defaultsOSRD
+preplace inst util_vector_logic_0 -pg 1 -lvl 4 -x 910 -y 380 -defaultsOSRD
+preplace inst util_vector_logic_1 -pg 1 -lvl 4 -x 910 -y 60 -defaultsOSRD
+preplace inst util_vector_logic_2 -pg 1 -lvl 2 -x 400 -y 130 -defaultsOSRD
+preplace inst xlconstant_0 -pg 1 -lvl 2 -x 400 -y 250 -defaultsOSRD
+preplace netloc Din_1 1 0 1 NJ 130
+preplace netloc dac_resetn_1 1 0 4 NJ 70 NJ 70 NJ 70 NJ
+preplace netloc dac_sresetn_Dout 1 1 1 NJ 130
+preplace netloc ddr4_0_c0_ddr4_ui_clk 1 0 3 NJ 330 NJ 330 NJ
+preplace netloc ddr4_resetn_1_1 1 0 4 NJ 390 NJ 390 NJ 390 NJ
+preplace netloc m_axis_aclk_1 1 0 3 NJ 190 NJ 190 NJ
+preplace netloc sync_0_dest_out 1 3 1 760 50n
+preplace netloc sync_2_dest_out 1 3 1 760 310n
+preplace netloc util_vector_logic_0_Res 1 4 1 NJ 380
+preplace netloc util_vector_logic_1_Res 1 4 1 NJ 60
+preplace netloc util_vector_logic_2_Res 1 2 1 550 130n
+preplace netloc xlconstant_0_dout 1 2 1 560 170n
+levelinfo -pg 1 0 130 400 660 910 1080
+pagesize -pg 1 -db -bbox -sgen -190 -10 1260 450
+"
+}
+

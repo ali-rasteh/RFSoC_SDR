@@ -1,12 +1,12 @@
-set project_name "rfsoc_fr3_piradio"
-set top_name "rfsoc_fr3_piradio"
-set design_name "design_rfsoc_fr3_piradio"
+set project_name "sounder_rfsoc"
+set top_name "sounder_rfsoc"
+set design_name "design_sounder_rfsoc"
 set version_file "/home/sharan/shared/rfsoc_fr3_piradio_version.txt"
 
 
 set cur_project_name [current_project]
 set cur_top_name [get_property top [current_fileset]]
-set cur_design_name [lindex [get_bd_designs] 2]
+set cur_design_name [lindex [get_bd_designs] end]
 set cur_proj_dir [get_property DIRECTORY [current_project]]
 set current_date [clock format [clock seconds] -format {%Y%m%d-%H%M%S}]
 
@@ -48,6 +48,7 @@ reset_run synth_1
 launch_runs impl_1 -to_step write_bitstream -jobs 6
 wait_on_run impl_1
 
+# archive_project D:/temp/mobile-ch1_4x2_v1/project.xpr.zip -temp_dir C:/Users/alira/AppData/Roaming/Xilinx/Vivado/.Xil/Vivado-62704-Ali_Laptop -force -exclude_run_results -include_local_ip_cache -include_config_settings
 
 set builds_path "${cur_proj_dir}/builds"
 if {[file exists $builds_path] && [file isdirectory $builds_path]} {
@@ -62,6 +63,8 @@ if {[file exists $builds_path] && [file isdirectory $builds_path]} {
 write_hw_platform -fixed -include_bit -force -file "${builds_path}/${output_filename}.xsa"
 write_bd_tcl -force "${cur_proj_dir}/create_bd.tcl"
 write_project_tcl -force "${cur_proj_dir}/create_project.tcl"
+regenerate_bd_layout
+write_bd_layout -format pdf -orientation portrait -force "${cur_proj_dir}/schematic_top.pdf"
 
 
 set bit_file_path "${cur_proj_dir}/${cur_project_name}.runs/impl_1/${cur_top_name}.bit"

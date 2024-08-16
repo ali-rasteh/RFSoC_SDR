@@ -1,10 +1,10 @@
-sudo route add default gw 192.168.2.1 dev eth0
-#sudo route add default gw 192.168.3.100 dev usb0
 sudo sysctl -w net.ipv4.ip_forward=1
 sudo echo 1 > /proc/sys/net/ipv4/ip_forward
-sudo resolvectl dns eth0 8.8.8.8
-#sudo resolvectl dns usb0 8.8.8.8
+# sudo route add default gw 192.168.2.1 dev eth0
+# sudo resolvectl dns eth0 8.8.8.8
+sudo route add default gw 192.168.3.100 dev usb0
+sudo resolvectl dns usb0 8.8.8.8
 
 
 #Other:
-
+#cat /proc/sys/net/ipv4/ip_forward

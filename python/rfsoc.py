@@ -106,6 +106,7 @@ class rfsoc_2x2(object):
         self.dac_block = self.dac_tile.blocks[self.dac_block_id]
         self.dac_tile.Reset()
         print("DAC init and reset done")
+        # print(self.ol.usp_rf_data_converter_0.dac_tiles[self.dac_tile_id].blocks[self.dac_block_id].MixerSettings)
 
         if do_mixer_settings:
             self.dac_block.MixerSettings['Freq'] = mix_freq/1e6
@@ -135,14 +136,30 @@ class rfsoc_2x2(object):
         self.adc_block = self.adc_tile.blocks[self.adc_block_id]
         self.adc_tile.Reset()
         print("ADC init and reset done")
+        # print(self.ol.usp_rf_data_converter_0.adc_tiles[self.adc_tile_id].blocks[self.adc_block_id].MixerSettings)
+        # attributes = dir(self.ol.usp_rf_data_converter_0.adc_tiles[self.adc_tile_id].blocks[self.adc_block_id].MixerSettings)
+        # for name in attributes:
+        #     print(name)
 
         if do_mixer_settings:
-            self.adc_block.MixerSettings['Freq'] = mix_freq/1e6
+            # self.adc_block.NyquistZone = 1
+            # self.adc_block.MixerSettings = {
+            #     'CoarseMixFreq'  : xrfdc.COARSE_MIX_BYPASS,
+            #     'EventSource'    : xrfdc.EVNT_SRC_TILE,
+            #     'FineMixerScale' : xrfdc.MIXER_SCALE_1P0,
+            #     'Freq'           : -1*mix_freq/1e6,
+            #     'MixerMode'      : xrfdc.MIXER_MODE_R2C,
+            #     'MixerType'      : xrfdc.MIXER_TYPE_FINE,
+            #     'PhaseOffset'    : 0.0
+            # }
+
+            self.adc_block.MixerSettings['Freq'] = -1*mix_freq/1e6
             self.adc_block.MixerSettings['PhaseOffset'] = mix_phase_off
             # self.adc_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_IMMEDIATE
             # self.adc_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_TILE
+            # self.adc_block.UpdateEvent(xrfdc.EVENT_MIXER)
             self.adc_block.UpdateEvent(xrfdc.EVNT_SRC_TILE)
-            self.adc_block.MixerSettings['Freq'] = mix_freq/1e6
+            self.adc_block.MixerSettings['Freq'] = -1*mix_freq/1e6
         
         self.adc_tile.SetupFIFO(True)
         for toggleValue in range(0, 1):

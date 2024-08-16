@@ -191,5 +191,6 @@ class signals(object):
         plt.title(title)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
+        plt.minorticks_on()
         plt.grid()
         plt.show()

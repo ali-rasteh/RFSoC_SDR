@@ -1,0 +1,46 @@
+{
+   "ActiveEmotionalView":"Default View",
+   "Default View_ScaleFactor":"2.27895",
+   "Default View_TopLeft":"-167,-17",
+   "ExpandedHierarchyInLayout":"",
+   "guistr":"# # String gsaved with Nlview 7.0r6  2020-01-29 bk=1.5227 VDI=41 GEI=36 GUI=JA:10.0 non-TLS
+#  -string -flagsOSRD
+preplace port DAC0_AXIS -pg 1 -lvl 3 -x 690 -y 90 -defaultsOSRD
+preplace port PL_MEM_AXI -pg 1 -lvl 3 -x 690 -y 330 -defaultsOSRD
+preplace port PS_MEM_AXI -pg 1 -lvl 3 -x 690 -y 300 -defaultsOSRD
+preplace port S_AXI_LITE -pg 1 -lvl 0 -x -30 -y 270 -defaultsOSRD
+preplace port port-id_dac_clk -pg 1 -lvl 0 -x -30 -y 50 -defaultsOSRD
+preplace port port-id_dac_control -pg 1 -lvl 0 -x -30 -y 230 -defaultsOSRD
+preplace port port-id_dac_resetn -pg 1 -lvl 0 -x -30 -y 140 -defaultsOSRD
+preplace port port-id_ddr4_clk -pg 1 -lvl 0 -x -30 -y 330 -defaultsOSRD
+preplace port port-id_ddr4_resetn_1 -pg 1 -lvl 0 -x -30 -y 180 -defaultsOSRD
+preplace port port-id_mm2s_introut -pg 1 -lvl 3 -x 690 -y 400 -defaultsOSRD
+preplace port port-id_ps8_clk -pg 1 -lvl 0 -x -30 -y 300 -defaultsOSRD
+preplace port port-id_ps8_resetn -pg 1 -lvl 0 -x -30 -y 360 -defaultsOSRD
+preplace portBus Din -pg 1 -lvl 0 -x -30 -y 20 -defaultsOSRD
+preplace inst mem -pg 1 -lvl 2 -x 540 -y 110 -defaultsOSRD
+preplace inst soft_reset -pg 1 -lvl 1 -x 190 -y 140 -defaultsOSRD
+preplace inst axi_dma_0 -pg 1 -lvl 1 -x 190 -y 330 -defaultsOSRD
+preplace inst smartconnect_0 -pg 1 -lvl 2 -x 540 -y 320 -defaultsOSRD
+preplace netloc Din_1 1 0 2 0 0 410
+preplace netloc Op2_1 1 0 2 -10J 10 400J
+preplace netloc dac_resetn_1 1 0 1 NJ 140
+preplace netloc ddr4_0_c0_ddr4_ui_clk 1 0 2 10 20 380
+preplace netloc dma_dac_0_mm2s_introut 1 1 2 390J 400 NJ
+preplace netloc m_axis_aclk_1 1 0 2 30 30 390
+preplace netloc rst_ddr4_200M_peripheral_aresetn 1 0 2 20 40 350J
+preplace netloc rst_ps8_100M_peripheral_aresetn 1 0 1 NJ 360
+preplace netloc util_vector_logic_0_Res 1 1 1 N 130
+preplace netloc util_vector_logic_1_Res 1 1 1 370 150n
+preplace netloc zynq_ultra_ps_e_0_pl_clk0 1 0 1 -10J 300n
+preplace netloc Conn1 1 2 1 670J 90n
+preplace netloc axi_dma_0_M_AXI_MM2S 1 1 1 N 300
+preplace netloc dma_dac_0_M_AXIS_MM2S 1 1 1 360 50n
+preplace netloc ps8_axi_periph_M00_AXI 1 0 1 0J 270n
+preplace netloc smartconnect_0_M00_AXI 1 2 1 670J 300n
+preplace netloc smartconnect_0_M01_AXI 1 2 1 NJ 330
+levelinfo -pg 1 -30 190 540 690
+pagesize -pg 1 -db -bbox -sgen -170 -10 830 430
+"
+}
+0
