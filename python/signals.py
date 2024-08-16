@@ -7,11 +7,12 @@ import time
 
 
 class signals(object):
-    def __init__(self, seed=100, fs= 245.76e6 * 4, n_samples=1024, nfft=1024):
+    def __init__(self, seed=100, fs= 245.76e6 * 4, n_samples=1024, nfft=1024, wb_null_sc=10):
         self.seed = seed
         self.n_samples = n_samples
         self.nfft = nfft
         self.fs = fs
+        self.wb_null_sc = wb_null_sc
 
         print("signals object initialization done")
 
@@ -19,16 +20,28 @@ class signals(object):
 
     def generate_tone(self, f=10e6, sig_mode='tone_2'):
 
-        # t = np.linspace(0, self.n_samples * (1/self.fs), self.n_samples)
-        t = np.arange(0, self.n_samples) / self.fs
-        wt = np.multiply(2 * np.pi * f, t)
+        # # t = np.linspace(0, self.n_samples * (1/self.fs), self.n_samples)
+        # t = np.arange(0, self.n_samples) / self.fs
+        # wt = np.multiply(2 * np.pi * f, t)
+        # if sig_mode=='tone_1':
+        #     tone_td = np.cos(wt) + 1j * np.sin(wt)
+        # elif sig_mode=='tone_2':
+        #     tone_td = np.cos(wt) + 1j * np.cos(wt)
+        #     # tone_td = np.cos(wt)
 
+        sc = int((f)*self.nfft/self.fs)
+        tone_fd = np.zeros((self.nfft,), dtype='complex')
         if sig_mode=='tone_1':
-            tone_td = np.cos(wt) + 1j * np.sin(wt)
+            tone_fd[(self.nfft >> 1) + sc] = 1
         elif sig_mode=='tone_2':
-            tone_td = np.cos(wt) + 1j * np.cos(wt)
-            # tone_td = np.cos(wt)
+            tone_fd[(self.nfft >> 1) + sc] = 1
+            tone_fd[(self.nfft >> 1) - sc] = 1
+        tone_fd = np.fft.fftshift(tone_fd, axes=0)
 
+        # Convert the waveform to time-domain
+        tone_td = np.fft.ifft(tone_fd, axis=0)
+
+        # Normalize the signal
         tone_td /= np.max([np.abs(tone_td.real), np.abs(tone_td.imag)])
 
         print("Tone generation done")
@@ -53,7 +66,7 @@ class signals(object):
         else:
             wb_fd[((self.nfft >> 1) + sc_min):((self.nfft >> 1) + sc_max)] = 1
         if sig_mode=='wideband_null':
-            wb_fd[((self.nfft >> 1) - 10):((self.nfft >> 1) + 10)] = 0
+            wb_fd[((self.nfft >> 1) - self.wb_null_sc):((self.nfft >> 1) + self.wb_null_sc)] = 0
 
         wb_fd = fftshift(wb_fd, axes=0)
         # Convert the waveform to time-domain

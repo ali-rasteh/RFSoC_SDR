@@ -3565,7 +3565,7 @@
             "value": "1"
           },
           "ADC_NCO_Freq20": {
-            "value": "-0.5"
+            "value": "-1.0"
           },
           "ADC_OBS22": {
             "value": "false"
@@ -3637,7 +3637,7 @@
             "value": "1"
           },
           "DAC_NCO_Freq20": {
-            "value": "0.5"
+            "value": "1.0"
           },
           "DAC_Slice00_Enable": {
             "value": "true"

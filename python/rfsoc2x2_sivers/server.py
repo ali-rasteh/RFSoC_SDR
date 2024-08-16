@@ -165,8 +165,8 @@ class objNetworkInterface():
             self.rfdc.mts_dac_config.SysRef_Enable = 1
             self.rfdc.mts_dac()
         else:
-            rfdc.mts_dac_config.Tiles = 0x0
-            rfdc.mts_dac_config.SysRef_Enable = 0
+            self.rfdc.mts_dac_config.Tiles = 0x0
+            self.rfdc.mts_dac_config.SysRef_Enable = 0
 
         if adcTiles > 0:
             self.rfdc.mts_adc_config.Tiles = adcTiles

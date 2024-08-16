@@ -1354,7 +1354,7 @@ proc create_root_design { parentCell } {
    CONFIG.ADC_Mixer_Type21 {2} \
    CONFIG.ADC_Mixer_Type22 {1} \
    CONFIG.ADC_Mixer_Type23 {1} \
-   CONFIG.ADC_NCO_Freq20 {-0.5} \
+   CONFIG.ADC_NCO_Freq20 {-1.0} \
    CONFIG.ADC_OBS22 {false} \
    CONFIG.ADC_RESERVED_1_00 {false} \
    CONFIG.ADC_RESERVED_1_02 {false} \
@@ -1390,7 +1390,7 @@ proc create_root_design { parentCell } {
    CONFIG.DAC_Mixer_Type02 {1} \
    CONFIG.DAC_Mixer_Type20 {2} \
    CONFIG.DAC_Mixer_Type22 {1} \
-   CONFIG.DAC_NCO_Freq20 {0.5} \
+   CONFIG.DAC_NCO_Freq20 {1.0} \
    CONFIG.DAC_RESERVED_1_00 {false} \
    CONFIG.DAC_RESERVED_1_01 {false} \
    CONFIG.DAC_RESERVED_1_02 {false} \
