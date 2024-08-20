@@ -1,0 +1,1 @@
+scp sharan@192.168.3.100:/home/sharan/ali/sounder_fr3_if_piradio/RFSoC_SDR/python/* /home/xilinx/jupyter_notebooks/ali/sounder_fr3_if_piradio/
