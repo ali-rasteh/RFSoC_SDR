@@ -28,7 +28,7 @@ class signals(object):
         self.t = params.t
         self.om = params.om
 
-        print("signals object initialization done")
+        self.print("signals object initialization done", thr=1)
 
 
     def print(self, text='', thr=0):
@@ -36,6 +36,10 @@ class signals(object):
             print(text)
 
 
+    def to_db(self, sig):
+        return 10 * np.log10(sig)
+    
+    
     def generate_tone(self, f=10e6, sig_mode='tone_2', gen_mode='fft'):
 
         if gen_mode == 'time':
@@ -54,7 +58,7 @@ class signals(object):
             elif sig_mode=='tone_2':
                 tone_fd[(self.nfft >> 1) + sc] = 1
                 tone_fd[(self.nfft >> 1) - sc] = 1
-            tone_fd = np.fft.fftshift(tone_fd, axes=0)
+            tone_fd = fftshift(tone_fd, axes=0)
 
             # Convert the waveform to time-domain
             tone_td = np.fft.ifft(tone_fd, axis=0)
@@ -62,7 +66,7 @@ class signals(object):
         # Normalize the signal
         tone_td /= np.max([np.abs(tone_td.real), np.abs(tone_td.imag)])
 
-        print("Tone generation done")
+        self.print("Tone generation done", thr=2)
 
         return tone_td
 
@@ -92,7 +96,7 @@ class signals(object):
         # Normalize the signal
         wb_td /= np.max([np.abs(wb_td.real), np.abs(wb_td.imag)])
 
-        print("Wide-band signal generation done")
+        self.print("Wide-band signal generation done", thr=2)
 
         return wb_td
         
@@ -112,7 +116,7 @@ class signals(object):
         title = 'TX signal spectrum in base-band'
         xlabel = 'Frequency (MHz)'
         ylabel = 'Magnitude (dB)'
-        self.plot_signal(x=self.freq, sigs=txtd_base, mode='fft', scale='dB', title=title, xlabel=xlabel, ylabel=ylabel)
+        self.plot_signal(x=self.freq, sigs=txtd_base, mode='fft', scale='dB', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=4)
 
         if self.mixer_mode=='digital' and self.mix_freq!=0:
             txtd = self.freq_shift(txtd_base, shift=self.mix_freq)
@@ -121,7 +125,7 @@ class signals(object):
             title = 'TX signal spectrum after upconversion'
             xlabel = 'Frequency (MHz)'
             ylabel = 'Magnitude (dB)'
-            self.plot_signal(x=self.freq, sigs=txtd, mode='fft', scale='dB', title=title, xlabel=xlabel, ylabel=ylabel)
+            self.plot_signal(x=self.freq, sigs=txtd, mode='fft', scale='dB', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=4)
         else:
             txtd = txtd_base.copy()
             # txfd = txfd_base.copy()
@@ -166,7 +170,7 @@ class signals(object):
 
         max_idx = np.argmax(np.abs(cross_corr))
         delay = lags[max_idx]
-        # print(f'Time delay between the two signals: {delay} samples')
+        # self.print(f'Time delay between the two signals: {delay} samples', thr=3)
         return delay
 
 
@@ -220,26 +224,26 @@ class signals(object):
 
 
     def channel_estimate(self, txtd, rxtd):
-        txfd = np.fft.fft(txtd)
+        txfd = fft(txtd)
+        rxfd = fft(rxtd)
         txfd += 1e-3
-        rxfd = np.fft.fft(rxtd)
-        H_est = rxfd * np.conj(txfd)
-        H_est = H_est / (np.abs(txfd)**2)
-        # H_est = rxfd / txfd
+        # rxfd = np.roll(rxfd, 1)
+
+        # H_est = rxfd * np.conj(txfd) / (np.abs(txfd)**2)
+        # H_est = rxfd * np.conj(txfd)
+        H_est = rxfd / txfd
+
         h_est = ifft(H_est)
+        h_est = h_est.flatten()
 
         t = np.arange(0, np.shape(h_est)[0])
         sig = np.abs(h_est) / np.max(np.abs(h_est))
         title = 'Channel response in the time domain'
         xlabel = 'Sample'
         ylabel = 'Normalized Magnitude'
-        self.plot_signal(t, sig, scale='linear', title=title, xlabel=xlabel, ylabel=ylabel)
+        self.plot_signal(t, sig, scale='linear', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)
 
         return h_est
-
-
-    def to_db(self, sig):
-        return 10 * np.log10(sig)
 
 
     # plot_signal(self, x, sig, mode='time_IQ', scale='linear', title='Custom Title', xlabel='Time', ylabel='Amplitude', plot_args={'color': 'red', 'linestyle': '--'}, xlim=(0, 10), ylim=(-1, 1), legend=True)
@@ -359,6 +363,6 @@ class signals(object):
         self.print("rxfd_base max freq: {} MHz".format(self.freq[(self.nfft>>1)+np.argmax(rxfd_base[self.nfft>>1:])]), thr=5)
 
 
-        return rxfd_base
-        # return h_est
+        # return rxfd_base
+        return h_est
 

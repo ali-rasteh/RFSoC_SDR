@@ -18,6 +18,7 @@ import matplotlib.animation as animation
 class client(object):
     def __init__(self, params):
         self.mode = params.mode
+        self.verbose_level = params.verbose_level
         self.fc = params.fc
         self.beam_test = params.beam_test
         self.tx_ip = params.tx_ip
@@ -26,40 +27,48 @@ class client(object):
             self.ip = self.tx_ip
         elif self.mode=='client_rx':
             self.ip = self.rx_ip
-        self.TCP_port_cmd = params.TCP_port_cmd
+        self.TCP_port_Cmd = params.TCP_port_Cmd
         self.TCP_port_Data = params.TCP_port_Data
+        self.adc_bits = params.adc_bits
+        self.dac_bits = params.dac_bits
 
-        self.tx_bb_gain = 0x3
-        self.tx_bb_phase = 0x0
-        self.tx_bb_iq_gain = 0x77
-        self.tx_bfrf_gain = 0x7F
-        self.rx_gain_ctrl_bb1 = 0x33
-        self.rx_gain_ctrl_bb2 = 0x00
-        self.rx_gain_ctrl_bb3 = 0x33
-        self.rx_gain_ctrl_bfrf = 0x7F
+        if params.RFFE=='sivers':
+            self.tx_bb_gain = 0x3
+            self.tx_bb_phase = 0x0
+            self.tx_bb_iq_gain = 0x77
+            self.tx_bfrf_gain = 0x7F
+            self.rx_gain_ctrl_bb1 = 0x33
+            self.rx_gain_ctrl_bb2 = 0x00
+            self.rx_gain_ctrl_bb3 = 0x33
+            self.rx_gain_ctrl_bfrf = 0x7F
 
         self.nbytes = 2
         self.nread = params.n_samples
 
         self.radio_control = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
         self.radio_control.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.radio_control.connect((self.ip, self.TCP_port_cmd))
+        self.radio_control.connect((self.ip, self.TCP_port_Cmd))
 
-        radio_data = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
-        radio_data.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        radio_data.connect((self.ip, self.TCP_port_Data))
+        self.radio_data = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+        self.radio_data.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.radio_data.connect((self.ip, self.TCP_port_Data))
+
+
+    def print(self, text='', thr=0):
+        if self.verbose_level>=thr:
+            print(text)
 
     def set_mode(self, mode):
         if mode == 'RXen0_TXen1' or mode == 'RXen1_TXen0' or mode == 'RXen0_TXen0':
             self.radio_control.sendall(b"setModeSiver "+str.encode(str(mode)))
             data = self.radio_control.recv(1024)
-            print(data)
+            self.print(data,thr=5)
             return data
         
     def set_frequency(self, fc):
         self.radio_control.sendall(b"setCarrierFrequency "+str.encode(str(fc)))
         data = self.radio_control.recv(1024)
-        print(data)
+        self.print(data,thr=5)
         return data
 
     def set_tx_gain(self):
@@ -68,7 +77,7 @@ class client(object):
                                                     + str.encode(str(int(self.tx_bb_iq_gain)) + " ") \
                                                     + str.encode(str(int(self.tx_bfrf_gain))))
         data = self.radio_control.recv(1024)
-        print(data)
+        self.print(data,thr=5)
         return data
 
     def set_rx_gain(self):
@@ -77,23 +86,21 @@ class client(object):
                                                     + str.encode(str(int(self.rx_gain_ctrl_bb3)) + " ") \
                                                     + str.encode(str(int(self.rx_gain_ctrl_bfrf))))
         data = self.radio_control.recv(1024)
-        print(data)
+        self.print(data,thr=5)
         return data
 
     def transmit_data(self):
         self.radio_control.sendall(b"transmitSamples")
         data = self.radio_control.recv(1024)
-        print(data)
+        self.print(data,thr=5)
         return data
 
     def receive_data(self, mode='once'):
         if mode=='once':
             nbeams = 1
-        elif mode=='beams':
-            nbeams = len(self.beam_test)
-        if mode=='once':
             self.radio_control.sendall(b"receiveSamplesOnce")
         elif mode=='beams':
+            nbeams = len(self.beam_test)
             self.radio_control.sendall(b"receiveSamples")
         nbytes = nbeams * self.nbytes * self.nread * 2
         buf = bytearray()
@@ -102,6 +109,7 @@ class client(object):
             data = self.radio_data.recv(nbytes)
             buf.extend(data)
         data = np.frombuffer(buf, dtype=np.int16)
+        data = data/(2 ** (self.adc_bits + 1) - 1)
         rxtd = data[:self.nread*nbeams] + 1j*data[self.nread*nbeams:]
         rxtd = rxtd.reshape(nbeams, self.nread)
         return rxtd
@@ -116,8 +124,8 @@ def rfsoc_run(params):
 
     if params.mode=='server':
         rfsoc_inst = rfsoc(params)
+        rfsoc_inst.txtd = txtd
         if params.send_signal:
-            rfsoc_inst.txtd = txtd
             rfsoc_inst.send_frame(txtd)
             time.sleep(0.1)
         if params.recv_signal:
@@ -143,6 +151,9 @@ def rfsoc_run(params):
             client_inst.set_frequency(params.fc)
             client_inst.set_rx_gain()
 
+        rxtd = client_inst.receive_data(mode='once').flatten()
+        h_est = signals_inst.rx_operations(txtd_base, rxtd)
+        
         def update(frame):
             rxtd = client_inst.receive_data(mode='once').flatten()
             h_est = signals_inst.rx_operations(txtd_base, rxtd)
@@ -151,11 +162,12 @@ def rfsoc_run(params):
 
         # Set up the figure and plot
         fig, ax = plt.subplots()
-        # line, = ax.plot(params.t, params.t)
-        line, = ax.plot(params.freq, params.freq)
-
-        # ax.set_ylim(-1.5, 1.5)  # Set the y-axis limits
-        # ax.set_xlim(0, 2*np.pi)  # Set the x-axis limits
+        line, = ax.plot(params.t, h_est)
+        # line, = ax.plot(params.freq, h_est)
+        ax.autoscale()
+        # ax.set_xlim(np.min(params.freq), np.max(params.freq))
+        # ax.set_ylim(np.min(h_est), 1.5*np.max(h_est))
+        # ax.tight_layout()
 
         # Create the animation
         ani = animation.FuncAnimation(fig, update, frames=200, interval=50, blit=True)
@@ -191,8 +203,8 @@ if __name__ == '__main__':
     # parser.add_argument("--mix_phase_off", type=float, default=0.0, help="Mixer's phase offset")
     # parser.add_argument("--sig_path", type=str, default='./txtd.npy', help="Signal path to load")
     # parser.add_argument("--wb_null_sc", type=int, default=10, help="Number of carriers to null in the wideband signal")
-    # parser.add_argument("--TCP_port_cmd", type=int, default=8080, help="Commands TCP port")
-    # parser.add_argument("--TCP_port_data", type=int, default=8081, help="Data TCP port")
+    # parser.add_argument("--TCP_port_Cmd", type=int, default=8080, help="Commands TCP port")
+    # parser.add_argument("--TCP_port_Data", type=int, default=8081, help="Data TCP port")
     # parser.add_argument("--mix_freq", type=float, default=1000e6, help="Mixer carrier frequency")
     # parser.add_argument("--mixer_mode", type=str, default='analog', help="Mixer mode, analog or digital")
     # parser.add_argument("--do_mixer_settings", action="store_true", default=False, help="If true, performs mixer settings")
@@ -233,8 +245,8 @@ if __name__ == '__main__':
         params.mix_phase_off=0.0
         params.sig_path=os.path.join(os.getcwd(), 'txtd.npy')
         params.wb_null_sc=10
-        params.TCP_port_cmd=8080
-        params.TCP_port_data=8081
+        params.TCP_port_Cmd=8080
+        params.TCP_port_Data=8081
         params.lmk_freq_mhz=122.88
         params.lmx_freq_mhz=3932.16
         params.filter_bw=900e6
@@ -243,25 +255,26 @@ if __name__ == '__main__':
         params.RFFE='piradio'
         params.filter_signal=False
 
-
-        params.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-18_20240816-112541.bit')
         params.mix_freq=1000e6
         params.do_mixer_settings=False
         params.do_pll_settings=False
-        params.sig_mode='tone_2'
-        params.sig_gen_mode = 'time'
-        params.wb_bw=900e6
-        params.f_tone=30e6
+
+        params.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-18_20240816-112541.bit')
         params.project='sounder_if_ddr4'
         params.board='rfsoc_4x2'
+        params.mode='client_rx'
         params.run_tcp_server=False
-        params.plot_level=5
-        params.verbose_level=5
-        params.mode='client_tx'
         params.send_signal=True
         params.recv_signal=True
+        params.sig_mode='load'
+        params.sig_gen_mode = 'time'
+        params.wb_bw=800e6
+        params.f_tone=30e6
         params.tx_ip = '192.168.3.1'
         params.rx_ip = '192.168.3.1'
+        params.plot_level=0
+        params.verbose_level=0
+        
 
 
 
@@ -293,6 +306,13 @@ if __name__ == '__main__':
         params.do_pll_settings=False
     if params.board == "rfsoc_4x2":
         params.do_pll_settings=False
+    
+    if params.board=='rfsoc_2x2':
+        params.adc_bits = 12
+        params.dac_bits = 14
+    elif params.board=='rfsoc_4x2':
+        params.adc_bits = 14
+        params.dac_bits = 14
 
 
     rfsoc_run(params)

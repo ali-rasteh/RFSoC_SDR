@@ -4,6 +4,7 @@ from pynq.lib import dma
 import xrfclk
 import xrfdc
 import numpy as np
+from numpy.fft import fft, fftshift, ifft
 import time
 import socket
 try:
@@ -21,8 +22,8 @@ class rfsoc(object):
         self.project = params.project
         self.board = params.board
         self.RFFE = params.RFFE
-        self.TCP_port_cmd = params.TCP_port_cmd
-        self.TCP_port_data = params.TCP_port_data
+        self.TCP_port_Cmd = params.TCP_port_Cmd
+        self.TCP_port_Data = params.TCP_port_Data
         self.lmk_freq_mhz = params.lmk_freq_mhz
         self.lmx_freq_mhz = params.lmx_freq_mhz
         self.dac_fs = params.dac_fs
@@ -35,6 +36,8 @@ class rfsoc(object):
         self.do_mixer_settings = params.do_mixer_settings
         self.do_pll_settings = params.do_pll_settings
         self.run_tcp_server = params.run_tcp_server
+        self.verbose_level = params.verbose_level
+        self.signals_inst = signals(params)
         
         if self.board=='rfsoc_2x2':
             self.adc_bits = 12
@@ -168,52 +171,57 @@ class rfsoc(object):
         if self.run_tcp_server:
             self.init_tcp_server()
 
-        print("rfsoc initialization done")
+        self.print("rfsoc initialization done", thr=1)
+
+
+    def print(self, text='', thr=0):
+        if self.verbose_level>=thr:
+            print(text)
 
 
     def load_bit_file(self, verbose=False):
-        print("Starting to load the bit-file")
+        self.print("Starting to load the bit-file", thr=1)
 
         self.ol = Overlay(self.bit_file_path)
         if verbose:
             self.ol.ip_dict
             # ol?
 
-        print("Bit-file loading done")
+        self.print("Bit-file loading done", thr=1)
 
 
     def init_sivers(self):
-        print("Starting Sivers EVK controller")
+        self.print("Starting Sivers EVK controller", thr=1)
         allDevices=Ftdi.list_devices()
         Ftdi.show_devices()
         strFTDIdesc = str(allDevices[0][0])
         snStr = strFTDIdesc[strFTDIdesc.find('sn=')+4:strFTDIdesc.find('sn=')+14]
         siverEVKAddr = 'ftdi://ftdi:4232:'+ snStr
-        print('siverEVKAddr: {}'.format(siverEVKAddr))            
+        self.print('siverEVKAddr: {}'.format(siverEVKAddr), thr=1)            
         self.siversControllerObj = siversController(siverEVKAddr)
         self.siversControllerObj.init()
-        print("Sivers EVK controller is loaded")
+        self.print("Sivers EVK controller is loaded", thr=1)
 
 
     def init_tcp_server(self):
         ## TCP Server
-        print("Starting TCP server")
+        self.print("Starting TCP server", thr=1)
         self.localIP = "0.0.0.0"
         self.bufferSize = 2**10
         
         ## Command 
         self.TCPServerSocketCmd = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)# Create a datagram socket
         self.TCPServerSocketCmd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.TCPServerSocketCmd.bind((self.localIP, self.TCP_port_cmd)) # Bind to address and ip
+        self.TCPServerSocketCmd.bind((self.localIP, self.TCP_port_Cmd)) # Bind to address and ip
         
         ## Data
         self.TCPServerSocketData = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)         # Create a datagram socket
         self.TCPServerSocketData.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.TCPServerSocketData.bind((self.localIP, self.TCP_port_data))                # Bind to address and ip
+        self.TCPServerSocketData.bind((self.localIP, self.TCP_port_Data))                # Bind to address and ip
 
         bufsize = self.TCPServerSocketData.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF) 
-        # print ("Buffer size [Before]:%d" %bufsize)
-        print("TCP server is up")
+        # self.print ("Buffer size [Before]:%d" %bufsize, thr=2)
+        self.print("TCP server is up", thr=1)
 
 
     def run(self):
@@ -223,7 +231,7 @@ class rfsoc(object):
         
         while True:
             # Wait for a connection
-            print ('\nWaiting for a connection')
+            self.print ('\nWaiting for a connection', thr=2)
             self.connectionCMD, addrCMD = self.TCPServerSocketCmd.accept()
             self.connectionData, addrDATA = self.TCPServerSocketData.accept()
             
@@ -245,7 +253,7 @@ class rfsoc(object):
                     try:
                         receivedCMD = self.connectionCMD.recv(self.bufferSize)
                         if receivedCMD:
-                            print("\nClient CMD:{}".format(receivedCMD.decode()))
+                            self.print("\nClient CMD:{}".format(receivedCMD.decode()), thr=2)
                             responseToCMDinBytes = self.parseAndExecute(receivedCMD)
                             self.connectionCMD.sendall(responseToCMDinBytes)
                         else:
@@ -254,7 +262,7 @@ class rfsoc(object):
                         break
             finally:
                 # Clean up the connection
-                print('\nConnection is closed.')
+                self.print('\nConnection is closed.', thr=2)
                 self.connectionCMD.close()                  
                 self.connectionData.close()
 
@@ -269,6 +277,10 @@ class rfsoc(object):
         if clientMsgParsed[0] == "receiveSamplesOnce":
             if len(clientMsgParsed) == 1:
                 iq_data = self.recv_frame_one(n_frame=1)
+                iq_data = iq_data * (2 ** (self.adc_bits + 1) - 1)
+                re = iq_data.real.astype(np.int16)
+                im = iq_data.imag.astype(np.int16)
+                iq_data = np.concatenate((re, im))
                 self.connectionData.sendall(iq_data.tobytes())
                 responseToCMD = "Success"
             else:
@@ -276,6 +288,9 @@ class rfsoc(object):
         if clientMsgParsed[0] == "receiveSamples":
             if len(clientMsgParsed) == 1:
                 iq_data = self.recv_frame(n_frame=1)
+                re = iq_data.real.astype(np.int16)
+                im = iq_data.imag.astype(np.int16)
+                iq_data = np.concatenate((re, im))
                 self.connectionData.sendall(iq_data.tobytes())
                 responseToCMD = "Success"
             else:
@@ -368,7 +383,7 @@ class rfsoc(object):
                 responseToCMD = invalidNumberOfArgumentsMessage 
         elif clientMsgParsed[0] == "setGainTX":
             if len(clientMsgParsed) == 5:
-                print(clientMsgParsed[1])
+                self.print(clientMsgParsed[1], thr=2)
                 
                 tx_bb_gain = int(clientMsgParsed[1])
                 tx_bb_phase = int(clientMsgParsed[2])
@@ -389,7 +404,7 @@ class rfsoc(object):
                 responseToCMD = invalidNumberOfArgumentsMessage 
         elif clientMsgParsed[0] == "setCarrierFrequency":
             if len(clientMsgParsed) == 2:
-                print(clientMsgParsed[1])
+                self.print(clientMsgParsed[1], thr=2)
                 fc = float(clientMsgParsed[1])
                 success, status = self.siversControllerObj.setFrequency(fc)
                 if success == True:
@@ -412,12 +427,12 @@ class rfsoc(object):
             self.adc_rx_buffer = allocate(shape=(n_frame * self.n_samples * 2,), target=self.ol.ddr4_0, dtype=np.int16)
         else:
             self.adc_rx_buffer = allocate(shape=(n_frame * self.n_samples * 2,), dtype=np.int16)
-        print("Input buffers allocation done")
+        self.print("Input buffers allocation done", thr=1)
 
 
     def allocate_output(self, n_frame=1):
         self.dac_tx_buffer = allocate(shape=(n_frame * self.n_samples * 2,), dtype=np.int16)
-        print("Output buffers allocation done")
+        self.print("Output buffers allocation done", thr=1)
 
 
     def gpio_init(self):
@@ -455,7 +470,7 @@ class rfsoc(object):
             self.gpio_dic['adc_reset'].write(0)
             self.gpio_dic['dac_reset'].write(0)
 
-        print("PS-PL GPIOs initialization done")
+        self.print("PS-PL GPIOs initialization done", thr=1)
 
 
     def clock_init(self):
@@ -464,7 +479,7 @@ class rfsoc(object):
             self.gpio_dic['lmk_reset'].write(0)
 
         xrfclk.set_ref_clks(lmk_freq=self.lmk_freq_mhz, lmx_freq=self.lmx_freq_mhz)
-        print("Xrfclk initialization done")
+        self.print("Xrfclk initialization done", thr=1)
 
 
     def verify_clock_tree(self):
@@ -472,10 +487,12 @@ class rfsoc(object):
             status = self.ol.clocktreeMTS.clk_wiz_0.read(self.CLOCKWIZARD_LOCK_ADDRESS)
             if (status != 1):
                 raise Exception("The MTS ClockTree has failed to LOCK. Please verify board clocking configuration")
+        self.print("Verifying clock tree done", thr=1)
 
 
     def init_rfdc(self):
         self.rfdc = self.ol.usp_rf_data_converter_0
+        self.print("RFDC initialization done", thr=1)
 
 
     def init_tile_sync(self):
@@ -491,6 +508,7 @@ class rfsoc(object):
             # for id in self.adc_tile_block_dic:
             for id in list(set(list(self.adc_tile_block_dic.keys()) + self.adc_tiles_sync)):
                 self.rfdc.adc_tiles[id].SetupFIFO(toggleValue)
+        self.print("Tiles sync initialization done", thr=1)
     
 
     def sync_tiles(self, dacTiles = 0, adcTiles = 0):
@@ -513,6 +531,7 @@ class rfsoc(object):
         else:
             self.rfdc.mts_adc_config.Tiles = 0x0
             self.rfdc.mts_adc_config.SysRef_Enable = 0
+        self.print("Tiles sync done", thr=1)
     
 
     def init_dac(self):
@@ -527,7 +546,7 @@ class rfsoc(object):
                 self.rfdc.dac_tiles[id].Reset()
             for id in self.dac_tile_block_dic:
                 self.rfdc.dac_tiles[id].SetupFIFO(True)
-        print("DAC init and reset done")
+        self.print("DAC init and reset done", thr=1)
 
 
     def init_adc(self):
@@ -545,14 +564,14 @@ class rfsoc(object):
             for toggleValue in range(0,1):
                 for id in self.adc_tile_block_dic:
                     self.rfdc.adc_tiles[id].SetupFIFO(toggleValue)
-        print("ADC init done")
+        self.print("ADC init and reset done", thr=1)
 
 
     def set_dac_mixer(self):
         cofig_str = 'DAC configs: mix_freq: {:.2e}, mix_phase_off: {:.2f}'.format(self.mix_freq_dac, self.mix_phase_off)
         cofig_str += ', DynamicPLLConfig: ' + str(self.DynamicPLLConfig)
         cofig_str += ', do_mixer_settings: ' + str(self.do_mixer_settings)
-        print(cofig_str)
+        self.print(cofig_str, thr=2)
 
         if self.do_pll_settings:
             self.dac_tile.DynamicPLLConfig(self.DynamicPLLConfig[0], self.DynamicPLLConfig[1], self.DynamicPLLConfig[2])
@@ -564,14 +583,14 @@ class rfsoc(object):
             self.dac_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_TILE
             self.dac_block.UpdateEvent(xrfdc.EVNT_SRC_TILE)
 
-        print("DAC Mixer Settings done")
+        self.print("DAC Mixer Settings done", thr=1)
 
 
     def set_adc_mixer(self):
         cofig_str = 'ADC configs: mix_freq: {:.2e}, mix_phase_off: {:.2f}'.format(self.mix_freq_adc, self.mix_phase_off)
         cofig_str += ', DynamicPLLConfig: ' + str(self.DynamicPLLConfig)
         cofig_str += ', do_mixer_settings: ' + str(self.do_mixer_settings)
-        print(cofig_str)
+        self.print(cofig_str, thr=2)
 
         if self.do_pll_settings:
             self.adc_tile.DynamicPLLConfig(self.DynamicPLLConfig[0], self.DynamicPLLConfig[1], self.DynamicPLLConfig[2])
@@ -598,7 +617,7 @@ class rfsoc(object):
             self.adc_block.UpdateEvent(xrfdc.EVNT_SRC_TILE)
             # self.adc_block.MixerSettings['Freq'] = -1*self.mix_freq_adc/1e6
         
-        print("ADC Mixer Settings done")
+        self.print("ADC Mixer Settings done", thr=1)
 
 
     def dma_init(self):
@@ -607,7 +626,7 @@ class rfsoc(object):
             self.dma_tx = self.ol.dac_path.axi_dma_0.sendchannel
         else:
             self.dma_tx = self.ol.TX_loop.axi_dma_tx.sendchannel
-        print("TX DMA setup done")
+        self.print("TX DMA setup done", thr=1)
 
         if 'ddr4' in self.project:
             self.ol.adc_path.axi_dma_0.set_up_rx_channel()
@@ -615,7 +634,7 @@ class rfsoc(object):
             self.rx_reg = self.ol.adc_path.axis_flow_ctrl_0
         else:
             self.dma_rx = self.ol.RX_Logic.axi_dma_rx.recvchannel
-        print("RX DMA setup done")
+        self.print("RX DMA setup done", thr=1)
 
 
     def load_data_to_tx_buffer(self, txtd):
@@ -638,7 +657,7 @@ class rfsoc(object):
         data = data.flatten()
         self.dac_tx_buffer[:] = data[:]
 
-        print("Loading txtd data to DAC TX buffer done")
+        self.print("Loading txtd data to DAC TX buffer done", thr=1)
 
 
     def load_data_from_rx_buffer(self):
@@ -654,7 +673,7 @@ class rfsoc(object):
         
         self.rxtd = rx_data.reshape(-1)
 
-        print("Loading rxtd data from ADC RX buffer done")
+        self.print("Loading rxtd data from ADC RX buffer done", thr=2)
 
 
     def send_frame(self, txtd):
@@ -677,7 +696,7 @@ class rfsoc(object):
         self.gpio_dic['dac_enable'].write(1)
 
         # self.dma_tx.wait()
-        print("Frame sent via DAC")
+        self.print("Frame sent via DAC", thr=1)
 
 
     def recv_frame_one(self, n_frame=1):
@@ -705,7 +724,7 @@ class rfsoc(object):
         else:
             self.gpio_dic['adc_reset'].write(0)
 
-        print("Frames received from ADC")
+        self.print("Frames received from ADC", thr=2)
 
         return self.rxtd
     
@@ -719,11 +738,15 @@ class rfsoc(object):
             self.recv_frame_one(self, n_frame=n_frame)
             rxtd[i,:] = self.rxtd
 
-        rxfd = np.fft.fft(rxtd, axis=1)
+        rxfd = fft(rxtd, axis=1)
         rxfd = np.roll(rxfd, 1, axis=1)
         Hest = rxfd * np.conj(self.txfd)
-        hest = np.fft.ifft(Hest, axis=1)
+        hest = ifft(Hest, axis=1)
         hest = hest.flatten()
-        re = hest.real.astype(np.int16)
-        im = hest.imag.astype(np.int16)
-        return np.concatenate((re, im))
+        # re = hest.real.astype(np.int16)
+        # im = hest.imag.astype(np.int16)
+
+        self.print("Frames received from ADC", thr=2)
+
+        # return np.concatenate((re, im))
+        return hest
