@@ -1,45 +1,63 @@
 import numpy as np
-from numpy.fft import fft, fftshift, ifft
-from scipy.signal import firwin, lfilter, freqz
 import matplotlib.pyplot as plt
-import os
-import time
+from numpy.fft import fft, fftshift, ifft
+from scipy.signal import firwin, lfilter, freqz, welch
+
 
 
 class signals(object):
-    def __init__(self, seed=100, fs= 245.76e6 * 4, n_samples=1024, nfft=1024, wb_null_sc=10):
-        self.seed = seed
-        self.n_samples = n_samples
-        self.nfft = nfft
-        self.fs = fs
-        self.wb_null_sc = wb_null_sc
+    def __init__(self, params):
+        self.seed = params.seed
+        self.n_samples = params.n_samples
+        self.nfft = params.nfft
+        self.fs = params.fs
+        self.plot_level = params.plot_level
+        self.verbose_level = params.verbose_level
+        self.filter_signal = params.filter_signal
+        self.sig_mode = params.sig_mode
+        self.wb_bw = params.wb_bw
+        self.f_tone = params.f_tone
+        self.sig_modulation = params.sig_modulation
+        self.sig_gen_mode = params.sig_gen_mode
+        self.sig_path = params.sig_path
+        self.wb_null_sc = params.wb_null_sc
+        self.mixer_mode = params.mixer_mode
+        self.mix_freq = params.mix_freq
+        self.filter_bw = params.filter_bw
+        self.freq = params.freq
+        self.t = params.t
+        self.om = params.om
 
         print("signals object initialization done")
 
-        return
 
-    def generate_tone(self, f=10e6, sig_mode='tone_2'):
+    def print(self, text='', thr=0):
+        if self.verbose_level>=thr:
+            print(text)
 
-        # # t = np.linspace(0, self.n_samples * (1/self.fs), self.n_samples)
-        # t = np.arange(0, self.n_samples) / self.fs
-        # wt = np.multiply(2 * np.pi * f, t)
-        # if sig_mode=='tone_1':
-        #     tone_td = np.cos(wt) + 1j * np.sin(wt)
-        # elif sig_mode=='tone_2':
-        #     tone_td = np.cos(wt) + 1j * np.cos(wt)
-        #     # tone_td = np.cos(wt)
 
-        sc = int((f)*self.nfft/self.fs)
-        tone_fd = np.zeros((self.nfft,), dtype='complex')
-        if sig_mode=='tone_1':
-            tone_fd[(self.nfft >> 1) + sc] = 1
-        elif sig_mode=='tone_2':
-            tone_fd[(self.nfft >> 1) + sc] = 1
-            tone_fd[(self.nfft >> 1) - sc] = 1
-        tone_fd = np.fft.fftshift(tone_fd, axes=0)
+    def generate_tone(self, f=10e6, sig_mode='tone_2', gen_mode='fft'):
 
-        # Convert the waveform to time-domain
-        tone_td = np.fft.ifft(tone_fd, axis=0)
+        if gen_mode == 'time':
+            wt = np.multiply(2 * np.pi * f, self.t)
+            if sig_mode=='tone_1':
+                tone_td = np.cos(wt) + 1j * np.sin(wt)
+            elif sig_mode=='tone_2':
+                tone_td = np.cos(wt) + 1j * np.cos(wt)
+                # tone_td = np.cos(wt)
+
+        elif gen_mode == 'fft':
+            sc = int((f)*self.nfft/self.fs)
+            tone_fd = np.zeros((self.nfft,), dtype='complex')
+            if sig_mode=='tone_1':
+                tone_fd[(self.nfft >> 1) + sc] = 1
+            elif sig_mode=='tone_2':
+                tone_fd[(self.nfft >> 1) + sc] = 1
+                tone_fd[(self.nfft >> 1) - sc] = 1
+            tone_fd = np.fft.fftshift(tone_fd, axes=0)
+
+            # Convert the waveform to time-domain
+            tone_td = np.fft.ifft(tone_fd, axis=0)
 
         # Normalize the signal
         tone_td /= np.max([np.abs(tone_td.real), np.abs(tone_td.imag)])
@@ -78,6 +96,38 @@ class signals(object):
 
         return wb_td
         
+
+    def gen_tx_signal(self):
+        if self.sig_mode == 'tone_1' or self.sig_mode == 'tone_2':
+            txtd_base = self.generate_tone(f=self.f_tone, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode)
+        elif self.sig_mode == 'wideband' or self.sig_mode == 'wideband_null':
+            txtd_base = self.generate_wideband(bw=self.wb_bw, modulation=self.sig_modulation, sig_mode=self.sig_mode)
+        elif self.sig_mode == 'load':
+            txtd_base = np.load(self.sig_path)
+        else:
+            raise ValueError('Unsupported signal mode: ' + self.sig_mode)
+        txtd_base /= np.max([np.abs(txtd_base.real), np.abs(txtd_base.imag)])
+
+        # txfd_base = np.abs(fftshift(fft(txtd_base)))
+        title = 'TX signal spectrum in base-band'
+        xlabel = 'Frequency (MHz)'
+        ylabel = 'Magnitude (dB)'
+        self.plot_signal(x=self.freq, sigs=txtd_base, mode='fft', scale='dB', title=title, xlabel=xlabel, ylabel=ylabel)
+
+        if self.mixer_mode=='digital' and self.mix_freq!=0:
+            txtd = self.freq_shift(txtd_base, shift=self.mix_freq)
+
+            # txfd = np.abs(fftshift(fft(txtd)))
+            title = 'TX signal spectrum after upconversion'
+            xlabel = 'Frequency (MHz)'
+            ylabel = 'Magnitude (dB)'
+            self.plot_signal(x=self.freq, sigs=txtd, mode='fft', scale='dB', title=title, xlabel=xlabel, ylabel=ylabel)
+        else:
+            txtd = txtd_base.copy()
+            # txfd = txfd_base.copy()
+
+        return (txtd_base, txtd)
+    
 
     def upsample(self, sig, up=2):
 
@@ -171,7 +221,7 @@ class signals(object):
 
     def channel_estimate(self, txtd, rxtd):
         txfd = np.fft.fft(txtd)
-        txfd += 1e-6
+        txfd += 1e-3
         rxfd = np.fft.fft(rxtd)
         H_est = rxfd * np.conj(txfd)
         H_est = H_est / (np.abs(txfd)**2)
@@ -191,19 +241,124 @@ class signals(object):
     def to_db(self, sig):
         return 10 * np.log10(sig)
 
-    def plot_signal(self, x, sig, scale='dB', title='Signal in time domain', xlabel='Sample', ylabel='Magnitude (dB)'):
+
+    # plot_signal(self, x, sig, mode='time_IQ', scale='linear', title='Custom Title', xlabel='Time', ylabel='Amplitude', plot_args={'color': 'red', 'linestyle': '--'}, xlim=(0, 10), ylim=(-1, 1), legend=True)
+    def plot_signal(self, x, sigs, mode='time', scale='dB', plot_level=0, **kwargs):
+
+        if self.plot_level<plot_level:
+            return
+        
+        colors = ['blue', 'red', 'green', 'cyan', 'magenta', 'orange', 'purple']
+
+        if isinstance(sigs, dict):
+            sigs_dict = sigs
+        else:
+            sigs_dict = {"Signal": sigs}
 
         plt.figure()
-        if scale=='dB':
-            sig_plot = self.to_db(sig)
-        elif scale=='linear':
-            sig_plot = sig
-        else:
-            sig_plot = sig
-        plt.plot(x, sig_plot)
+        plot_args = kwargs.get('plot_args', {})
+
+        for i, sig_name in enumerate(sigs_dict.keys()):
+            if mode=='time' or mode=='time_IQ':
+                sig_plot = sigs_dict[sig_name].copy()
+            elif mode=='fft':
+                sig_plot = np.abs(fftshift(fft(sigs_dict[sig_name])))
+            elif mode=='psd':
+                freq, sig_plot = welch(sigs_dict[sig_name], self.fs, nperseg=self.nfft)
+                x = freq
+            
+            if scale=='dB':
+                sig_plot = self.to_db(sig_plot)
+            elif scale=='linear':
+                pass
+
+            if mode!='time_IQ':
+                plt.plot(x, sig_plot, color=colors[i], label=sig_name, **plot_args)
+            else:
+                plt.plot(x, np.real(sig_plot), color=colors[3*i], label='I', **plot_args)
+                plt.plot(x, np.imag(sig_plot), color=colors[3*i+1], label='Q', **plot_args)
+                plt.plot(x, np.abs(sig_plot), color=colors[3*i+2], label='Mag', **plot_args)
+
+        title = kwargs.get('title', 'Signal in time domain')
+        xlabel = kwargs.get('xlabel', 'Sample')
+        ylabel = kwargs.get('ylabel', 'Magnitude (dB)')
+
         plt.title(title)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         plt.minorticks_on()
         plt.grid()
+
+        legend = kwargs.get('legend', False)
+        if legend:
+            plt.legend()
+
+        plt.autoscale()
+        if 'xlim' in kwargs:
+            plt.xlim(kwargs['xlim'])
+        if 'ylim' in kwargs:
+            ylim=kwargs['ylim']
+            if scale=='dB':
+                ylim = (self.to_db(ylim[0]), self.to_db(ylim[1]))
+            plt.ylim(ylim)
+        plt.tight_layout()
+
+        # plt.axvline(x=30e6, color='g', linestyle='--', linewidth=1)
+
         plt.show()
+
+
+    def rx_operations(self, txtd_base, rxtd):
+        txfd_base = np.abs(fftshift(fft(txtd_base)))
+
+        # rxfd = np.abs(fftshift(fft(rxtd)))
+        title = 'RX signal spectrum'
+        xlabel = 'Frequency (MHz)'
+        ylabel = 'Magnitude (dB)'
+        self.plot_signal(x=self.freq, sigs=rxtd, mode='fft', scale='dB', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=5)
+
+        title = 'RX signal in time domain'
+        xlabel = 'Time (S)'
+        ylabel = 'Magnitude'
+        xlim=(0, 10/(self.filter_bw/2))
+        self.plot_signal(x=self.t, sigs=rxtd, mode='time_IQ', scale='linear', title=title, xlabel=xlabel, ylabel=ylabel, legend=True, xlim=xlim, plot_level=5)
+
+
+        if self.mixer_mode == 'digital' and self.mix_freq!=0:    
+            rxtd_base = self.freq_shift(rxtd, shift=-1*self.mix_freq)
+            title = 'RX signal spectrum after downconversion'
+            xlabel = 'Frequency (MHz)'
+            ylabel = 'Magnitude (dB)'
+            self.plot_signal(x=self.freq, sigs=rxfd_base, scale='dB', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=5)
+        else:
+            rxtd_base = rxtd.copy()
+
+        if self.filter_signal:
+            rxtd_base = self.filter(rxtd_base, cutoff=self.filter_bw)
+            title = 'RX signal spectrum after filtering in base-band'
+            xlabel = 'Frequency (MHz)'
+            ylabel = 'Magnitude (dB)'
+            self.plot_signal(x=self.freq, sigs=rxfd_base, scale='dB', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=5)
+
+
+        rxfd_base = np.abs(fftshift(fft(rxtd_base)))
+        h_est = self.channel_estimate(txtd_base, rxtd_base)
+
+
+        title = 'TX and RX signals spectrum in base-band'
+        xlabel = 'Frequency (MHz)'
+        ylabel = 'Magnitude (dB)'
+        scale = np.max(txfd_base)/np.max(rxfd_base)
+        self.print("TX to RX spectrum scale: {:0.3f}".format(scale), thr=5)
+        xlim=(-self.filter_bw/2/1e6, self.filter_bw/2/1e6)
+        f1=np.abs(self.freq - xlim[0]).argmin()
+        f2=np.abs(self.freq - xlim[1]).argmin()
+        ylim=(np.min(rxfd_base[f1:f2]*scale), 1.1*np.max(rxfd_base[f1:f2]*scale))
+        self.plot_signal(x=self.freq, sigs={"txfd_base":txfd_base, "Scaled rxfd_base":rxfd_base*scale}, scale='dB', title=title, xlabel=xlabel, ylabel=ylabel, xlim=xlim, ylim=ylim, legend=True, plot_level=5)
+        self.print("txfd_base max freq: {} MHz".format(self.freq[(self.nfft>>1)+np.argmax(txfd_base[self.nfft>>1:])]), thr=5)
+        self.print("rxfd_base max freq: {} MHz".format(self.freq[(self.nfft>>1)+np.argmax(rxfd_base[self.nfft>>1:])]), thr=5)
+
+
+        return rxfd_base
+        # return h_est
+
