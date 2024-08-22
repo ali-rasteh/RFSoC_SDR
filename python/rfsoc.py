@@ -37,6 +37,8 @@ class rfsoc(object):
         self.do_pll_settings = params.do_pll_settings
         self.run_tcp_server = params.run_tcp_server
         self.verbose_level = params.verbose_level
+        self.n_frame_wr=params.n_frame_wr
+        self.n_frame_rd=params.n_frame_rd
         self.signals_inst = signals(params)
         
         if self.board=='rfsoc_2x2':
@@ -147,8 +149,8 @@ class rfsoc(object):
             pass
 
         self.load_bit_file()
-        self.allocate_input()
-        self.allocate_output()
+        self.allocate_input(n_frame=self.n_frame_rd)
+        self.allocate_output(n_frame=self.n_frame_wr)
         self.gpio_init()
         self.clock_init()
         self.verify_clock_tree()
@@ -276,7 +278,7 @@ class rfsoc(object):
         clientMsgParsed = clientMsg.split()
         if clientMsgParsed[0] == "receiveSamplesOnce":
             if len(clientMsgParsed) == 1:
-                iq_data = self.recv_frame_one(n_frame=1)
+                iq_data = self.recv_frame_one(n_frame=self.n_frame_rd)
                 iq_data = iq_data * (2 ** (self.adc_bits + 1) - 1)
                 re = iq_data.real.astype(np.int16)
                 im = iq_data.imag.astype(np.int16)
@@ -287,7 +289,7 @@ class rfsoc(object):
                 responseToCMD = invalidNumberOfArgumentsMessage
         if clientMsgParsed[0] == "receiveSamples":
             if len(clientMsgParsed) == 1:
-                iq_data = self.recv_frame(n_frame=1)
+                iq_data = self.recv_frame(n_frame=self.n_frame_rd)
                 re = iq_data.real.astype(np.int16)
                 im = iq_data.imag.astype(np.int16)
                 iq_data = np.concatenate((re, im))
@@ -458,7 +460,7 @@ class rfsoc(object):
 
         if 'ddr4' in self.project:
             self.gpio_dic['led'].write(0)
-            self.gpio_dic['dac_mux_sel'].write(0)
+            self.gpio_dic['dac_mux_sel'].write(1)
             self.gpio_dic['adc_enable'].write(0)
             self.gpio_dic['dac_enable'].write(0)
             self.gpio_dic['adc_reset'].write(1)
@@ -696,6 +698,7 @@ class rfsoc(object):
         self.gpio_dic['dac_enable'].write(1)
 
         # self.dma_tx.wait()
+        time.sleep(0.1)
         self.print("Frame sent via DAC", thr=1)
 
 

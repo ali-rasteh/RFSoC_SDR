@@ -43,7 +43,7 @@ class client(object):
             self.rx_gain_ctrl_bfrf = 0x7F
 
         self.nbytes = 2
-        self.nread = params.n_samples
+        self.nread = params.n_frame_rd * params.n_samples
 
         self.radio_control = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
         self.radio_control.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -127,9 +127,8 @@ def rfsoc_run(params):
         rfsoc_inst.txtd = txtd
         if params.send_signal:
             rfsoc_inst.send_frame(txtd)
-            time.sleep(0.1)
         if params.recv_signal:
-            rfsoc_inst.recv_frame_one()
+            rfsoc_inst.recv_frame_one(n_frame=params.n_frame_rd)
             signals_inst.rx_operations(txtd_base, rfsoc_inst.rxtd)
         if params.run_tcp_server:
             rfsoc_inst.run()
@@ -152,39 +151,31 @@ def rfsoc_run(params):
             client_inst.set_rx_gain()
 
         rxtd = client_inst.receive_data(mode='once').flatten()
-        h_est = signals_inst.rx_operations(txtd_base, rxtd)
+        sig = signals_inst.rx_operations(txtd_base, rxtd)
+        sig = signals_inst.lin_to_db(np.abs(sig), mode='mag')
+        sig = rxtd.imag[:params.n_samples]
         
         def update(frame):
             rxtd = client_inst.receive_data(mode='once').flatten()
-            h_est = signals_inst.rx_operations(txtd_base, rxtd)
-            line.set_ydata(h_est)
+            sig = signals_inst.rx_operations(txtd_base, rxtd)
+            sig = signals_inst.lin_to_db(np.abs(sig), mode='mag')
+            sig = rxtd.imag[:params.n_samples]
+            line.set_ydata(sig)
             return line,
 
         # Set up the figure and plot
         fig, ax = plt.subplots()
-        line, = ax.plot(params.t, h_est)
-        # line, = ax.plot(params.freq, h_est)
+        line, = ax.plot(params.t, sig)
+        # line, = ax.plot(params.freq, sig)
         ax.autoscale()
         # ax.set_xlim(np.min(params.freq), np.max(params.freq))
-        # ax.set_ylim(np.min(h_est), 1.5*np.max(h_est))
+        # ax.set_ylim(np.min(sig), 1.5*np.max(sig))
         # ax.tight_layout()
 
         # Create the animation
         ani = animation.FuncAnimation(fig, update, frames=200, interval=50, blit=True)
         plt.show()
         
-
-        # for i in range(len(self.beam_test)):
-        #     mag = np.abs(hest[i, :])
-        #     mag = mag / np.max(mag)
-        #     mag_db = 20 * np.log10(mag + 1e-17)
-        #     plt.plot(mag_db)
-        #     plt.ylabel('Magnitude, dB')
-        #     plt.title(f'Beam index {i}')
-        #     plt.grid(0.4)
-        #     plt.show()
-
-
 
 
 
@@ -209,7 +200,7 @@ if __name__ == '__main__':
     # parser.add_argument("--mixer_mode", type=str, default='analog', help="Mixer mode, analog or digital")
     # parser.add_argument("--do_mixer_settings", action="store_true", default=False, help="If true, performs mixer settings")
     # parser.add_argument("--sig_mode", type=str, default='wideband', help="Signal mode, tone_1 or tone_2 or wideband or wideband_null or load")
-    # parser.add_argument("--sig_gen_mode", type=str, default='fft', help="signal generation mode, time, or fft")
+    # parser.add_argument("--sig_gen_mode", type=str, default='fft', help="signal generation mode, time, or fft or ofdm")
     # parser.add_argument("--wb_bw", type=float, default=900e6, help="Wideband signal bandwidth")
     # parser.add_argument("--f_tone", type=float, default=20e6, help="Tone signal frequency")         # 16.4e6 * 2 for function generator
     # parser.add_argument("--do_pll_settings", action="store_true", default=False, help="If true, performs PLL settings")
@@ -227,6 +218,8 @@ if __name__ == '__main__':
     # parser.add_argument("--mode", type=str, default='server', help="mode of operation, server or client_tx or client_rx")
     # parser.add_argument("--tx_ip", type=str, default='10.1.1.40', help="TX board IP")
     # parser.add_argument("--rx_ip", type=str, default='10.1.1.30', help="RX board IP")
+    # parser.add_argument("--n_frame_wr", type=int, default=1, help="Number of frames to write")
+    # parser.add_argument("--n_frame_rd", type=int, default=1, help="Number of frames to read")
     # parser.add_argument("--overwrite_configs", action="store_true", default=False, help="If true, overwrites configurations")
     # parser.add_argument("--send_signal", action="store_true", default=False, help="If true, sends TX signal")
     # parser.add_argument("--recv_signal", action="store_true", default=False, help="If true, receives and plots EX signal")
@@ -237,10 +230,10 @@ if __name__ == '__main__':
     if params.overwrite_configs:
         params.fs=245.76e6 * 4
         params.fc = 57.51e9
-        params.dac_fs=245.76e6 * 4
-        params.adc_fs=245.76e6 * 4
+        params.dac_fs=params.fs
+        params.adc_fs=params.fs
         params.n_samples=1024
-        params.nfft=1024
+        params.nfft=params.n_samples
         params.sig_modulation='qam'
         params.mix_phase_off=0.0
         params.sig_path=os.path.join(os.getcwd(), 'txtd.npy')
@@ -263,13 +256,15 @@ if __name__ == '__main__':
         params.project='sounder_if_ddr4'
         params.board='rfsoc_4x2'
         params.mode='client_rx'
-        params.run_tcp_server=False
+        params.run_tcp_server=True
         params.send_signal=True
         params.recv_signal=True
-        params.sig_mode='load'
-        params.sig_gen_mode = 'time'
-        params.wb_bw=800e6
-        params.f_tone=30e6
+        params.sig_mode='tone_1'
+        params.sig_gen_mode = 'fft'
+        params.n_frame_wr=32
+        params.n_frame_rd=1
+        params.wb_bw=200e6
+        params.f_tone= 2.0 * params.dac_fs / params.nfft #30e6
         params.tx_ip = '192.168.3.1'
         params.rx_ip = '192.168.3.1'
         params.plot_level=0
@@ -280,14 +275,21 @@ if __name__ == '__main__':
 
 
 
-
+    params.n_samples_tx = params.n_frame_wr*params.n_samples
+    params.n_samples_rx = params.n_frame_rd*params.n_samples
+    params.nfft_tx = params.n_frame_wr*params.nfft
+    params.nfft_rx = params.n_frame_rd*params.nfft
     params.beam_test = np.array([1, 5, 9, 13, 17, 21, 25, 29, 32, 35, 39, 43, 47, 51, 55, 59, 63])
     params.DynamicPLLConfig = (0, params.lmk_freq_mhz, params.lmx_freq_mhz)
     params.t = np.arange(0, params.n_samples) / params.fs
+    params.t_tx = np.arange(0, params.n_samples_tx) / params.dac_fs
+    params.t_rx = np.arange(0, params.n_samples_rx) / params.adc_fs
     params.freq = ((np.arange(0, params.nfft) / params.nfft) - 0.5) * params.fs / 1e6
-    # params.freq_tx = ((np.arange(0, params.nfft) / params.nfft) - 0.5) * params.dac_fs / 1e6
-    # params.freq_rx = ((np.arange(0, params.nfft) / params.nfft) - 0.5) * params.adc_fs / 1e6
+    params.freq_tx = ((np.arange(0, params.nfft_tx) / params.nfft_tx) - 0.5) * params.dac_fs / 1e6
+    params.freq_rx = ((np.arange(0, params.nfft_rx) / params.nfft_rx) - 0.5) * params.adc_fs / 1e6
     params.om = np.linspace(-np.pi, np.pi, params.nfft)
+    params.om_tx = np.linspace(-np.pi, np.pi, params.nfft_tx)
+    params.om_rx = np.linspace(-np.pi, np.pi, params.nfft_rx)
     if params.mixer_mode=='digital' and params.mix_freq!=0:
         params.mix_freq_dac = 0
         params.mix_freq_adc = 0
@@ -298,9 +300,9 @@ if __name__ == '__main__':
         params.mix_freq_dac = 0
         params.mix_freq_adc = 0
     if params.sig_mode=='wideband' or params.sig_mode=='wideband_null':
-        params.filter_bw = min(params.wb_bw + 100e6, params.fs-50e6)
+        params.filter_bw = min(params.wb_bw + 100e6, params.adc_fs-50e6)
     else:
-        params.filter_bw = min(2*np.abs(params.f_tone) + 60e6, params.fs-50e6)
+        params.filter_bw = min(2*np.abs(params.f_tone) + 60e6, params.adc_fs-50e6)
     if 'sounder_bbf' in params.project:
         params.do_mixer_settings=False
         params.do_pll_settings=False
@@ -313,6 +315,15 @@ if __name__ == '__main__':
     elif params.board=='rfsoc_4x2':
         params.adc_bits = 14
         params.dac_bits = 14
+
+    if 'tone' in params.sig_mode:
+        params.f_max = abs(params.f_tone)
+    elif 'wideband' in params.sig_mode:
+        params.f_max = abs(params.wb_bw/2)
+    elif params.sig_mode == 'load':
+        params.f_max = abs(params.wb_bw/2)
+    else:
+        raise ValueError('Unsupported signal mode: ' + params.sig_mode)
 
 
     rfsoc_run(params)
