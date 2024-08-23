@@ -56,7 +56,9 @@
           "control_tready": "",
           "control_tvalid": "",
           "dac_strm_mux": "",
-          "xlslice_0": ""
+          "xlslice_0": "",
+          "axis_clock_converter_0": "",
+          "axis_register_slice_1": ""
         },
         "soft_reset": {
           "dac_sresetn": "",
@@ -1640,10 +1642,7 @@
                     "value": "16"
                   },
                   "IS_ACLK_ASYNC": {
-                    "value": "1"
-                  },
-                  "SYNCHRONIZATION_STAGES": {
-                    "value": "2"
+                    "value": "0"
                   }
                 }
               },
@@ -1722,9 +1721,27 @@
                     "value": "1"
                   }
                 }
+              },
+              "axis_clock_converter_0": {
+                "vlnv": "xilinx.com:ip:axis_clock_converter:1.1",
+                "xci_name": "system_bd_axis_clock_converter_0_1",
+                "xci_path": "ip\\system_bd_axis_clock_converter_0_1\\system_bd_axis_clock_converter_0_1.xci",
+                "inst_hier_path": "dac_path/mem/axis_clock_converter_0"
+              },
+              "axis_register_slice_1": {
+                "vlnv": "xilinx.com:ip:axis_register_slice:1.1",
+                "xci_name": "system_bd_axis_register_slice_0_2",
+                "xci_path": "ip\\system_bd_axis_register_slice_0_2\\system_bd_axis_register_slice_0_2.xci",
+                "inst_hier_path": "dac_path/mem/axis_register_slice_1"
               }
             },
             "interface_nets": {
+              "S_AXIS_1": {
+                "interface_ports": [
+                  "S_AXIS",
+                  "axis_register_slice_1/S_AXIS"
+                ]
+              },
               "axis_broadcaster_1_M00_AXIS": {
                 "interface_ports": [
                   "axis_broadcaster_1/M00_AXIS",
@@ -1735,6 +1752,12 @@
                 "interface_ports": [
                   "M01_AXIS",
                   "axis_broadcaster_1/M01_AXIS"
+                ]
+              },
+              "axis_clock_converter_0_M_AXIS": {
+                "interface_ports": [
+                  "axis_clock_converter_0/M_AXIS",
+                  "axis_data_fifo_1/S_AXIS"
                 ]
               },
               "axis_data_fifo_0_M_AXIS": {
@@ -1761,16 +1784,16 @@
                   "axis_register_slice_0/M_AXIS"
                 ]
               },
+              "axis_register_slice_1_M_AXIS": {
+                "interface_ports": [
+                  "axis_register_slice_1/M_AXIS",
+                  "axis_clock_converter_0/S_AXIS"
+                ]
+              },
               "dac_strm_mux_m0_axi_stream": {
                 "interface_ports": [
                   "axis_data_fifo_2/S_AXIS",
                   "dac_strm_mux/m0_axi_stream"
-                ]
-              },
-              "dma_dac_0_M_AXIS_MM2S": {
-                "interface_ports": [
-                  "S_AXIS",
-                  "axis_data_fifo_1/S_AXIS"
                 ]
               }
             },
@@ -1800,10 +1823,11 @@
                   "control_tvalid/Op1"
                 ]
               },
-              "ddr4_0_c0_ddr4_ui_clk": {
+              "ddr4_clk_1": {
                 "ports": [
                   "ddr4_clk",
-                  "axis_data_fifo_1/s_axis_aclk"
+                  "axis_register_slice_1/aclk",
+                  "axis_clock_converter_0/s_axis_aclk"
                 ]
               },
               "m_axis_aclk_1": {
@@ -1811,10 +1835,11 @@
                   "dac_clk",
                   "axis_broadcaster_1/aclk",
                   "axis_data_fifo_0/s_axis_aclk",
-                  "axis_data_fifo_1/m_axis_aclk",
                   "axis_data_fifo_2/s_axis_aclk",
                   "axis_register_slice_0/aclk",
-                  "dac_strm_mux/s_axis_aclk"
+                  "dac_strm_mux/s_axis_aclk",
+                  "axis_clock_converter_0/m_axis_aclk",
+                  "axis_data_fifo_1/s_axis_aclk"
                 ]
               },
               "util_vector_logic_0_Res": {
@@ -1823,7 +1848,9 @@
                   "axis_broadcaster_1/aresetn",
                   "axis_data_fifo_0/s_axis_aresetn",
                   "axis_data_fifo_2/s_axis_aresetn",
-                  "axis_register_slice_0/aresetn"
+                  "axis_register_slice_0/aresetn",
+                  "axis_clock_converter_0/m_axis_aresetn",
+                  "axis_data_fifo_1/s_axis_aresetn"
                 ]
               },
               "util_vector_logic_0_Res1": {
@@ -1835,7 +1862,8 @@
               "util_vector_logic_1_Res": {
                 "ports": [
                   "ddr4_resetn",
-                  "axis_data_fifo_1/s_axis_aresetn"
+                  "axis_register_slice_1/aresetn",
+                  "axis_clock_converter_0/s_axis_aresetn"
                 ]
               },
               "util_vector_logic_1_Res1": {
@@ -6580,6 +6608,9 @@
           },
           "USB1_BOARD_INTERFACE": {
             "value": "custom"
+          },
+          "preset": {
+            "value": "None"
           }
         },
         "interface_ports": {

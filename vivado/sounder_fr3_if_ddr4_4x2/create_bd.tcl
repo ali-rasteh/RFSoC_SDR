@@ -344,6 +344,9 @@ proc create_hier_cell_mem_1 { parentCell nameHier } {
    CONFIG.S_TDATA_NUM_BYTES {16} \
  ] $axis_broadcaster_1
 
+  # Create instance: axis_clock_converter_0, and set properties
+  set axis_clock_converter_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_clock_converter:1.1 axis_clock_converter_0 ]
+
   # Create instance: axis_data_fifo_0, and set properties
   set axis_data_fifo_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_data_fifo:2.0 axis_data_fifo_0 ]
   set_property -dict [ list \
@@ -354,7 +357,7 @@ proc create_hier_cell_mem_1 { parentCell nameHier } {
   set axis_data_fifo_1 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_data_fifo:2.0 axis_data_fifo_1 ]
   set_property -dict [ list \
    CONFIG.FIFO_DEPTH {16} \
-   CONFIG.IS_ACLK_ASYNC {1} \
+   CONFIG.IS_ACLK_ASYNC {0} \
    CONFIG.SYNCHRONIZATION_STAGES {2} \
  ] $axis_data_fifo_1
 
@@ -368,6 +371,9 @@ proc create_hier_cell_mem_1 { parentCell nameHier } {
 
   # Create instance: axis_register_slice_0, and set properties
   set axis_register_slice_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_register_slice:1.1 axis_register_slice_0 ]
+
+  # Create instance: axis_register_slice_1, and set properties
+  set axis_register_slice_1 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_register_slice:1.1 axis_register_slice_1 ]
 
   # Create instance: control_tready, and set properties
   set control_tready [ create_bd_cell -type ip -vlnv xilinx.com:ip:util_vector_logic:2.0 control_tready ]
@@ -398,25 +404,27 @@ proc create_hier_cell_mem_1 { parentCell nameHier } {
  ] $xlslice_0
 
   # Create interface connections
+  connect_bd_intf_net -intf_net S_AXIS_1 [get_bd_intf_pins S_AXIS] [get_bd_intf_pins axis_register_slice_1/S_AXIS]
   connect_bd_intf_net -intf_net axis_broadcaster_1_M00_AXIS [get_bd_intf_pins axis_broadcaster_1/M00_AXIS] [get_bd_intf_pins axis_data_fifo_0/S_AXIS]
   connect_bd_intf_net -intf_net axis_broadcaster_1_M01_AXIS [get_bd_intf_pins M01_AXIS] [get_bd_intf_pins axis_broadcaster_1/M01_AXIS]
+  connect_bd_intf_net -intf_net axis_clock_converter_0_M_AXIS [get_bd_intf_pins axis_clock_converter_0/M_AXIS] [get_bd_intf_pins axis_data_fifo_1/S_AXIS]
   connect_bd_intf_net -intf_net axis_data_fifo_0_M_AXIS [get_bd_intf_pins axis_data_fifo_0/M_AXIS] [get_bd_intf_pins dac_strm_mux/s1_axi_stream]
   connect_bd_intf_net -intf_net axis_data_fifo_1_M_AXIS [get_bd_intf_pins axis_data_fifo_1/M_AXIS] [get_bd_intf_pins dac_strm_mux/s0_axi_stream]
   connect_bd_intf_net -intf_net axis_data_fifo_2_M_AXIS [get_bd_intf_pins axis_data_fifo_2/M_AXIS] [get_bd_intf_pins axis_register_slice_0/S_AXIS]
   connect_bd_intf_net -intf_net axis_register_slice_0_M_AXIS [get_bd_intf_pins axis_broadcaster_1/S_AXIS] [get_bd_intf_pins axis_register_slice_0/M_AXIS]
+  connect_bd_intf_net -intf_net axis_register_slice_1_M_AXIS [get_bd_intf_pins axis_clock_converter_0/S_AXIS] [get_bd_intf_pins axis_register_slice_1/M_AXIS]
   connect_bd_intf_net -intf_net dac_strm_mux_m0_axi_stream [get_bd_intf_pins axis_data_fifo_2/S_AXIS] [get_bd_intf_pins dac_strm_mux/m0_axi_stream]
-  connect_bd_intf_net -intf_net dma_dac_0_M_AXIS_MM2S [get_bd_intf_pins S_AXIS] [get_bd_intf_pins axis_data_fifo_1/S_AXIS]
 
   # Create port connections
   connect_bd_net -net Din_1 [get_bd_pins Din] [get_bd_pins xlslice_0/Din]
   connect_bd_net -net Op2_1 [get_bd_pins dac_control] [get_bd_pins control_tready/Op2] [get_bd_pins control_tvalid/Op2]
   connect_bd_net -net axis_broadcaster_1_s_axis_tready [get_bd_pins axis_broadcaster_1/s_axis_tready] [get_bd_pins control_tready/Op1]
   connect_bd_net -net axis_register_slice_0_m_axis_tvalid [get_bd_pins axis_register_slice_0/m_axis_tvalid] [get_bd_pins control_tvalid/Op1]
-  connect_bd_net -net ddr4_0_c0_ddr4_ui_clk [get_bd_pins ddr4_clk] [get_bd_pins axis_data_fifo_1/s_axis_aclk]
-  connect_bd_net -net m_axis_aclk_1 [get_bd_pins dac_clk] [get_bd_pins axis_broadcaster_1/aclk] [get_bd_pins axis_data_fifo_0/s_axis_aclk] [get_bd_pins axis_data_fifo_1/m_axis_aclk] [get_bd_pins axis_data_fifo_2/s_axis_aclk] [get_bd_pins axis_register_slice_0/aclk] [get_bd_pins dac_strm_mux/s_axis_aclk]
-  connect_bd_net -net util_vector_logic_0_Res [get_bd_pins dac_resetn] [get_bd_pins axis_broadcaster_1/aresetn] [get_bd_pins axis_data_fifo_0/s_axis_aresetn] [get_bd_pins axis_data_fifo_2/s_axis_aresetn] [get_bd_pins axis_register_slice_0/aresetn]
+  connect_bd_net -net ddr4_clk_1 [get_bd_pins ddr4_clk] [get_bd_pins axis_clock_converter_0/s_axis_aclk] [get_bd_pins axis_register_slice_1/aclk]
+  connect_bd_net -net m_axis_aclk_1 [get_bd_pins dac_clk] [get_bd_pins axis_broadcaster_1/aclk] [get_bd_pins axis_clock_converter_0/m_axis_aclk] [get_bd_pins axis_data_fifo_0/s_axis_aclk] [get_bd_pins axis_data_fifo_1/s_axis_aclk] [get_bd_pins axis_data_fifo_2/s_axis_aclk] [get_bd_pins axis_register_slice_0/aclk] [get_bd_pins dac_strm_mux/s_axis_aclk]
+  connect_bd_net -net util_vector_logic_0_Res [get_bd_pins dac_resetn] [get_bd_pins axis_broadcaster_1/aresetn] [get_bd_pins axis_clock_converter_0/m_axis_aresetn] [get_bd_pins axis_data_fifo_0/s_axis_aresetn] [get_bd_pins axis_data_fifo_1/s_axis_aresetn] [get_bd_pins axis_data_fifo_2/s_axis_aresetn] [get_bd_pins axis_register_slice_0/aresetn]
   connect_bd_net -net util_vector_logic_0_Res1 [get_bd_pins axis_register_slice_0/m_axis_tready] [get_bd_pins control_tready/Res]
-  connect_bd_net -net util_vector_logic_1_Res [get_bd_pins ddr4_resetn] [get_bd_pins axis_data_fifo_1/s_axis_aresetn]
+  connect_bd_net -net util_vector_logic_1_Res [get_bd_pins ddr4_resetn] [get_bd_pins axis_clock_converter_0/s_axis_aresetn] [get_bd_pins axis_register_slice_1/aresetn]
   connect_bd_net -net util_vector_logic_1_Res1 [get_bd_pins axis_broadcaster_1/s_axis_tvalid] [get_bd_pins control_tvalid/Res]
   connect_bd_net -net xlslice_0_Dout [get_bd_pins dac_strm_mux/mux_select] [get_bd_pins xlslice_0/Dout]
 
@@ -2995,6 +3003,7 @@ Port;FD4A0000;FD4AFFFF;0|FPD;DPDMA;FD4C0000;FD4CFFFF;0|FPD;DDR_XMPU5_CFG;FD05000
    CONFIG.UART1_BOARD_INTERFACE {custom} \
    CONFIG.USB0_BOARD_INTERFACE {custom} \
    CONFIG.USB1_BOARD_INTERFACE {custom} \
+   CONFIG.preset {None} \
  ] $zynq_ultra_ps_e_0
 
   # Create interface connections
