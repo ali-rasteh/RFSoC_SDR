@@ -704,6 +704,8 @@ class rfsoc(object):
 
     def recv_frame_one(self, n_frame=1):
         if 'ddr4' in self.project:
+            self.gpio_dic['led'].write(1)
+        if 'ddr4' in self.project:
             self.rx_reg.write(0, self.n_samples // self.n_par_strms_rx)
             self.rx_reg.write(4, self.n_skip // self.n_par_strms_rx)
             self.rx_reg.write(8, n_frame * self.n_samples * 4)
@@ -718,7 +720,6 @@ class rfsoc(object):
         self.dma_rx.transfer(self.adc_rx_buffer)
         self.gpio_dic['adc_enable'].write(1)
         self.dma_rx.wait()
-        self.load_data_from_rx_buffer()
 
         self.gpio_dic['adc_enable'].write(0)
 
@@ -727,6 +728,9 @@ class rfsoc(object):
         else:
             self.gpio_dic['adc_reset'].write(0)
 
+        self.load_data_from_rx_buffer()
+        if 'ddr4' in self.project:
+            self.gpio_dic['led'].write(0)
         self.print("Frames received from ADC", thr=2)
 
         return self.rxtd

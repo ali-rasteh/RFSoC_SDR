@@ -9,8 +9,6 @@ import time
 import socket
 import argparse
 from types import SimpleNamespace
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 
 
 
@@ -21,12 +19,7 @@ class client(object):
         self.verbose_level = params.verbose_level
         self.fc = params.fc
         self.beam_test = params.beam_test
-        self.tx_ip = params.tx_ip
-        self.rx_ip = params.rx_ip
-        if self.mode=='client_tx':
-            self.ip = self.tx_ip
-        elif self.mode=='client_rx':
-            self.ip = self.rx_ip
+        self.server_ip = params.server_ip
         self.TCP_port_Cmd = params.TCP_port_Cmd
         self.TCP_port_Data = params.TCP_port_Data
         self.adc_bits = params.adc_bits
@@ -47,11 +40,13 @@ class client(object):
 
         self.radio_control = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
         self.radio_control.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.radio_control.connect((self.ip, self.TCP_port_Cmd))
+        self.radio_control.connect((self.server_ip, self.TCP_port_Cmd))
 
         self.radio_data = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
         self.radio_data.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.radio_data.connect((self.ip, self.TCP_port_Data))
+        self.radio_data.connect((self.server_ip, self.TCP_port_Data))
+
+        self.print("Client object init done, Succesfully connected to the server", thr=1)
 
 
     def print(self, text='', thr=0):
@@ -62,13 +57,13 @@ class client(object):
         if mode == 'RXen0_TXen1' or mode == 'RXen1_TXen0' or mode == 'RXen0_TXen0':
             self.radio_control.sendall(b"setModeSiver "+str.encode(str(mode)))
             data = self.radio_control.recv(1024)
-            self.print(data,thr=5)
+            self.print("Result of set_mode: {}".format(data),thr=1)
             return data
         
     def set_frequency(self, fc):
         self.radio_control.sendall(b"setCarrierFrequency "+str.encode(str(fc)))
         data = self.radio_control.recv(1024)
-        self.print(data,thr=5)
+        self.print("Result of set_frequency: {}".format(data),thr=1)
         return data
 
     def set_tx_gain(self):
@@ -77,7 +72,7 @@ class client(object):
                                                     + str.encode(str(int(self.tx_bb_iq_gain)) + " ") \
                                                     + str.encode(str(int(self.tx_bfrf_gain))))
         data = self.radio_control.recv(1024)
-        self.print(data,thr=5)
+        self.print("Result of set_tx_gain: {}".format(data),thr=1)
         return data
 
     def set_rx_gain(self):
@@ -86,13 +81,13 @@ class client(object):
                                                     + str.encode(str(int(self.rx_gain_ctrl_bb3)) + " ") \
                                                     + str.encode(str(int(self.rx_gain_ctrl_bfrf))))
         data = self.radio_control.recv(1024)
-        self.print(data,thr=5)
+        self.print("Result of set_rx_gain: {}".format(data),thr=1)
         return data
 
     def transmit_data(self):
         self.radio_control.sendall(b"transmitSamples")
         data = self.radio_control.recv(1024)
-        self.print(data,thr=5)
+        self.print("Result of transmit_data: {}".format(data),thr=1)
         return data
 
     def receive_data(self, mode='once'):
@@ -150,31 +145,8 @@ def rfsoc_run(params):
             client_inst.set_frequency(params.fc)
             client_inst.set_rx_gain()
 
-        rxtd = client_inst.receive_data(mode='once').flatten()
-        sig = signals_inst.rx_operations(txtd_base, rxtd)
-        sig = signals_inst.lin_to_db(np.abs(sig), mode='mag')
-        sig = rxtd.imag[:params.n_samples]
+        signals_inst.animate_plot(client_inst, txtd_base, plot_level=0)
         
-        def update(frame):
-            rxtd = client_inst.receive_data(mode='once').flatten()
-            sig = signals_inst.rx_operations(txtd_base, rxtd)
-            sig = signals_inst.lin_to_db(np.abs(sig), mode='mag')
-            sig = rxtd.imag[:params.n_samples]
-            line.set_ydata(sig)
-            return line,
-
-        # Set up the figure and plot
-        fig, ax = plt.subplots()
-        line, = ax.plot(params.t, sig)
-        # line, = ax.plot(params.freq, sig)
-        ax.autoscale()
-        # ax.set_xlim(np.min(params.freq), np.max(params.freq))
-        # ax.set_ylim(np.min(sig), 1.5*np.max(sig))
-        # ax.tight_layout()
-
-        # Create the animation
-        ani = animation.FuncAnimation(fig, update, frames=200, interval=50, blit=True)
-        plt.show()
         
 
 
@@ -200,7 +172,7 @@ if __name__ == '__main__':
     # parser.add_argument("--mixer_mode", type=str, default='analog', help="Mixer mode, analog or digital")
     # parser.add_argument("--do_mixer_settings", action="store_true", default=False, help="If true, performs mixer settings")
     # parser.add_argument("--sig_mode", type=str, default='wideband', help="Signal mode, tone_1 or tone_2 or wideband or wideband_null or load")
-    # parser.add_argument("--sig_gen_mode", type=str, default='fft', help="signal generation mode, time, or fft or ofdm")
+    # parser.add_argument("--sig_gen_mode", type=str, default='fft', help="signal generation mode, time, or fft or ofdm, or ZadoffChu")
     # parser.add_argument("--wb_bw", type=float, default=900e6, help="Wideband signal bandwidth")
     # parser.add_argument("--f_tone", type=float, default=20e6, help="Tone signal frequency")         # 16.4e6 * 2 for function generator
     # parser.add_argument("--do_pll_settings", action="store_true", default=False, help="If true, performs PLL settings")
@@ -216,8 +188,7 @@ if __name__ == '__main__':
     # parser.add_argument("--plot_level", type=int, default=0, help="level of plotting outputs")
     # parser.add_argument("--verbose_level", type=int, default=0, help="level of printing output")
     # parser.add_argument("--mode", type=str, default='server', help="mode of operation, server or client_tx or client_rx")
-    # parser.add_argument("--tx_ip", type=str, default='10.1.1.40', help="TX board IP")
-    # parser.add_argument("--rx_ip", type=str, default='10.1.1.30', help="RX board IP")
+    # parser.add_argument("--server_ip", type=str, default='192.168.1.3', help="RFSoC board IP as the server")
     # parser.add_argument("--n_frame_wr", type=int, default=1, help="Number of frames to write")
     # parser.add_argument("--n_frame_rd", type=int, default=1, help="Number of frames to read")
     # parser.add_argument("--overwrite_configs", action="store_true", default=False, help="If true, overwrites configurations")
@@ -251,22 +222,21 @@ if __name__ == '__main__':
         params.mix_freq=1000e6
         params.do_mixer_settings=False
         params.do_pll_settings=False
-
-        params.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-18_20240816-112541.bit')
-        params.project='sounder_if_ddr4'
-        params.board='rfsoc_4x2'
-        params.mode='client_rx'
+        params.n_frame_wr=1
+        params.n_frame_rd=1
         params.run_tcp_server=True
         params.send_signal=True
         params.recv_signal=True
-        params.sig_mode='tone_1'
-        params.sig_gen_mode = 'fft'
-        params.n_frame_wr=32
-        params.n_frame_rd=1
-        params.wb_bw=200e6
-        params.f_tone= 2.0 * params.dac_fs / params.nfft #30e6
-        params.tx_ip = '192.168.3.1'
-        params.rx_ip = '192.168.3.1'
+
+        params.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-21_20240822-164647.bit')
+        params.project='sounder_if_ddr4'
+        params.board='rfsoc_4x2'
+        params.mode='client_rx'
+        params.sig_mode='wideband'
+        params.sig_gen_mode = 'ZadoffChu'
+        params.wb_bw=500e6
+        params.f_tone=5.0 * params.dac_fs / params.nfft #30e6
+        params.server_ip='192.168.3.1'
         params.plot_level=0
         params.verbose_level=0
         

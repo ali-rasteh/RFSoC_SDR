@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 from numpy.fft import fft, fftshift, ifft
 from scipy.signal import firwin, lfilter, freqz, welch, convolve
 
@@ -79,6 +80,49 @@ class signals(object):
             # Convert the waveform to time-domain
             tone_td = np.fft.ifft(tone_fd, axis=0)
 
+        # Normalize the signal
+        tone_td /= np.max([np.abs(tone_td.real), np.abs(tone_td.imag)])
+
+        self.print("Tone generation done", thr=2)
+
+        return tone_td
+
+    def generate_wideband(self, bw=200e6, modulation='qam', sig_mode='wideband', gen_mode='fft'):
+
+        if gen_mode == 'fft':
+            sc_min = int(np.round(-(bw/2)*self.nfft_tx/self.dac_fs))
+            sc_max = int(np.round((bw/2)*self.nfft_tx/self.dac_fs))
+            np.random.seed(self.seed)
+            if modulation=='qam':
+                sym = (1 + 1j, 1 - 1j, -1 + 1j, -1 - 1j)  # QAM symbols
+            else:
+                sym = ()
+                # raise ValueError('Invalid signal modulation: ' + modulation)
+
+            # Create the wideband sequence in frequency-domain
+            wb_fd = np.zeros((self.nfft_tx,), dtype='complex')
+            if modulation == 'qam':
+                wb_fd[((self.nfft_tx >> 1) + sc_min):((self.nfft_tx >> 1) + sc_max)] = np.random.choice(sym, len(range(sc_min, sc_max)))
+            else:
+                wb_fd[((self.nfft_tx >> 1) + sc_min):((self.nfft_tx >> 1) + sc_max)] = 1
+            if sig_mode=='wideband_null':
+                wb_fd[((self.nfft_tx >> 1) - self.wb_null_sc):((self.nfft_tx >> 1) + self.wb_null_sc)] = 0
+
+            wb_fd = fftshift(wb_fd, axes=0)
+            # Convert the waveform to time-domain
+            wb_td = ifft(wb_fd, axis=0)
+
+        elif gen_mode == 'ZadoffChu':
+            cf = self.nfft_tx % 2
+            q = 0.5
+            u = 3
+            wb_fd = np.exp(-1j * np.pi * u * np.arange(self.nfft_tx) * (np.arange(self.nfft_tx) + cf + 2*q) / self.nfft_tx)
+            # cf = 0
+            # q = 0
+            # u = 3
+            # wb_fd = np.exp(2j * np.pi * u * np.arange(self.nfft_tx) * (np.arange(self.nfft_tx) + cf + 2*q) / self.nfft_tx)
+            wb_td = ifft(wb_fd, axis=0)
+
         elif gen_mode == 'ofdm':
             # N_blocks = 1000
             N_cp = 256
@@ -87,39 +131,9 @@ class signals(object):
             n_vec = np.arange(N_fft)
             x = np.exp(1j * np.pi * n_vec ** 2 / N_fft)
             x_cp = np.concatenate((x[-N_cp:], x))
-            tone_td = x_cp
-            # tone_td = np.tile(x_cp, N_blocks)
+            wb_td = x_cp
+            # wb_td = np.tile(x_cp, N_blocks)
 
-        # Normalize the signal
-        tone_td /= np.max([np.abs(tone_td.real), np.abs(tone_td.imag)])
-
-        self.print("Tone generation done", thr=2)
-
-        return tone_td
-
-    def generate_wideband(self, bw=200e6, modulation='qam', sig_mode='wideband'):
-
-        sc_min = int(np.round(-(bw/2)*self.nfft_tx/self.dac_fs))
-        sc_max = int(np.round((bw/2)*self.nfft_tx/self.dac_fs))
-        np.random.seed(self.seed)
-        if modulation=='qam':
-            sym = (1 + 1j, 1 - 1j, -1 + 1j, -1 - 1j)  # QAM symbols
-        else:
-            sym = ()
-            # raise ValueError('Invalid signal modulation: ' + modulation)
-
-        # Create the wideband sequence in frequency-domain
-        wb_fd = np.zeros((self.nfft_tx,), dtype='complex')
-        if modulation == 'qam':
-            wb_fd[((self.nfft_tx >> 1) + sc_min):((self.nfft_tx >> 1) + sc_max)] = np.random.choice(sym, len(range(sc_min, sc_max)))
-        else:
-            wb_fd[((self.nfft_tx >> 1) + sc_min):((self.nfft_tx >> 1) + sc_max)] = 1
-        if sig_mode=='wideband_null':
-            wb_fd[((self.nfft_tx >> 1) - self.wb_null_sc):((self.nfft_tx >> 1) + self.wb_null_sc)] = 0
-
-        wb_fd = fftshift(wb_fd, axes=0)
-        # Convert the waveform to time-domain
-        wb_td = ifft(wb_fd, axis=0)
         # Normalize the signal
         wb_td /= np.max([np.abs(wb_td.real), np.abs(wb_td.imag)])
 
@@ -132,7 +146,7 @@ class signals(object):
         if 'tone' in self.sig_mode:
             txtd_base = self.generate_tone(f=self.f_tone, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode)
         elif 'wideband' in self.sig_mode:
-            txtd_base = self.generate_wideband(bw=self.wb_bw, modulation=self.sig_modulation, sig_mode=self.sig_mode)
+            txtd_base = self.generate_wideband(bw=self.wb_bw, modulation=self.sig_modulation, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode)
         elif self.sig_mode == 'load':
             txtd_base = np.load(self.sig_path)
         else:
@@ -276,12 +290,9 @@ class signals(object):
 
 
     def channel_estimate(self, txtd, rxtd):
-        txtd=txtd[:self.n_samples]
-        rxtd=rxtd[:self.n_samples]
-        
-        # time_delay = self.extract_delay(rxtd, txtd, self.plot_level >= 5)
-        # shift=0
-        # rxtd, txtd, mse, err2sig_ratio = self.time_adjust(rxtd, txtd[:self.n_samples - shift], time_delay)
+        n_samples = min(len(txtd), len(rxtd))
+        txtd=txtd[:n_samples]
+        rxtd=rxtd[:n_samples]
         
         txfd = fft(txtd)
         rxfd = fft(rxtd)
@@ -291,23 +302,19 @@ class signals(object):
         tol = 1e-8
         txmean = np.mean(np.abs(txfd)**2)
         H_est = rxfd * np.conj(txfd) / ((np.abs(txfd)**2) + tol*txmean)
-        # H_est = rxfd * np.conj(txfd) / (np.abs(txfd)**2)
         # H_est = rxfd * np.conj(txfd)
         # H_est = rxfd / txfd
 
         h_est = ifft(H_est)
-
         im = np.argmax(h_est)
-        h_est = np.roll(h_est, -im + len(h_est)//100)
-
+        h_est = np.roll(h_est, -im + len(h_est)//50)
         h_est = h_est.flatten()
 
-        t = np.arange(0, np.shape(h_est)[0])
         sig = np.abs(h_est) / np.max(np.abs(h_est))
         title = 'Channel response in the time domain'
-        xlabel = 'Sample'
-        ylabel = 'Normalized Magnitude'
-        self.plot_signal(t, sig, scale='linear', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)
+        xlabel = 'Time (s)'
+        ylabel = 'Normalized Magnitude (dB)'
+        self.plot_signal(self.t, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)
 
         return h_est
 
@@ -436,6 +443,75 @@ class signals(object):
         plt.show()
 
 
+    def animate_plot(self, client_inst, txtd_base, plot_level=0):
+        if self.plot_level<plot_level:
+            return
+        
+        def receive_data():
+            rxtd = client_inst.receive_data(mode='once').flatten()
+            (rxtd_base, h_est) = self.rx_operations(txtd_base, rxtd)
+            rxtd_base = rxtd_base[:self.n_samples]
+            rxfd_base = np.abs(fftshift(fft(rxtd_base)))
+            sigs=[]
+            sigs.append(self.lin_to_db(np.abs(h_est) / np.max(np.abs(h_est)), mode='mag'))
+            sigs.append(self.lin_to_db(rxfd_base, mode='mag'))
+            sigs.append(rxtd_base)
+
+            return (sigs)
+
+        def update(frame):
+            sigs = receive_data()
+            line1.set_ydata(sigs[0])
+            ax1.relim()
+            ax1.autoscale_view()
+            line2.set_ydata(sigs[1])
+            ax2.relim()
+            ax2.autoscale_view()
+            line3.set_ydata(sigs[2].real)
+            line4.set_ydata(sigs[2].imag)
+            ax3.relim()
+            ax3.autoscale_view()
+
+            return line1, line2, line3, line4
+
+        # Set up the figure and plot
+        sigs = receive_data()
+        fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
+        # fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
+
+        line1, = ax1.plot(self.t, sigs[0])
+        ax1.set_title("Channel response in the time domain")
+        ax1.set_xlabel("Time (S)")
+        ax1.set_ylabel("Normalized Magnitude (dB)")
+        ax1.autoscale()
+        # ax1.set_xlim(np.min(self.t), np.max(self.t))
+        # ax1.set_ylim(np.min(sigs[0]), 1.5*np.max(sigs[0]))
+        ax1.minorticks_on()
+        # ax1.grid(0.2)
+
+        line2, = ax2.plot(self.freq, sigs[1])
+        ax2.set_title("RX signal spectrum")
+        ax2.set_xlabel("Freq (MHz)")
+        ax2.set_ylabel("Magnitude (dB)")
+        ax2.autoscale()
+        ax2.minorticks_on()
+
+        line3, = ax3.plot(self.t, sigs[2].real, label='I')
+        line4, = ax3.plot(self.t, sigs[2].imag, label='Q')
+        ax3.set_title("RX signal in time domain (I and Q)")
+        ax3.set_xlabel("Time (S)")
+        ax3.set_ylabel("Magnitude")
+        ax3.autoscale()
+        ax3.legend()
+        ax3.minorticks_on()
+
+        # Create the animation
+        plt.tight_layout()
+        plt.subplots_adjust(hspace=0.4, wspace=0.4)
+        anim = animation.FuncAnimation(fig, update, frames=900*2, interval=500, blit=True)
+        plt.show()
+
+
     def rx_operations(self, txtd_base, rxtd):
         title = 'RX signal spectrum'
         xlabel = 'Frequency (MHz)'
@@ -466,10 +542,10 @@ class signals(object):
             ylabel = 'Magnitude (dB)'
             self.plot_signal(x=self.freq_rx, sigs=rxfd_base, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=5)
 
-
         h_est = self.channel_estimate(txtd_base, rxtd_base)
         # h_est = self.channel_estimate_eq(txtd_base, rxtd_base)
 
+        # n_samples = min(len(txtd_base), len(rxtd_base))
         txfd_base = np.abs(fftshift(fft(txtd_base[:self.n_samples])))
         rxfd_base = np.abs(fftshift(fft(rxtd_base[:self.n_samples])))
 
@@ -486,7 +562,5 @@ class signals(object):
         self.print("txfd_base max freq: {} MHz".format(self.freq[(self.nfft>>1)+np.argmax(txfd_base[self.nfft>>1:])]), thr=5)
         self.print("rxfd_base max freq: {} MHz".format(self.freq[(self.nfft>>1)+np.argmax(rxfd_base[self.nfft>>1:])]), thr=5)
 
-
-        return rxfd_base
-        # return h_est
+        return (rxtd_base, h_est)
 
