@@ -3087,10 +3087,117 @@ Port;FD4A0000;FD4AFFFF;0|FPD;DPDMA;FD4C0000;FD4CFFFF;0|FPD;DDR_XMPU5_CFG;FD05000
   assign_bd_address -offset 0xFF000000 -range 0x01000000 -target_address_space [get_bd_addr_spaces dac_path/axi_dma_0/Data_MM2S] [get_bd_addr_segs zynq_ultra_ps_e_0/SAXIGP3/HP1_LPS_OCM] -force
   assign_bd_address -offset 0xC0000000 -range 0x20000000 -target_address_space [get_bd_addr_spaces dac_path/axi_dma_0/Data_MM2S] [get_bd_addr_segs zynq_ultra_ps_e_0/SAXIGP3/HP1_QSPI] -force
 
+  # Perform GUI Layout
+  regenerate_bd_layout -layout_string {
+   "ActiveEmotionalView":"Default View",
+   "Default View_ScaleFactor":"0.334235",
+   "Default View_TopLeft":"-245,392",
+   "ExpandedHierarchyInLayout":"",
+   "guistr":"# # String gsaved with Nlview 7.0r6  2020-01-29 bk=1.5227 VDI=41 GEI=36 GUI=JA:10.0 non-TLS
+#  -string -flagsOSRD
+preplace port ddr4_pl -pg 1 -lvl 10 -x 4690 -y 1250 -defaultsOSRD
+preplace port lmk_clk1 -pg 1 -lvl 0 -x -50 -y 2030 -defaultsOSRD
+preplace port lmk_clk2 -pg 1 -lvl 0 -x -50 -y 2130 -defaultsOSRD
+preplace port sys_clk_ddr4 -pg 1 -lvl 0 -x -50 -y 2210 -defaultsOSRD
+preplace port sysref_in -pg 1 -lvl 0 -x -50 -y 1530 -defaultsOSRD
+preplace port adc0_clk -pg 1 -lvl 0 -x -50 -y 790 -defaultsOSRD
+preplace port vin0_01 -pg 1 -lvl 0 -x -50 -y 1560 -defaultsOSRD
+preplace port vin0_23 -pg 1 -lvl 0 -x -50 -y 1590 -defaultsOSRD
+preplace port adc2_clk -pg 1 -lvl 0 -x -50 -y 820 -defaultsOSRD
+preplace port vin2_01 -pg 1 -lvl 0 -x -50 -y 1620 -defaultsOSRD
+preplace port vin2_23 -pg 1 -lvl 0 -x -50 -y 1650 -defaultsOSRD
+preplace port dac0_clk -pg 1 -lvl 0 -x -50 -y 850 -defaultsOSRD
+preplace port vout00 -pg 1 -lvl 10 -x 4690 -y 1490 -defaultsOSRD
+preplace port vout02 -pg 1 -lvl 10 -x 4690 -y 1520 -defaultsOSRD
+preplace port dac2_clk -pg 1 -lvl 0 -x -50 -y 880 -defaultsOSRD
+preplace port vout20 -pg 1 -lvl 10 -x 4690 -y 1550 -defaultsOSRD
+preplace port vout22 -pg 1 -lvl 10 -x 4690 -y 1580 -defaultsOSRD
+preplace port port-id_ddr4_led -pg 1 -lvl 10 -x 4690 -y 1280 -defaultsOSRD
+preplace portBus gpio_test -pg 1 -lvl 10 -x 4690 -y 2430 -defaultsOSRD
+preplace portBus lmk_rst -pg 1 -lvl 10 -x 4690 -y 2530 -defaultsOSRD
+preplace inst adc_path -pg 1 -lvl 4 -x 2020 -y 166 -defaultsOSRD
+preplace inst clocktreeMTS -pg 1 -lvl 7 -x 3810 -y 1718 -defaultsOSRD
+preplace inst dac_path -pg 1 -lvl 2 -x 777 -y 228 -defaultsOSRD
+preplace inst reset_block -pg 1 -lvl 1 -x 260 -y 952 -defaultsOSRD
+preplace inst ddr4_0 -pg 1 -lvl 9 -x 4490 -y 1300 -defaultsOSRD
+preplace inst irq_concat -pg 1 -lvl 4 -x 2020 -y 576 -defaultsOSRD
+preplace inst ps8_axi_periph -pg 1 -lvl 6 -x 3370 -y 1070 -defaultsOSRD
+preplace inst smartconnect_0 -pg 1 -lvl 8 -x 4167 -y 1270 -defaultsOSRD
+preplace inst usp_rf_data_converter_0 -pg 1 -lvl 3 -x 1410 -y 1500 -defaultsOSRD
+preplace inst xlconstant_0 -pg 1 -lvl 3 -x 1410 -y 1910 -defaultsOSRD
+preplace inst xlconstant_1 -pg 1 -lvl 2 -x 777 -y 680 -defaultsOSRD
+preplace inst xlconstant_2 -pg 1 -lvl 2 -x 777 -y 576 -defaultsOSRD
+preplace inst xlslice_0 -pg 1 -lvl 9 -x 4490 -y 2530 -defaultsOSRD
+preplace inst xlslice_1 -pg 1 -lvl 9 -x 4490 -y 2430 -defaultsOSRD
+preplace inst zynq_ultra_ps_e_0 -pg 1 -lvl 5 -x 2810 -y 1180 -defaultsOSRD
+preplace netloc adc_control_1 1 3 5 1700 810 NJ 810 NJ 810 NJ 810 3950
+preplace netloc adc_path_s2mm_introut 1 3 2 1710 330 2160
+preplace netloc clk_block_BUFG_O 1 0 9 10 1970 NJ 1970 NJ 1970 NJ 1970 NJ 1970 NJ 1970 NJ 1970 4000 1380 4300J
+preplace netloc clk_block_clk_out2 1 0 8 40 812 460 820 980 820 1640 820 NJ 820 NJ 820 NJ 820 3960
+preplace netloc clocktreeMTS_interrupt 1 3 5 1710 1300 NJ 1300 NJ 1300 NJ 1300 3940
+preplace netloc clocktreeMTS_locked 1 0 8 20 1990 NJ 1990 NJ 1990 NJ 1990 NJ 1990 NJ 1990 NJ 1990 3950
+preplace netloc clocktreeMTS_user_sysref 1 2 6 1040 1980 NJ 1980 NJ 1980 NJ 1980 NJ 1980 3940
+preplace netloc dac_control_1 1 1 7 480 2010 NJ 2010 NJ 2010 NJ 2010 NJ 2010 NJ 2010 3980
+preplace netloc dac_path_mm2s_introut 1 2 2 1040 586 NJ
+preplace netloc ddr4_0_c0_ddr4_ui_clk 1 0 10 30 248 450 68 NJ 68 1600 340 2170 840 NJ 840 NJ 840 3970 1410 NJ 1410 4660
+preplace netloc ddr4_0_c0_ddr4_ui_clk_sync_rst 1 0 10 30 2000 NJ 2000 NJ 2000 NJ 2000 NJ 2000 NJ 2000 NJ 2000 NJ 2000 NJ 2000 4650
+preplace netloc ddr4_0_c0_init_calib_complete 1 9 1 4660J 1270n
+preplace netloc reset_block_Res 1 1 8 440J 850 960J 830 NJ 830 NJ 830 NJ 830 NJ 830 NJ 830 4320
+preplace netloc reset_block_peripheral_aresetn1 1 1 3 410 88 950 196 N
+preplace netloc rst_ddr4_200M_peripheral_aresetn 1 1 8 390 740 NJ 740 1650 740 NJ 740 NJ 740 NJ 740 3980 1370 4310J
+preplace netloc rst_ps8_100M_interconnect_aresetn 1 1 5 NJ 952 NJ 952 NJ 952 NJ 952 3180
+preplace netloc rst_ps8_100M_peripheral_aresetn 1 1 6 430 860 1010 860 1670 860 NJ 860 3200 860 3560J
+preplace netloc usp_rf_data_converter_0_irq 1 3 1 1630 546n
+preplace netloc xlconcat_0_dout 1 4 1 2160 576n
+preplace netloc xlconstant_0_dout 1 3 1 1580 1360n
+preplace netloc xlconstant_1_dout 1 2 1 1020 680n
+preplace netloc xlconstant_2_dout 1 2 1 1030 576n
+preplace netloc xlslice_0_Dout 1 9 1 NJ 2530
+preplace netloc xlslice_1_Dout 1 9 1 NJ 2430
+preplace netloc zynq_ultra_ps_e_0_emio_gpio_o 1 1 8 460 78 NJ 78 1610 -14 NJ -14 3160 850 3580 1598 NJ 1598 4310
+preplace netloc zynq_ultra_ps_e_0_pl_clk0 1 0 7 50 1062 450 1050 1000 1050 1660 1050 2210 1050 3190 870 3550
+preplace netloc zynq_ultra_ps_e_0_pl_resetn0 1 0 6 60 1072 NJ 1072 NJ 1072 NJ 1072 2180J 1060 3140
+preplace netloc ADC1_AXIS_1 1 3 1 1620 76n
+preplace netloc S00_AXI_1 1 5 1 3170 930n
+preplace netloc adc0_clk_1 1 0 3 NJ 790 NJ 790 970J
+preplace netloc adc2_clk_1 1 0 3 -30J 802 NJ 802 940J
+preplace netloc axi_interconnect_0_M00_AXI 1 2 3 930 -4 NJ -4 2200J
+preplace netloc axi_interconnect_0_M01_AXI 1 2 6 920 -24 NJ -24 NJ -24 NJ -24 NJ -24 4010J
+preplace netloc axi_interconnect_1_M00_AXI 1 4 1 2190 166n
+preplace netloc axi_interconnect_1_M01_AXI 1 4 4 NJ 146 NJ 146 NJ 146 4000
+preplace netloc dac0_clk_1 1 0 3 -20J 822 420J 830 930J
+preplace netloc dac2_clk_1 1 0 3 10J 832 400J 840 920J
+preplace netloc dac_path_DAC0_AXIS 1 2 1 910 198n
+preplace netloc ddr4_0_C0_DDR4 1 9 1 NJ 1250
+preplace netloc lmk_clk1_1 1 0 7 NJ 2030 NJ 2030 NJ 2030 1670J 1658 NJ 1658 NJ 1658 NJ
+preplace netloc lmk_clk2_1 1 0 7 NJ 2130 NJ 2130 NJ 2130 1700J 1678 NJ 1678 NJ 1678 NJ
+preplace netloc ps8_axi_periph_M00_AXI 1 1 6 470 770 NJ 770 NJ 770 NJ 770 NJ 770 3510
+preplace netloc ps8_axi_periph_M01_AXI 1 3 4 1680 670 NJ 670 NJ 670 3530
+preplace netloc ps8_axi_periph_M02_AXI 1 2 5 1040 800 NJ 800 NJ 800 NJ 800 3520
+preplace netloc ps8_axi_periph_M03_AXI 1 3 4 1690 680 NJ 680 NJ 680 3540
+preplace netloc ps8_axi_periph_M04_AXI 1 6 1 3570 1110n
+preplace netloc smartconnect_0_M00_AXI 1 8 1 N 1270
+preplace netloc sys_clk_ddr4_1 1 0 7 NJ 2210 NJ 2210 NJ 2210 1710J 1718 NJ 1718 NJ 1718 NJ
+preplace netloc sysref_in_0_1 1 0 3 NJ 1530 NJ 1530 910J
+preplace netloc usp_rf_data_converter_0_m20_axis 1 3 1 1590 56n
+preplace netloc usp_rf_data_converter_0_vout00 1 3 7 1700J 1490 NJ 1490 NJ 1490 NJ 1490 NJ 1490 NJ 1490 NJ
+preplace netloc usp_rf_data_converter_0_vout02 1 3 7 NJ 1520 NJ 1520 NJ 1520 NJ 1520 NJ 1520 NJ 1520 NJ
+preplace netloc usp_rf_data_converter_0_vout20 1 3 7 NJ 1540 NJ 1540 NJ 1540 NJ 1540 NJ 1540 NJ 1540 4660J
+preplace netloc usp_rf_data_converter_0_vout22 1 3 7 NJ 1560 NJ 1560 NJ 1560 NJ 1560 NJ 1560 NJ 1560 4660J
+preplace netloc vin0_01_1 1 0 3 -30J 1500 NJ 1500 990J
+preplace netloc vin0_23_1 1 0 3 -20J 1520 NJ 1520 1040J
+preplace netloc vin2_01_1 1 0 3 -10J 1540 NJ 1540 1040J
+preplace netloc vin2_23_1 1 0 3 0J 1560 NJ 1560 1040J
+preplace netloc zynq_ultra_ps_e_0_M_AXI_HPM0_FPD 1 5 3 3150J 1270 NJ 1270 3990
+levelinfo -pg 1 -50 260 777 1410 2020 2810 3370 3810 4167 4490 4690
+pagesize -pg 1 -db -bbox -sgen -180 -40 4830 2590
+"
+}
 
   # Restore current instance
   current_bd_instance $oldCurInst
 
+  validate_bd_design
   save_bd_design
 }
 # End of create_root_design()
@@ -3102,6 +3209,4 @@ Port;FD4A0000;FD4AFFFF;0|FPD;DPDMA;FD4C0000;FD4CFFFF;0|FPD;DDR_XMPU5_CFG;FD05000
 
 create_root_design ""
 
-
-common::send_gid_msg -ssname BD::TCL -id 2053 -severity "WARNING" "This Tcl script was generated from a block design that has not been validated. It is possible that design <$design_name> may result in errors during validation."
 

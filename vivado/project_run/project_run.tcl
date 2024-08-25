@@ -35,7 +35,6 @@ set output_filename "${cur_project_name}_${version}_${current_date}"
 
 # Create a project - Modify accordingly if you are using an existing project
 # create_project $project_name ./ -force -part xc7z020clg484-1
-
 # set_property top top_name [current_fileset]
 # set_property bitstream.file_name "${output_filename}.bit" [current_run]
 # set_property -name "project.bitstream.file_name" -value "${output_filename}.bit" -objects [current_project]
@@ -48,7 +47,6 @@ reset_run synth_1
 launch_runs impl_1 -to_step write_bitstream -jobs 6
 wait_on_run impl_1
 
-# archive_project D:/temp/mobile-ch1_4x2_v1/project.xpr.zip -temp_dir C:/Users/alira/AppData/Roaming/Xilinx/Vivado/.Xil/Vivado-62704-Ali_Laptop -force -exclude_run_results -include_local_ip_cache -include_config_settings
 
 set builds_path "${cur_proj_dir}/builds"
 if {[file exists $builds_path] && [file isdirectory $builds_path]} {
@@ -61,12 +59,6 @@ if {[file exists $builds_path] && [file isdirectory $builds_path]} {
 
 
 write_hw_platform -fixed -include_bit -force -file "${builds_path}/${output_filename}.xsa"
-write_bd_tcl -force "${cur_proj_dir}/create_bd.tcl"
-write_project_tcl -force "${cur_proj_dir}/create_project.tcl"
-regenerate_bd_layout
-write_bd_layout -format pdf -orientation portrait -force "${cur_proj_dir}/schematic_top.pdf"
-
-
 set bit_file_path "${cur_proj_dir}/${cur_project_name}.runs/impl_1/${cur_top_name}.bit"
 set hwh_file_path "${cur_proj_dir}/${cur_project_name}.gen/sources_1/bd/${cur_design_name}/hw_handoff/${cur_design_name}.hwh"
 if {[file exists $bit_file_path]} {
@@ -88,3 +80,27 @@ set builds_fd [open $builds_file "a"]
 puts $builds_fd $output_filename
 close $builds_fd
 puts "Appended the build to the builds history file"
+
+
+file delete -force "${cur_proj_dir}/create_project.tcl"
+file delete -force "${cur_proj_dir}/project_def_val.txt"
+file delete -force "${cur_proj_dir}/project_dump.txt"
+file delete -force "${cur_proj_dir}/create_bd.tcl"
+file delete -force "${cur_proj_dir}/schematic_top.pdf"
+file delete -force "${cur_proj_dir}/${cur_project_name}.xpr.zip"
+
+
+reset_run synth_1
+reset_run impl_1
+write_project_tcl -force -all_properties -dump_project_info "${cur_proj_dir}/create_project.tcl"
+write_bd_tcl -include_layout -force "${cur_proj_dir}/create_bd.tcl"
+# regenerate_bd_layout
+write_bd_layout -format pdf -orientation portrait -force "${cur_proj_dir}/schematic_top.pdf"
+# archive_project "${cur_proj_dir}/${cur_project_name}.xpr.zip" -force -exclude_run_results -include_config_settings
+
+
+foreach file [glob -directory $cur_proj_dir *.log *.jou *.str .Xiltemp] {
+    if {[catch {file delete -force $file} errorMsg]} {
+        puts "Error: Failed to delete $file: $errorMsg"
+    }
+}

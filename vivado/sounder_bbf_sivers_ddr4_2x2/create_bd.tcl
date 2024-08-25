@@ -2178,10 +2178,126 @@ Port;FD4A0000;FD4AFFFF;0|FPD;DPDMA;FD4C0000;FD4CFFFF;0|FPD;DDR_XMPU5_CFG;FD05000
   assign_bd_address -offset 0xFF000000 -range 0x01000000 -target_address_space [get_bd_addr_spaces dac_path/axi_dma_0/Data_MM2S] [get_bd_addr_segs zynq_ultra_ps_e_0/SAXIGP3/HP1_LPS_OCM] -force
   assign_bd_address -offset 0xC0000000 -range 0x20000000 -target_address_space [get_bd_addr_spaces dac_path/axi_dma_0/Data_MM2S] [get_bd_addr_segs zynq_ultra_ps_e_0/SAXIGP3/HP1_QSPI] -force
 
+  # Perform GUI Layout
+  regenerate_bd_layout -layout_string {
+   "ActiveEmotionalView":"Default View",
+   "Default View_ScaleFactor":"0.419692",
+   "Default View_TopLeft":"-222,10",
+   "ExpandedHierarchyInLayout":"",
+   "guistr":"# # String gsaved with Nlview 7.0r6  2020-01-29 bk=1.5227 VDI=41 GEI=36 GUI=JA:10.0 non-TLS
+#  -string -flagsOSRD
+preplace port adc0_clk -pg 1 -lvl 0 -x -40 -y 230 -defaultsOSRD
+preplace port adc2_clk -pg 1 -lvl 0 -x -40 -y 260 -defaultsOSRD
+preplace port dac0_clk -pg 1 -lvl 0 -x -40 -y 290 -defaultsOSRD
+preplace port dac1_clk -pg 1 -lvl 0 -x -40 -y 500 -defaultsOSRD
+preplace port ddr4_pl -pg 1 -lvl 8 -x 3410 -y 1160 -defaultsOSRD
+preplace port lmk_clk1 -pg 1 -lvl 0 -x -40 -y 1370 -defaultsOSRD
+preplace port lmk_clk2 -pg 1 -lvl 0 -x -40 -y 1340 -defaultsOSRD
+preplace port sys_clk_ddr4 -pg 1 -lvl 0 -x -40 -y 1570 -defaultsOSRD
+preplace port sysref_in -pg 1 -lvl 0 -x -40 -y 850 -defaultsOSRD
+preplace port vin0_01 -pg 1 -lvl 0 -x -40 -y 590 -defaultsOSRD
+preplace port vin0_23 -pg 1 -lvl 0 -x -40 -y 530 -defaultsOSRD
+preplace port vin2_01 -pg 1 -lvl 0 -x -40 -y 560 -defaultsOSRD
+preplace port vin2_23 -pg 1 -lvl 0 -x -40 -y 880 -defaultsOSRD
+preplace port vout00 -pg 1 -lvl 8 -x 3410 -y 480 -defaultsOSRD
+preplace port vout01 -pg 1 -lvl 8 -x 3410 -y 510 -defaultsOSRD
+preplace port vout02 -pg 1 -lvl 8 -x 3410 -y 540 -defaultsOSRD
+preplace port vout03 -pg 1 -lvl 8 -x 3410 -y 570 -defaultsOSRD
+preplace port vout10 -pg 1 -lvl 8 -x 3410 -y 600 -defaultsOSRD
+preplace port vout11 -pg 1 -lvl 8 -x 3410 -y 630 -defaultsOSRD
+preplace port vout12 -pg 1 -lvl 8 -x 3410 -y 660 -defaultsOSRD
+preplace port vout13 -pg 1 -lvl 8 -x 3410 -y 690 -defaultsOSRD
+preplace port port-id_ddr4_led -pg 1 -lvl 8 -x 3410 -y 1190 -defaultsOSRD
+preplace portBus gpio_test -pg 1 -lvl 8 -x 3410 -y 1360 -defaultsOSRD
+preplace portBus lmk_rst -pg 1 -lvl 8 -x 3410 -y 1460 -defaultsOSRD
+preplace inst adc_path -pg 1 -lvl 2 -x 740 -y 1120 -defaultsOSRD
+preplace inst clocktreeMTS -pg 1 -lvl 5 -x 2470 -y 1150 -defaultsOSRD
+preplace inst dac_path -pg 1 -lvl 2 -x 740 -y 720 -defaultsOSRD
+preplace inst ddr4_0 -pg 1 -lvl 7 -x 3180 -y 1210 -defaultsOSRD
+preplace inst irq_concat -pg 1 -lvl 2 -x 740 -y 1480 -defaultsOSRD
+preplace inst ps8_axi_periph -pg 1 -lvl 4 -x 2070 -y 470 -defaultsOSRD
+preplace inst reset_block -pg 1 -lvl 1 -x 190 -y 1250 -defaultsOSRD
+preplace inst smartconnect_0 -pg 1 -lvl 6 -x 2820 -y 1300 -defaultsOSRD
+preplace inst usp_rf_data_converter_0 -pg 1 -lvl 7 -x 3180 -y 570 -defaultsOSRD
+preplace inst xlconstant_0 -pg 1 -lvl 7 -x 3180 -y 60 -defaultsOSRD
+preplace inst xlconstant_1 -pg 1 -lvl 6 -x 2820 -y 330 -defaultsOSRD
+preplace inst xlconstant_2 -pg 1 -lvl 6 -x 2820 -y 230 -defaultsOSRD
+preplace inst xlslice_0 -pg 1 -lvl 7 -x 3180 -y 1460 -defaultsOSRD
+preplace inst xlslice_1 -pg 1 -lvl 7 -x 3180 -y 1360 -defaultsOSRD
+preplace inst zynq_ultra_ps_e_0 -pg 1 -lvl 3 -x 1450 -y 920 -defaultsOSRD
+preplace netloc adc_control_1 1 1 5 450 930 910J 1110 1850J 950 2210J 940 2610
+preplace netloc adc_path_s2mm_introut 1 1 2 470 1300 880
+preplace netloc clk_block_BUFG_O 1 0 7 10 860 NJ 860 890J 1060 1810J 960 2220J 950 2670 1200 N
+preplace netloc clk_block_clk_out2 1 0 7 30 1110 360 870 980J 1090 1870J 980 2250J 970 2630 980 3000
+preplace netloc clocktreeMTS_dest_out 1 5 2 2660 970 2960
+preplace netloc clocktreeMTS_interrupt 1 1 5 420 920 880J 1080 1830J 970 2230J 960 2620
+preplace netloc clocktreeMTS_locked 1 0 6 -10 1380 NJ 1380 NJ 1380 NJ 1380 NJ 1380 2600
+preplace netloc dac_control_1 1 1 5 470 850 1010J 1070 1860J 990 2270J 980 2600
+preplace netloc dac_path_mm2s_introut 1 1 2 400 500 980
+preplace netloc ddr4_0_c0_ddr4_ui_clk 1 0 8 40 1370 370 1280 990 1280 NJ 1280 NJ 1280 2620 1520 NJ 1520 3350
+preplace netloc ddr4_0_c0_ddr4_ui_clk_sync_rst 1 0 8 10 1590 NJ 1590 NJ 1590 NJ 1590 NJ 1590 NJ 1590 NJ 1590 3360
+preplace netloc ddr4_0_c0_init_calib_complete 1 7 1 3390J 1180n
+preplace netloc reset_block_Res 1 1 6 340J 1290 NJ 1290 NJ 1290 NJ 1290 2610J 1410 3000
+preplace netloc reset_block_peripheral_aresetn1 1 1 6 330 880 960J 1120 1900J 1000 2290J 990 NJ 990 2980
+preplace netloc rst_ddr4_200M_peripheral_aresetn 1 1 6 380 1340 NJ 1340 NJ 1340 NJ 1340 2660 1400 2990
+preplace netloc rst_ps8_100M_interconnect_aresetn 1 1 3 320J 470 NJ 470 1810
+preplace netloc rst_ps8_100M_peripheral_aresetn 1 1 6 350 490 NJ 490 1900 780 2240 780 NJ 780 NJ
+preplace netloc usp_rf_data_converter_0_irq 1 1 7 460 1580 NJ 1580 NJ 1580 NJ 1580 NJ 1580 NJ 1580 3370
+preplace netloc xlconcat_0_dout 1 2 1 1000 980n
+preplace netloc xlconstant_0_dout 1 7 1 3370 60n
+preplace netloc xlconstant_1_dout 1 6 1 3000 240n
+preplace netloc xlconstant_2_dout 1 6 1 2990 220n
+preplace netloc xlslice_0_Dout 1 7 1 NJ 1460
+preplace netloc xlslice_1_Dout 1 7 1 NJ 1360
+preplace netloc zynq_ultra_ps_e_0_emio_gpio_o 1 1 6 430 890 930J 1130 1790 1010 2300 1000 NJ 1000 2970
+preplace netloc zynq_ultra_ps_e_0_pl_clk0 1 0 7 50 1400 390 900 920 1140 1840 800 2280 790 NJ 790 3000J
+preplace netloc zynq_ultra_ps_e_0_pl_resetn0 1 0 4 20 910 NJ 910 900J 1150 1780
+preplace netloc S00_AXI_1 1 3 1 1780 330n
+preplace netloc adc0_clk_0_1 1 0 7 NJ 230 NJ 230 NJ 230 NJ 230 NJ 230 2680J 390 2960J
+preplace netloc adc2_clk_0_1 1 0 7 NJ 260 NJ 260 NJ 260 NJ 260 NJ 260 2610J 400 2950J
+preplace netloc axi_interconnect_0_M00_AXI 1 2 1 1020 740n
+preplace netloc axi_interconnect_0_M01_AXI 1 2 4 NJ 720 1790J 730 NJ 730 2650
+preplace netloc axi_interconnect_1_M00_AXI 1 2 1 950 860n
+preplace netloc axi_interconnect_1_M01_AXI 1 2 4 N 1100 1890J 1020 2310J 1010 2640J
+preplace netloc dac0_clk_0_1 1 0 7 -20J 150 NJ 150 NJ 150 NJ 150 NJ 150 NJ 150 2970J
+preplace netloc dac1_clk_0_1 1 0 7 -20J 480 NJ 480 NJ 480 1920J 670 2250J 640 NJ 640 NJ
+preplace netloc dac_path_DAC1_AXIS 1 2 5 1010 140 NJ 140 NJ 140 NJ 140 2980J
+preplace netloc dac_path_M01_AXIS 1 2 5 1020 160 NJ 160 NJ 160 NJ 160 2950J
+preplace netloc ddr4_0_C0_DDR4 1 7 1 NJ 1160
+preplace netloc lmk_clk1_1 1 0 5 -20J 1390 NJ 1390 1010J 1160 1910J 1090 NJ
+preplace netloc lmk_clk2_1 1 0 5 -20J 1360 NJ 1360 1020J 1170 1920J 1110 NJ
+preplace netloc ps8_axi_periph_M00_AXI 1 1 4 470 560 NJ 560 1850J 710 2240
+preplace netloc ps8_axi_periph_M01_AXI 1 1 4 440 580 NJ 580 1880J 680 2220
+preplace netloc ps8_axi_periph_M02_AXI 1 4 3 2260 170 NJ 170 2960J
+preplace netloc ps8_axi_periph_M03_AXI 1 1 4 410 520 NJ 520 1910J 690 2210
+preplace netloc ps8_axi_periph_M04_AXI 1 4 1 2260 510n
+preplace netloc smartconnect_0_M00_AXI 1 6 1 2980 1180n
+preplace netloc sys_clk_ddr4_1 1 0 5 NJ 1570 NJ 1570 NJ 1570 NJ 1570 2330J
+preplace netloc sysref_in_0_1 1 0 7 -20J 510 NJ 510 NJ 510 1830J 740 NJ 740 NJ 740 NJ
+preplace netloc usp_rf_data_converter_0_m00_axis 1 1 7 460 940 970J 1040 NJ 1040 2330J 1030 NJ 1030 2950J 1040 3360
+preplace netloc usp_rf_data_converter_0_m20_axis 1 1 7 470 950 940J 1050 1880J 1030 2320J 1020 NJ 1020 2960J 1050 3350
+preplace netloc usp_rf_data_converter_0_vout00 1 7 1 3380J 480n
+preplace netloc usp_rf_data_converter_0_vout01 1 7 1 3390J 510n
+preplace netloc usp_rf_data_converter_0_vout02 1 7 1 3380J 540n
+preplace netloc usp_rf_data_converter_0_vout03 1 7 1 NJ 570
+preplace netloc usp_rf_data_converter_0_vout10 1 7 1 3380J 590n
+preplace netloc usp_rf_data_converter_0_vout11 1 7 1 3390J 610n
+preplace netloc usp_rf_data_converter_0_vout12 1 7 1 3380J 630n
+preplace netloc usp_rf_data_converter_0_vout13 1 7 1 3370J 650n
+preplace netloc vin0_01_0_1 1 0 7 NJ 590 330J 570 NJ 570 1800J 750 NJ 750 NJ 750 2960J
+preplace netloc vin0_23_0_1 1 0 7 NJ 530 NJ 530 NJ 530 1820J 760 NJ 760 NJ 760 2980J
+preplace netloc vin2_01_0_1 1 0 7 -10J 540 NJ 540 NJ 540 1890J 700 NJ 700 NJ 700 NJ
+preplace netloc vin2_23_0_1 1 0 7 0J 550 NJ 550 NJ 550 1810J 720 NJ 720 NJ 720 NJ
+preplace netloc zynq_ultra_ps_e_0_M_AXI_HPM0_FPD 1 3 3 1810 930 NJ 930 2680J
+levelinfo -pg 1 -40 190 740 1450 2070 2470 2820 3180 3410
+pagesize -pg 1 -db -bbox -sgen -170 0 3550 2150
+"
+}
 
   # Restore current instance
   current_bd_instance $oldCurInst
 
+  validate_bd_design
   save_bd_design
 }
 # End of create_root_design()
@@ -2193,6 +2309,4 @@ Port;FD4A0000;FD4AFFFF;0|FPD;DPDMA;FD4C0000;FD4CFFFF;0|FPD;DDR_XMPU5_CFG;FD05000
 
 create_root_design ""
 
-
-common::send_gid_msg -ssname BD::TCL -id 2053 -severity "WARNING" "This Tcl script was generated from a block design that has not been validated. It is possible that design <$design_name> may result in errors during validation."
 

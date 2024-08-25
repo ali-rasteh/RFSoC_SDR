@@ -158,7 +158,7 @@ class signals(object):
         ylabel = 'Magnitude (dB)'
         self.plot_signal(x=self.freq_tx, sigs=txtd_base, mode='fft', scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=4)
         title = 'Base-band TX signal in time domain at the time transition'
-        xlabel = 'Time (S)'
+        xlabel = 'Time (s)'
         ylabel = 'Magnitude'
         n=int(np.round(self.dac_fs/self.f_max))
         t=self.t_tx[:2*n]
@@ -291,6 +291,8 @@ class signals(object):
 
     def channel_estimate(self, txtd, rxtd):
         n_samples = min(len(txtd), len(rxtd))
+        t = self.t_rx if self.n_samples_rx<self.n_samples_tx else self.t_tx
+        freq = self.freq_rx if self.nfft_rx<self.nfft_tx else self.freq_tx
         txtd=txtd[:n_samples]
         rxtd=rxtd[:n_samples]
         
@@ -314,7 +316,13 @@ class signals(object):
         title = 'Channel response in the time domain'
         xlabel = 'Time (s)'
         ylabel = 'Normalized Magnitude (dB)'
-        self.plot_signal(self.t, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)
+        self.plot_signal(t, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)
+
+        sig = np.abs(fftshift(H_est))
+        title = 'Channel response in the frequency domain'
+        xlabel = 'Frequency (MHz)'
+        ylabel = 'Magnitude (dB)'
+        self.plot_signal(freq, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)
 
         return h_est
 
@@ -452,10 +460,12 @@ class signals(object):
             (rxtd_base, h_est) = self.rx_operations(txtd_base, rxtd)
             rxtd_base = rxtd_base[:self.n_samples]
             rxfd_base = np.abs(fftshift(fft(rxtd_base)))
+            H_est = np.abs(fftshift(fft(h_est)))
             sigs=[]
             sigs.append(self.lin_to_db(np.abs(h_est) / np.max(np.abs(h_est)), mode='mag'))
+            sigs.append(self.lin_to_db(H_est, mode='mag'))
+            # sigs.append(rxtd_base)
             sigs.append(self.lin_to_db(rxfd_base, mode='mag'))
-            sigs.append(rxtd_base)
 
             return (sigs)
 
@@ -465,14 +475,16 @@ class signals(object):
             ax1.relim()
             ax1.autoscale_view()
             line2.set_ydata(sigs[1])
+            # line3.set_ydata(sigs[1].imag)
+            # line2.set_ydata(sigs[1].imag)
             ax2.relim()
             ax2.autoscale_view()
-            line3.set_ydata(sigs[2].real)
-            line4.set_ydata(sigs[2].imag)
+            line4.set_ydata(sigs[2])
             ax3.relim()
             ax3.autoscale_view()
 
-            return line1, line2, line3, line4
+            return line1, line2, line4
+            # return line1, line2, line3, line4
 
         # Set up the figure and plot
         sigs = receive_data()
@@ -481,7 +493,7 @@ class signals(object):
 
         line1, = ax1.plot(self.t, sigs[0])
         ax1.set_title("Channel response in the time domain")
-        ax1.set_xlabel("Time (S)")
+        ax1.set_xlabel("Time (s)")
         ax1.set_ylabel("Normalized Magnitude (dB)")
         ax1.autoscale()
         # ax1.set_xlim(np.min(self.t), np.max(self.t))
@@ -490,19 +502,23 @@ class signals(object):
         # ax1.grid(0.2)
 
         line2, = ax2.plot(self.freq, sigs[1])
-        ax2.set_title("RX signal spectrum")
-        ax2.set_xlabel("Freq (MHz)")
+        ax2.set_title("Channel response in the frequency domain")
+        ax2.set_xlabel("Frequency (MHz)")
         ax2.set_ylabel("Magnitude (dB)")
+        # line2, = ax2.plot(self.t, sigs[1].real, label='I')
+        # line3, = ax2.plot(self.t, sigs[1].imag, label='Q')
+        # ax2.set_title("RX signal in time domain (I and Q)")
+        # ax2.set_xlabel("Time (s)")
+        # ax2.set_ylabel("Magnitude")
+        ax2.legend()
         ax2.autoscale()
         ax2.minorticks_on()
 
-        line3, = ax3.plot(self.t, sigs[2].real, label='I')
-        line4, = ax3.plot(self.t, sigs[2].imag, label='Q')
-        ax3.set_title("RX signal in time domain (I and Q)")
-        ax3.set_xlabel("Time (S)")
-        ax3.set_ylabel("Magnitude")
+        line4, = ax3.plot(self.freq, sigs[2])
+        ax3.set_title("RX signal spectrum")
+        ax3.set_xlabel("Freq (MHz)")
+        ax3.set_ylabel("Magnitude (dB)")
         ax3.autoscale()
-        ax3.legend()
         ax3.minorticks_on()
 
         # Create the animation
@@ -519,7 +535,7 @@ class signals(object):
         self.plot_signal(x=self.freq_rx, sigs=rxtd, mode='fft', scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=5)
 
         title = 'RX signal in time domain (zoomed)'
-        xlabel = 'Time (S)'
+        xlabel = 'Time (s)'
         ylabel = 'Magnitude'
         # xlim=(0, 10/(self.filter_bw/2))
         n = 4*int(np.round(self.adc_fs/self.f_max))
