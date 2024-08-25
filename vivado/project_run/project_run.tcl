@@ -1,7 +1,7 @@
 set project_name "sounder_rfsoc"
 set top_name "sounder_rfsoc"
 set design_name "design_sounder_rfsoc"
-set version_file "/home/sharan/shared/rfsoc_fr3_piradio_version.txt"
+set version_file "/home/sharan/shared/sounder_rfsoc_version.txt"
 
 
 set cur_project_name [current_project]
@@ -83,8 +83,8 @@ puts "Appended the build to the builds history file"
 
 
 file delete -force "${cur_proj_dir}/create_project.tcl"
-file delete -force "${cur_proj_dir}/project_def_val.txt"
-file delete -force "${cur_proj_dir}/project_dump.txt"
+file delete -force "${cur_proj_dir}/${cur_project_name}_def_val.txt"
+file delete -force "${cur_proj_dir}/${cur_project_name}_dump.txt"
 file delete -force "${cur_proj_dir}/create_bd.tcl"
 file delete -force "${cur_proj_dir}/schematic_top.pdf"
 file delete -force "${cur_proj_dir}/${cur_project_name}.xpr.zip"

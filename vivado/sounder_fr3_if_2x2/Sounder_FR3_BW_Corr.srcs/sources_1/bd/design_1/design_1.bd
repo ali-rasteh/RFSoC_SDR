@@ -3244,7 +3244,10 @@
             "value": "2"
           },
           "ADC_NCO_Freq20": {
-            "value": "0"
+            "value": "-1.0"
+          },
+          "ADC_NCO_RTS": {
+            "value": "true"
           },
           "ADC_Slice00_Enable": {
             "value": "false"
@@ -3277,7 +3280,10 @@
             "value": "2"
           },
           "DAC_NCO_Freq10": {
-            "value": "0"
+            "value": "1.0"
+          },
+          "DAC_NCO_RTS": {
+            "value": "true"
           },
           "DAC_Slice00_Enable": {
             "value": "false"

@@ -32,10 +32,10 @@
         "Calibration_Freeze": [ { "value": "false", "resolve_type": "user", "format": "bool", "usage": "all" } ],
         "Auto_Calibration_Freeze": [ { "value": "false", "resolve_type": "user", "format": "bool", "enabled": false, "usage": "all" } ],
         "Calibration_Time": [ { "value": "10", "resolve_type": "user", "format": "long", "usage": "all" } ],
-        "DAC_NCO_RTS": [ { "value": "false", "resolve_type": "user", "format": "bool", "usage": "all" } ],
+        "DAC_NCO_RTS": [ { "value": "true", "value_src": "user", "resolve_type": "user", "format": "bool", "usage": "all" } ],
         "DAC_VOP_RTS": [ { "value": "false", "resolve_type": "user", "format": "bool", "enabled": false, "usage": "all" } ],
         "DAC_MTS_Variable_Fabric_Width": [ { "value": "false", "resolve_type": "user", "format": "bool", "enabled": false, "usage": "all" } ],
-        "ADC_NCO_RTS": [ { "value": "false", "resolve_type": "user", "format": "bool", "usage": "all" } ],
+        "ADC_NCO_RTS": [ { "value": "true", "value_src": "user", "resolve_type": "user", "format": "bool", "usage": "all" } ],
         "ADC_DSA_RTS": [ { "value": "false", "resolve_type": "user", "format": "bool", "enabled": false, "usage": "all" } ],
         "ADC_MTS_Variable_Fabric_Width": [ { "value": "false", "resolve_type": "user", "format": "bool", "enabled": false, "usage": "all" } ],
         "ADC0_Enable": [ { "value": "0", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
@@ -243,7 +243,7 @@
         "ADC_Data_Width20": [ { "value": "4", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "ADC_OBS_Data_Width20": [ { "value": "8", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
         "ADC_Coarse_Mixer_Freq20": [ { "value": "0", "resolve_type": "user", "enabled": false, "usage": "all" } ],
-        "ADC_NCO_Freq20": [ { "value": "0", "value_src": "user", "resolve_type": "user", "format": "float", "usage": "all" } ],
+        "ADC_NCO_Freq20": [ { "value": "-1.0", "value_src": "user", "resolve_type": "user", "format": "float", "usage": "all" } ],
         "ADC_NCO_Phase20": [ { "value": "0", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "ADC_Neg_Quadrature20": [ { "value": "false", "resolve_type": "user", "format": "bool", "usage": "all" } ],
         "ADC_Nyquist20": [ { "value": "0", "resolve_type": "user", "format": "long", "usage": "all" } ],
@@ -262,7 +262,7 @@
         "ADC_Data_Width21": [ { "value": "4", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
         "ADC_OBS_Data_Width21": [ { "value": "8", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
         "ADC_Coarse_Mixer_Freq21": [ { "value": "0", "resolve_type": "user", "enabled": false, "usage": "all" } ],
-        "ADC_NCO_Freq21": [ { "value": "0", "resolve_type": "user", "format": "float", "enabled": false, "usage": "all" } ],
+        "ADC_NCO_Freq21": [ { "value": "-1.0", "resolve_type": "user", "format": "float", "enabled": false, "usage": "all" } ],
         "ADC_NCO_Phase21": [ { "value": "0", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
         "ADC_Neg_Quadrature21": [ { "value": "false", "resolve_type": "user", "format": "bool", "enabled": false, "usage": "all" } ],
         "ADC_Nyquist21": [ { "value": "0", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
@@ -577,7 +577,7 @@
         "DAC_Mixer_Mode10": [ { "value": "0", "resolve_type": "user", "usage": "all" } ],
         "DAC_Invsinc_Ctrl10": [ { "value": "false", "resolve_type": "user", "format": "bool", "usage": "all" } ],
         "DAC_Coarse_Mixer_Freq10": [ { "value": "0", "resolve_type": "user", "enabled": false, "usage": "all" } ],
-        "DAC_NCO_Freq10": [ { "value": "0", "value_src": "user", "resolve_type": "user", "format": "float", "usage": "all" } ],
+        "DAC_NCO_Freq10": [ { "value": "1.0", "value_src": "user", "resolve_type": "user", "format": "float", "usage": "all" } ],
         "DAC_NCO_Phase10": [ { "value": "0", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "DAC_Neg_Quadrature10": [ { "value": "false", "resolve_type": "user", "format": "bool", "usage": "all" } ],
         "DAC_Nyquist10": [ { "value": "0", "resolve_type": "user", "format": "long", "usage": "all" } ],
@@ -894,10 +894,10 @@
         "C_Calibration_Freeze": [ { "value": "false", "resolve_type": "generated", "format": "bool", "usage": "all" } ],
         "C_Auto_Calibration_Freeze": [ { "value": "false", "resolve_type": "generated", "format": "bool", "usage": "all" } ],
         "C_Calibration_Time": [ { "value": "10", "resolve_type": "generated", "format": "long", "usage": "all" } ],
-        "C_DAC_NCO_RTS": [ { "value": "false", "resolve_type": "generated", "format": "bool", "usage": "all" } ],
+        "C_DAC_NCO_RTS": [ { "value": "true", "resolve_type": "generated", "format": "bool", "usage": "all" } ],
         "C_DAC_VOP_RTS": [ { "value": "false", "resolve_type": "generated", "format": "bool", "usage": "all" } ],
         "C_DAC_MTS_Variable_Fabric_Width": [ { "value": "false", "resolve_type": "generated", "format": "bool", "usage": "all" } ],
-        "C_ADC_NCO_RTS": [ { "value": "false", "resolve_type": "generated", "format": "bool", "usage": "all" } ],
+        "C_ADC_NCO_RTS": [ { "value": "true", "resolve_type": "generated", "format": "bool", "usage": "all" } ],
         "C_ADC_DSA_RTS": [ { "value": "false", "resolve_type": "generated", "format": "bool", "usage": "all" } ],
         "C_ADC_MTS_Variable_Fabric_Width": [ { "value": "false", "resolve_type": "generated", "format": "bool", "usage": "all" } ],
         "C_RESERVED_2": [ { "value": "false", "resolve_type": "generated", "format": "bool", "usage": "all" } ],
@@ -1132,7 +1132,7 @@
         "C_ADC_Data_Width20": [ { "value": "4", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_ADC_OBS_Data_Width20": [ { "value": "8", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_ADC_Coarse_Mixer_Freq20": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
-        "C_ADC_NCO_Freq20": [ { "value": "0", "resolve_type": "generated", "format": "float", "usage": "all" } ],
+        "C_ADC_NCO_Freq20": [ { "value": "-1.0", "resolve_type": "generated", "format": "float", "usage": "all" } ],
         "C_ADC_NCO_Phase20": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_ADC_Neg_Quadrature20": [ { "value": "false", "resolve_type": "generated", "format": "bool", "usage": "all" } ],
         "C_ADC_Nyquist20": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
@@ -1152,7 +1152,7 @@
         "C_ADC_Data_Width21": [ { "value": "4", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_ADC_OBS_Data_Width21": [ { "value": "8", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_ADC_Coarse_Mixer_Freq21": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
-        "C_ADC_NCO_Freq21": [ { "value": "0", "resolve_type": "generated", "format": "float", "usage": "all" } ],
+        "C_ADC_NCO_Freq21": [ { "value": "-1.0", "resolve_type": "generated", "format": "float", "usage": "all" } ],
         "C_ADC_NCO_Phase21": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_ADC_Neg_Quadrature21": [ { "value": "false", "resolve_type": "generated", "format": "bool", "usage": "all" } ],
         "C_ADC_Nyquist21": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
@@ -1414,7 +1414,7 @@
         "C_DAC_Mixer_Mode10": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_DAC_Invsinc_Ctrl10": [ { "value": "false", "resolve_type": "generated", "format": "bool", "usage": "all" } ],
         "C_DAC_Coarse_Mixer_Freq10": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
-        "C_DAC_NCO_Freq10": [ { "value": "0", "resolve_type": "generated", "format": "float", "usage": "all" } ],
+        "C_DAC_NCO_Freq10": [ { "value": "1.0", "resolve_type": "generated", "format": "float", "usage": "all" } ],
         "C_DAC_NCO_Phase10": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_DAC_Neg_Quadrature10": [ { "value": "false", "resolve_type": "generated", "format": "bool", "usage": "all" } ],
         "C_DAC_Nyquist10": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
@@ -1721,7 +1721,19 @@
         "s1_axis_aclk": [ { "direction": "in", "driver_value": "0" } ],
         "s10_axis_tdata": [ { "direction": "in", "size_left": "127", "size_right": "0", "driver_value": "0" } ],
         "s10_axis_tvalid": [ { "direction": "in", "driver_value": "0" } ],
-        "s10_axis_tready": [ { "direction": "out" } ]
+        "s10_axis_tready": [ { "direction": "out" } ],
+        "dac10_nco_freq": [ { "direction": "in", "size_left": "47", "size_right": "0", "driver_value": "0" } ],
+        "dac10_nco_phase": [ { "direction": "in", "size_left": "17", "size_right": "0", "driver_value": "0" } ],
+        "dac10_nco_phase_rst": [ { "direction": "in", "driver_value": "0" } ],
+        "dac10_nco_update_en": [ { "direction": "in", "size_left": "5", "size_right": "0", "driver_value": "0" } ],
+        "dac1_nco_update_req": [ { "direction": "in", "driver_value": "0" } ],
+        "dac1_nco_update_busy": [ { "direction": "out" } ],
+        "adc2_01_nco_freq": [ { "direction": "in", "size_left": "47", "size_right": "0", "driver_value": "0" } ],
+        "adc2_01_nco_phase": [ { "direction": "in", "size_left": "17", "size_right": "0", "driver_value": "0" } ],
+        "adc2_01_nco_phase_rst": [ { "direction": "in", "driver_value": "0" } ],
+        "adc2_01_nco_update_en": [ { "direction": "in", "size_left": "5", "size_right": "0", "driver_value": "0" } ],
+        "adc2_nco_update_req": [ { "direction": "in", "driver_value": "0" } ],
+        "adc2_nco_update_busy": [ { "direction": "out" } ]
       },
       "interfaces": {
         "s_axi": {
@@ -2045,6 +2057,32 @@
           "port_maps": {
             "diff_n": [ { "physical_name": "sysref_in_n" } ],
             "diff_p": [ { "physical_name": "sysref_in_p" } ]
+          }
+        },
+        "dac1_nco": {
+          "vlnv": "xilinx.com:interface:rfdc_nco_pins:1.0",
+          "abstraction_type": "xilinx.com:interface:rfdc_nco_pins_rtl:1.0",
+          "mode": "slave",
+          "port_maps": {
+            "CONVERTER0_NCO_FREQ": [ { "physical_name": "dac10_nco_freq" } ],
+            "CONVERTER0_NCO_PHASE": [ { "physical_name": "dac10_nco_phase" } ],
+            "CONVERTER0_PHASE_RESET": [ { "physical_name": "dac10_nco_phase_rst" } ],
+            "CONVERTER0_UPDATE_EN": [ { "physical_name": "dac10_nco_update_en" } ],
+            "NCO_UPDATE_BUSY": [ { "physical_name": "dac1_nco_update_busy" } ],
+            "NCO_UPDATE_REQUEST": [ { "physical_name": "dac1_nco_update_req" } ]
+          }
+        },
+        "adc2_nco": {
+          "vlnv": "xilinx.com:interface:rfdc_nco_pins:1.0",
+          "abstraction_type": "xilinx.com:interface:rfdc_nco_pins_rtl:1.0",
+          "mode": "slave",
+          "port_maps": {
+            "CONVERTER01_NCO_FREQ": [ { "physical_name": "adc2_01_nco_freq" } ],
+            "CONVERTER01_NCO_PHASE": [ { "physical_name": "adc2_01_nco_phase" } ],
+            "CONVERTER01_PHASE_RESET": [ { "physical_name": "adc2_01_nco_phase_rst" } ],
+            "CONVERTER01_UPDATE_EN": [ { "physical_name": "adc2_01_nco_update_en" } ],
+            "NCO_UPDATE_BUSY": [ { "physical_name": "adc2_nco_update_busy" } ],
+            "NCO_UPDATE_REQUEST": [ { "physical_name": "adc2_nco_update_req" } ]
           }
         }
       },
