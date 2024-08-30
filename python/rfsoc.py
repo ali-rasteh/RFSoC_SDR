@@ -1,4 +1,4 @@
-from signals import signals
+from signals import Signals
 from pynq import Overlay, allocate, MMIO, Clocks, interrupt, GPIO
 from pynq.lib import dma
 import xrfclk
@@ -14,7 +14,7 @@ except:
     pass
 
 
-class rfsoc(object):
+class RFSoC(object):
     def __init__(self, params):
 
         self.n_samples = params.n_samples
@@ -39,7 +39,7 @@ class rfsoc(object):
         self.verbose_level = params.verbose_level
         self.n_frame_wr=params.n_frame_wr
         self.n_frame_rd=params.n_frame_rd
-        self.signals_inst = signals(params)
+        self.signals_inst = Signals(params)
         
         if self.board=='rfsoc_2x2':
             self.adc_bits = 12

@@ -5,7 +5,7 @@ import os
 
 
 
-class tcp_client(object):
+class Tcp_Client(object):
     def __init__(self, params):
         self.mode = params.mode
         self.verbose_level = params.verbose_level

@@ -1,9 +1,9 @@
 try:
-    from rfsoc import rfsoc
+    from rfsoc import RFSoC
 except:
     pass
-from signals import signals
-from tcp_client import tcp_client
+from signals import Signals
+from tcp_client import Tcp_Client
 import numpy as np
 import os
 import argparse
@@ -13,12 +13,12 @@ from types import SimpleNamespace
 
 
 def rfsoc_run(params):
-    signals_inst = signals(params)
+    signals_inst = Signals(params)
     (txtd_base, txtd) = signals_inst.gen_tx_signal()
 
 
     if params.mode=='server':
-        rfsoc_inst = rfsoc(params)
+        rfsoc_inst = RFSoC(params)
         rfsoc_inst.txtd = txtd
         if params.send_signal:
             rfsoc_inst.send_frame(txtd)
@@ -30,7 +30,7 @@ def rfsoc_run(params):
 
 
     elif params.mode=='client_tx':
-        client_inst=tcp_client(params)
+        client_inst=Tcp_Client(params)
         client_inst.transmit_data()
         if params.RFFE=='sivers':
             client_inst.set_mode('RXen0_TXen1')
@@ -39,7 +39,7 @@ def rfsoc_run(params):
 
 
     elif params.mode=='client_rx':
-        client_inst=tcp_client(params)
+        client_inst=Tcp_Client(params)
         if params.RFFE=='sivers':
             client_inst.set_mode('RXen1_TXen0')
             client_inst.set_frequency(params.fc)

@@ -6,7 +6,7 @@ from scipy.signal import firwin, lfilter, freqz, welch, convolve
 
 
 
-class signals(object):
+class Signals(object):
     def __init__(self, params):
         self.seed = params.seed
         self.n_samples = params.n_samples
