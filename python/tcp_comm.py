@@ -1,23 +1,33 @@
-import numpy as np
-import socket
-import os
+from backend import *
+from backend import be_np as np, be_scp as scipy
+from general import General
+
+# import numpy as np
+# import socket
+# import os
 
 
 
 
-class Tcp_Client(object):
+class Tcp_Comm(General):
     def __init__(self, params):
+        super().__init__(params)
+
         self.mode = params.mode
-        self.verbose_level = params.verbose_level
         self.fc = params.fc
         self.beam_test = params.beam_test
         self.server_ip = params.server_ip
         self.TCP_port_Cmd = params.TCP_port_Cmd
         self.TCP_port_Data = params.TCP_port_Data
+        self.tcp_localIP = params.tcp_localIP
+        self.tcp_bufferSize = params.tcp_bufferSize
         self.adc_bits = params.adc_bits
         self.dac_bits = params.dac_bits
+        self.RFFE = params.RFFE
+        self.n_frame_rd = params.n_frame_rd
+        self.n_samples = params.n_samples
 
-        if params.RFFE=='sivers':
+        if self.RFFE=='sivers':
             self.tx_bb_gain = 0x3
             self.tx_bb_phase = 0x0
             self.tx_bb_iq_gain = 0x77
@@ -28,15 +38,7 @@ class Tcp_Client(object):
             self.rx_gain_ctrl_bfrf = 0x7F
 
         self.nbytes = 2
-        self.nread = params.n_frame_rd * params.n_samples
-
-        self.radio_control = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
-        self.radio_control.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.radio_control.connect((self.server_ip, self.TCP_port_Cmd))
-
-        self.radio_data = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
-        self.radio_data.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.radio_data.connect((self.server_ip, self.TCP_port_Data))
+        self.nread = self.n_frame_rd * self.n_samples
 
         self.print("Client object init done, Succesfully connected to the server", thr=1)
 
@@ -50,9 +52,32 @@ class Tcp_Client(object):
         self.close()
         self.print("Client object deleted", thr=1)
 
-    def print(self, text='', thr=0):
-        if self.verbose_level>=thr:
-            print(text)
+    def init_tcp_server(self):
+        ## TCP Server
+        self.print("Starting TCP server", thr=1)
+        
+        ## Command
+        self.TCPServerSocketCmd = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)# Create a datagram socket
+        self.TCPServerSocketCmd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.TCPServerSocketCmd.bind((self.tcp_localIP, self.TCP_port_Cmd)) # Bind to address and ip
+        
+        ## Data
+        self.TCPServerSocketData = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)         # Create a datagram socket
+        self.TCPServerSocketData.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.TCPServerSocketData.bind((self.tcp_localIP, self.TCP_port_Data))                # Bind to address and ip
+
+        bufsize = self.TCPServerSocketData.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF) 
+        # self.print ("Buffer size [Before]:%d" %bufsize, thr=2)
+        self.print("TCP server is up", thr=1)
+        
+    def init_tcp_client(self):
+        self.radio_control = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+        self.radio_control.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.radio_control.connect((self.server_ip, self.TCP_port_Cmd))
+
+        self.radio_data = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+        self.radio_data.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.radio_data.connect((self.server_ip, self.TCP_port_Data))
 
     def set_mode(self, mode):
         if mode == 'RXen0_TXen1' or mode == 'RXen1_TXen0' or mode == 'RXen0_TXen0':

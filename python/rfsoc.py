@@ -1,23 +1,31 @@
-from signals import Signals
-from pynq import Overlay, allocate, MMIO, Clocks, interrupt, GPIO
-from pynq.lib import dma
-import xrfclk
-import xrfdc
-import numpy as np
-from numpy.fft import fft, fftshift, ifft
-import time
-import socket
+from backend import *
+from backend import be_np as np, be_scp as scipy
+from signal_utilsrfsoc import Signal_Utils_Rfsoc
+from tcp_comm import Tcp_Comm
 try:
     from siversController import *
-    from pyftdi.ftdi import Ftdi
 except:
     pass
 
+# from pynq import Overlay, allocate, MMIO, Clocks, interrupt, GPIO
+# from pynq.lib import dma
+# import xrfclk
+# import xrfdc
+# import numpy as np
+# from numpy.fft import fft, fftshift, ifft
+# import time
+# import socket
+# try:
+#     from pyftdi.ftdi import Ftdi
+# except:
+#     pass
 
-class RFSoC(object):
+
+
+class RFSoC(Signal_Utils_Rfsoc):
     def __init__(self, params):
+        super().__init__(params)
 
-        self.n_samples = params.n_samples
         self.beam_test = params.beam_test
         self.project = params.project
         self.board = params.board
@@ -26,8 +34,8 @@ class RFSoC(object):
         self.TCP_port_Data = params.TCP_port_Data
         self.lmk_freq_mhz = params.lmk_freq_mhz
         self.lmx_freq_mhz = params.lmx_freq_mhz
-        self.dac_fs = params.dac_fs
-        self.adc_fs = params.adc_fs
+        self.dac_fs = params.fs_tx
+        self.adc_fs = params.fs_rx
         self.bit_file_path = params.bit_file_path
         self.mix_freq_dac = params.mix_freq_dac
         self.mix_freq_adc = params.mix_freq_adc
@@ -39,7 +47,6 @@ class RFSoC(object):
         self.verbose_level = params.verbose_level
         self.n_frame_wr=params.n_frame_wr
         self.n_frame_rd=params.n_frame_rd
-        self.signals_inst = Signals(params)
         
         if self.board=='rfsoc_2x2':
             self.adc_bits = 12
@@ -171,14 +178,10 @@ class RFSoC(object):
             self.set_adc_mixer()
         self.dma_init()
         if self.run_tcp_server:
-            self.init_tcp_server()
+            self.tcp_comm = Tcp_Comm(params)
+            self.tcp_comm.init_tcp_server()
 
         self.print("rfsoc initialization done", thr=1)
-
-
-    def print(self, text='', thr=0):
-        if self.verbose_level>=thr:
-            print(text)
 
 
     def load_bit_file(self, verbose=False):
@@ -205,37 +208,16 @@ class RFSoC(object):
         self.print("Sivers EVK controller is loaded", thr=1)
 
 
-    def init_tcp_server(self):
-        ## TCP Server
-        self.print("Starting TCP server", thr=1)
-        self.localIP = "0.0.0.0"
-        self.bufferSize = 2**10
-        
-        ## Command 
-        self.TCPServerSocketCmd = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)# Create a datagram socket
-        self.TCPServerSocketCmd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.TCPServerSocketCmd.bind((self.localIP, self.TCP_port_Cmd)) # Bind to address and ip
-        
-        ## Data
-        self.TCPServerSocketData = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)         # Create a datagram socket
-        self.TCPServerSocketData.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.TCPServerSocketData.bind((self.localIP, self.TCP_port_Data))                # Bind to address and ip
-
-        bufsize = self.TCPServerSocketData.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF) 
-        # self.print ("Buffer size [Before]:%d" %bufsize, thr=2)
-        self.print("TCP server is up", thr=1)
-
-
     def run(self):
         # Listen for incoming connections
-        self.TCPServerSocketCmd.listen(1)
-        self.TCPServerSocketData.listen(1)
+        self.tcp_comm.TCPServerSocketCmd.listen(1)
+        self.tcp_comm.TCPServerSocketData.listen(1)
         
         while True:
             # Wait for a connection
             self.print ('\nWaiting for a connection', thr=2)
-            self.connectionCMD, addrCMD = self.TCPServerSocketCmd.accept()
-            self.connectionData, addrDATA = self.TCPServerSocketData.accept()
+            self.connectionCMD, addrCMD = self.tcp_comm.TCPServerSocketCmd.accept()
+            self.connectionData, addrDATA = self.tcp_comm.TCPServerSocketData.accept()
             
             after_idle_sec=1
             interval_sec=3
@@ -253,7 +235,7 @@ class RFSoC(object):
             try:
                 while True:
                     try:
-                        receivedCMD = self.connectionCMD.recv(self.bufferSize)
+                        receivedCMD = self.connectionCMD.recv(self.tcp_comm.tcp_bufferSize)
                         if receivedCMD:
                             self.print("\nClient CMD:{}".format(receivedCMD.decode()), thr=2)
                             responseToCMDinBytes = self.parseAndExecute(receivedCMD)

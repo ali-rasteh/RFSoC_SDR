@@ -1,19 +1,22 @@
+from backend import *
+from backend import be_np as np, be_scp as scipy
 try:
     from rfsoc import RFSoC
 except:
     pass
-from signals import Signals
-from tcp_client import Tcp_Client
-import numpy as np
-import os
-import argparse
-from types import SimpleNamespace
+from signal_utilsrfsoc import Signal_Utils_Rfsoc
+from tcp_comm import Tcp_Comm
+
+# import numpy as np
+# import os
+# import argparse
+# from types import SimpleNamespace
 
 
 
 
 def rfsoc_run(params):
-    signals_inst = Signals(params)
+    signals_inst = Signal_Utils_Rfsoc(params)
     (txtd_base, txtd) = signals_inst.gen_tx_signal()
 
 
@@ -30,7 +33,8 @@ def rfsoc_run(params):
 
 
     elif params.mode=='client_tx':
-        client_inst=Tcp_Client(params)
+        client_inst=Tcp_Comm(params)
+        client_inst.init_tcp_client()
         client_inst.transmit_data()
         if params.RFFE=='sivers':
             client_inst.set_mode('RXen0_TXen1')
@@ -39,7 +43,8 @@ def rfsoc_run(params):
 
 
     elif params.mode=='client_rx':
-        client_inst=Tcp_Client(params)
+        client_inst=Tcp_Comm(params)
+        client_inst.init_tcp_client()
         if params.RFFE=='sivers':
             client_inst.set_mode('RXen1_TXen0')
             client_inst.set_frequency(params.fc)
@@ -58,8 +63,8 @@ if __name__ == '__main__':
     # parser.add_argument("--bit_file_path", type=str, default="./rfsoc.bit", help="Path to the bit file")
     # parser.add_argument("--fs", type=float, default=245.76e6*4, help="sampling frequency used in signal processings")
     # parser.add_argument("--fc", type=float, default=57.51e9, help="carrier frequency")
-    # parser.add_argument("--dac_fs", type=float, default=245.76e6*4, help="DAC sampling frequency")
-    # parser.add_argument("--adc_fs", type=float, default=245.76e6*4, help="ADC sampling frequency")
+    # parser.add_argument("--fs_tx", type=float, default=245.76e6*4, help="DAC sampling frequency")
+    # parser.add_argument("--fs_rx", type=float, default=245.76e6*4, help="ADC sampling frequency")
     # parser.add_argument("--n_samples", type=int, default=1024, help="Number of samples")
     # parser.add_argument("--nfft", type=int, default=1024, help="Number of FFT points")
     # parser.add_argument("--sig_modulation", type=str, default='qam', help="Singal modulation type for sounding, qam or empty")
@@ -101,14 +106,16 @@ if __name__ == '__main__':
     if params.overwrite_configs:
         params.fs=245.76e6 * 4
         params.fc = 57.51e9
-        params.dac_fs=params.fs
-        params.adc_fs=params.fs
+        params.fs_tx=params.fs
+        params.fs_rx=params.fs
         params.n_samples=1024
         params.nfft=params.n_samples
         params.sig_modulation='qam'
         params.mix_phase_off=0.0
         params.sig_path=os.path.join(os.getcwd(), 'txtd.npy')
         params.wb_null_sc=10
+        params.tcp_localIP = "0.0.0.0"
+        params.tcp_bufferSize=2**10
         params.TCP_port_Cmd=8080
         params.TCP_port_Data=8081
         params.lmk_freq_mhz=122.88
@@ -135,7 +142,7 @@ if __name__ == '__main__':
         params.sig_mode='wideband'
         params.sig_gen_mode = 'ZadoffChu'
         params.wb_bw=500e6
-        params.f_tone=5.0 * params.dac_fs / params.nfft #30e6
+        params.f_tone=5.0 * params.fs_tx / params.nfft #30e6
         params.server_ip='192.168.3.1'
         params.plot_level=0
         params.verbose_level=0
@@ -149,17 +156,11 @@ if __name__ == '__main__':
     params.n_samples_rx = params.n_frame_rd*params.n_samples
     params.nfft_tx = params.n_frame_wr*params.nfft
     params.nfft_rx = params.n_frame_rd*params.nfft
+    params.freq = ((np.arange(0, params.nfft) / params.nfft) - 0.5) * params.fs / 1e6
+    params.freq_tx = ((np.arange(0, params.nfft_tx) / params.nfft_tx) - 0.5) * params.fs_tx / 1e6
+    params.freq_rx = ((np.arange(0, params.nfft_rx) / params.nfft_rx) - 0.5) * params.fs_rx / 1e6
     params.beam_test = np.array([1, 5, 9, 13, 17, 21, 25, 29, 32, 35, 39, 43, 47, 51, 55, 59, 63])
     params.DynamicPLLConfig = (0, params.lmk_freq_mhz, params.lmx_freq_mhz)
-    params.t = np.arange(0, params.n_samples) / params.fs
-    params.t_tx = np.arange(0, params.n_samples_tx) / params.dac_fs
-    params.t_rx = np.arange(0, params.n_samples_rx) / params.adc_fs
-    params.freq = ((np.arange(0, params.nfft) / params.nfft) - 0.5) * params.fs / 1e6
-    params.freq_tx = ((np.arange(0, params.nfft_tx) / params.nfft_tx) - 0.5) * params.dac_fs / 1e6
-    params.freq_rx = ((np.arange(0, params.nfft_rx) / params.nfft_rx) - 0.5) * params.adc_fs / 1e6
-    params.om = np.linspace(-np.pi, np.pi, params.nfft)
-    params.om_tx = np.linspace(-np.pi, np.pi, params.nfft_tx)
-    params.om_rx = np.linspace(-np.pi, np.pi, params.nfft_rx)
     if params.mixer_mode=='digital' and params.mix_freq!=0:
         params.mix_freq_dac = 0
         params.mix_freq_adc = 0
@@ -170,9 +171,9 @@ if __name__ == '__main__':
         params.mix_freq_dac = 0
         params.mix_freq_adc = 0
     if params.sig_mode=='wideband' or params.sig_mode=='wideband_null':
-        params.filter_bw = min(params.wb_bw + 100e6, params.adc_fs-50e6)
+        params.filter_bw = min(params.wb_bw + 100e6, params.fs_rx-50e6)
     else:
-        params.filter_bw = min(2*np.abs(params.f_tone) + 60e6, params.adc_fs-50e6)
+        params.filter_bw = min(2*np.abs(params.f_tone) + 60e6, params.fs_rx-50e6)
     if 'sounder_bbf' in params.project:
         params.do_mixer_settings=False
         params.do_pll_settings=False
