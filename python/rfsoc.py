@@ -7,18 +7,6 @@ try:
 except:
     pass
 
-# from pynq import Overlay, allocate, MMIO, Clocks, interrupt, GPIO
-# from pynq.lib import dma
-# import xrfclk
-# import xrfdc
-# import numpy as np
-# from numpy.fft import fft, fftshift, ifft
-# import time
-# import socket
-# try:
-#     from pyftdi.ftdi import Ftdi
-# except:
-#     pass
 
 
 

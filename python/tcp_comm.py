@@ -2,10 +2,6 @@ from backend import *
 from backend import be_np as np, be_scp as scipy
 from general import General
 
-# import numpy as np
-# import socket
-# import os
-
 
 
 
