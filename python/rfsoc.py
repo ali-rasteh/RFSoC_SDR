@@ -142,6 +142,8 @@ class RFSoC(Signal_Utils_Rfsoc):
             self.init_sivers()
         elif self.RFFE=='piradio':
             pass
+        elif self.RFFE=='none':
+            pass
 
         self.load_bit_file()
         self.allocate_input(n_frame=self.n_frame_rd)
