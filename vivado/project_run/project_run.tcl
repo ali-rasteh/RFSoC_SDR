@@ -1,7 +1,7 @@
 set project_name "sounder_rfsoc"
 set top_name "sounder_rfsoc"
 set design_name "design_sounder_rfsoc"
-set version_file "/home/sharan/shared/sounder_rfsoc_version.txt"
+set version_file "~/shared/sounder_rfsoc_version.txt"
 
 
 set cur_project_name [current_project]
