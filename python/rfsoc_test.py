@@ -49,6 +49,8 @@ class Params_Class(object):
         # parser.add_argument("--server_ip", type=str, default='192.168.1.3', help="RFSoC board IP as the server")
         # parser.add_argument("--n_frame_wr", type=int, default=1, help="Number of frames to write")
         # parser.add_argument("--n_frame_rd", type=int, default=1, help="Number of frames to read")
+        # parser.add_argument("--n_tx_ant", type=int, default=1, help="Number transmitter antennas")
+        # parser.add_argument("--n_rx_ant", type=int, default=1, help="Number of receiver antennas")
         # parser.add_argument("--overwrite_configs", action="store_true", default=False, help="If true, overwrites configurations")
         # parser.add_argument("--send_signal", action="store_true", default=False, help="If true, sends TX signal")
         # parser.add_argument("--recv_signal", action="store_true", default=False, help="If true, receives and plots EX signal")
@@ -88,7 +90,7 @@ class Params_Class(object):
             self.send_signal=True
             self.recv_signal=True
 
-            self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-21_20240822-164647.bit')
+            self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-50_20240920-174107.bit')
             self.project='sounder_if_ddr4'
             self.board='rfsoc_4x2'
             self.mode='client_rx'
@@ -96,7 +98,10 @@ class Params_Class(object):
             self.sig_gen_mode = 'ZadoffChu'
             self.wb_bw=500e6
             self.f_tone=5.0 * self.fs_tx / self.nfft #30e6
+            self.n_tx_ant=2
+            self.n_rx_ant=2
             self.server_ip='192.168.3.1'
+            self.animate_plot_mode='h_H_rxfd'        # h_rxtd_rxfd or h_H_rxfd
             self.plot_level=0
             self.verbose_level=0
             
@@ -111,6 +116,7 @@ class Params_Class(object):
         self.freq_rx = ((np.arange(0, self.nfft_rx) / self.nfft_rx) - 0.5) * self.fs_rx / 1e6
         self.beam_test = np.array([1, 5, 9, 13, 17, 21, 25, 29, 32, 35, 39, 43, 47, 51, 55, 59, 63])
         self.DynamicPLLConfig = (0, self.lmk_freq_mhz, self.lmx_freq_mhz)
+
         if self.mixer_mode=='digital' and self.mix_freq!=0:
             self.mix_freq_dac = 0
             self.mix_freq_adc = 0
@@ -120,13 +126,17 @@ class Params_Class(object):
         else:
             self.mix_freq_dac = 0
             self.mix_freq_adc = 0
+
         if self.sig_mode=='wideband' or self.sig_mode=='wideband_null':
             self.filter_bw = min(self.wb_bw + 100e6, self.fs_rx-50e6)
         else:
             self.filter_bw = min(2*np.abs(self.f_tone) + 60e6, self.fs_rx-50e6)
+
         if 'sounder_bbf' in self.project:
             self.do_mixer_settings=False
             self.do_pll_settings=False
+            self.n_tx_ant=1
+            self.n_rx_ant=1
         if self.board == "rfsoc_4x2":
             self.do_pll_settings=False
         
@@ -185,7 +195,7 @@ def rfsoc_run(params):
             client_inst.set_frequency(params.fc)
             client_inst.set_rx_gain()
 
-        signals_inst.animate_plot(client_inst, txtd_base, plot_level=0)
+        signals_inst.animate_plot(client_inst, txtd_base, plot_mode=params.animate_plot_mode, plot_level=0)
         
         
 

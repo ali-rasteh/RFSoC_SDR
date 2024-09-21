@@ -500,7 +500,7 @@ class Signal_Utils(General):
                 # tone_td = np.cos(wt)
 
         elif gen_mode == 'fft':
-            sc = int(np.round((f)*self.nfft_tx/self.dac_fs))
+            sc = int(np.round((f)*self.nfft_tx/self.fs_tx))
             tone_fd = np.zeros((self.nfft_tx,), dtype='complex')
             if sig_mode=='tone_1':
                 tone_fd[(self.nfft_tx >> 1) + sc] = 1
@@ -522,8 +522,8 @@ class Signal_Utils(General):
 
     def generate_wideband(self, bw=200e6, wb_null_sc=10, modulation='qam', sig_mode='wideband', gen_mode='fft'):
         if gen_mode == 'fft':
-            sc_min = int(np.round(-(bw/2)*self.nfft_tx/self.dac_fs))
-            sc_max = int(np.round((bw/2)*self.nfft_tx/self.dac_fs))
+            sc_min = int(np.round(-(bw/2)*self.nfft_tx/self.fs_tx))
+            sc_max = int(np.round((bw/2)*self.nfft_tx/self.fs_tx))
             np.random.seed(self.seed)
             if modulation=='qam':
                 sym = (1 + 1j, 1 - 1j, -1 + 1j, -1 - 1j)  # QAM symbols
@@ -576,7 +576,7 @@ class Signal_Utils(General):
 
 
     def filter(self, sig, center_freq=0, cutoff=50e6, fil_order=1000, plot=False):
-        filter_fir = firwin(fil_order, cutoff / self.adc_fs)
+        filter_fir = firwin(fil_order, cutoff / self.fs_rx)
         filter_fir = self.freq_shift(filter_fir, shift=center_freq)
 
         if plot:
@@ -601,36 +601,41 @@ class Signal_Utils(General):
 
 
     def channel_estimate(self, txtd, rxtd):
-        n_samples = min(len(txtd), len(rxtd))
+        tx_ant_id = 0
+        rx_ant_id = 0
+
+        n_tx_ant = txtd.shape[0]
+        n_rx_ant = rxtd.shape[0]
+        n_samples = min(txtd.shape[1], rxtd.shape[1])
         t = self.t_rx if self.n_samples_rx<self.n_samples_tx else self.t_tx
         freq = self.freq_rx if self.nfft_rx<self.nfft_tx else self.freq_tx
-        txtd=txtd[:n_samples]
-        rxtd=rxtd[:n_samples]
+        txtd=txtd[:,:n_samples]
+        rxtd=rxtd[:,:n_samples]
         
-        txfd = fft(txtd)
-        rxfd = fft(rxtd)
-        # rxfd = np.roll(rxfd, 1)
-        # txfd = np.roll(txfd, 1)
+        txfd = np.array([fft(txtd[ant_id, :]) for ant_id in range(n_tx_ant)])
+        rxfd = np.array([fft(rxtd[ant_id, :]) for ant_id in range(n_rx_ant)])
+        # rxfd = np.roll(rxfd, 1, axis=1)
+        # txfd = np.roll(txfd, 1, axis=1)
 
         tol = 1e-8
-        txmean = np.mean(np.abs(txfd)**2)
-        H_est = rxfd * np.conj(txfd) / ((np.abs(txfd)**2) + tol*txmean)
-        # H_est = rxfd * np.conj(txfd)
-        # H_est = rxfd / txfd
+        txmean = np.mean(np.abs(txfd[tx_ant_id])**2)
+        H_est = rxfd[rx_ant_id] * np.conj(txfd[tx_ant_id]) / ((np.abs(txfd[tx_ant_id])**2) + tol*txmean)
+        # H_est = rxfd[rx_ant_id] * np.conj(txfd[tx_ant_id])
+        # H_est = rxfd[rx_ant_id] / txfd[tx_ant_id]
 
         h_est = ifft(H_est)
         im = np.argmax(h_est)
-        h_est = np.roll(h_est, -im + len(h_est)//50)
+        h_est = np.roll(h_est, -im + len(h_est)//10)
         h_est = h_est.flatten()
 
         sig = np.abs(h_est) / np.max(np.abs(h_est))
-        title = 'Channel response in the time domain'
+        title = 'Channel response in the time domain \n between TX antenna {} and RX antenna {}'.format(tx_ant_id, rx_ant_id)
         xlabel = 'Time (s)'
         ylabel = 'Normalized Magnitude (dB)'
         self.plot_signal(t, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)
 
         sig = np.abs(fftshift(H_est))
-        title = 'Channel response in the frequency domain'
+        title = 'Channel response in the frequency domain \n between TX antenna {} and RX antenna {}'.format(tx_ant_id, rx_ant_id)
         xlabel = 'Frequency (MHz)'
         ylabel = 'Magnitude (dB)'
         self.plot_signal(freq, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)

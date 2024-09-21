@@ -22,6 +22,8 @@ class Tcp_Comm(General):
         self.RFFE = params.RFFE
         self.n_frame_rd = params.n_frame_rd
         self.n_samples = params.n_samples
+        self.n_tx_ant = params.n_tx_ant
+        self.n_rx_ant = params.n_rx_ant
 
         if self.RFFE=='sivers':
             self.tx_bb_gain = 0x3
@@ -34,7 +36,7 @@ class Tcp_Comm(General):
             self.rx_gain_ctrl_bfrf = 0x7F
 
         self.nbytes = 2
-        self.nread = self.n_frame_rd * self.n_samples
+        self.nread = self.n_rx_ant * self.n_frame_rd * self.n_samples
 
         self.print("Client object init done, Succesfully connected to the server", thr=1)
 
@@ -128,6 +130,6 @@ class Tcp_Comm(General):
         data = np.frombuffer(buf, dtype=np.int16)
         data = data/(2 ** (self.adc_bits + 1) - 1)
         rxtd = data[:self.nread*nbeams] + 1j*data[self.nread*nbeams:]
-        rxtd = rxtd.reshape(nbeams, self.nread)
+        rxtd = rxtd.reshape(nbeams, self.n_rx_ant, self.nread//self.n_rx_ant)
         return rxtd
     

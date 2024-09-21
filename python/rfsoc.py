@@ -35,6 +35,7 @@ class RFSoC(Signal_Utils_Rfsoc):
         self.verbose_level = params.verbose_level
         self.n_frame_wr=params.n_frame_wr
         self.n_frame_rd=params.n_frame_rd
+        self.n_tx_ant = params.n_tx_ant
         
         if self.board=='rfsoc_2x2':
             self.adc_bits = 12
@@ -55,10 +56,18 @@ class RFSoC(Signal_Utils_Rfsoc):
                     self.dac_tiles_sync = [0,1]
                     self.adc_tiles_sync = [0,2]
                 elif 'sounder_if' in self.project:
-                    self.dac_tile_block_dic = {1: [0]}
-                    self.adc_tile_block_dic = {2: [0]}
-                    self.dac_tiles_sync = [0]
-                    self.adc_tiles_sync = [0,2]
+                    if self.n_tx_ant==1:
+                        self.dac_tile_block_dic = {1: [0]}
+                        self.dac_tiles_sync = [0]
+                    elif self.n_tx_ant==2:
+                        self.dac_tile_block_dic = {0: [0], 1:[0]}
+                        self.dac_tiles_sync = [0,1]
+                    if self.n_rx_ant==1:
+                        self.adc_tile_block_dic = {2: [0]}
+                        self.adc_tiles_sync = [0,2]
+                    elif self.n_rx_ant==2:
+                        self.adc_tile_block_dic = {0: [0], 2:[0]}
+                        self.adc_tiles_sync = [0,2]
             elif self.board=='rfsoc_4x2':
                 if 'sounder_bbf' in self.project:
                     self.dac_tile_block_dic = {0: [0], 2:[0]}
@@ -66,10 +75,19 @@ class RFSoC(Signal_Utils_Rfsoc):
                     self.dac_tiles_sync = [0,2]
                     self.adc_tiles_sync = [0,2]
                 elif 'sounder_if' in self.project:
-                    self.dac_tile_block_dic = {2: [0]}
-                    self.adc_tile_block_dic = {2: [0]}
-                    self.dac_tiles_sync = [0]
-                    self.adc_tiles_sync = [0,2]
+                    if self.n_tx_ant==1:
+                        self.dac_tile_block_dic = {2: [0]}
+                        self.dac_tiles_sync = [0]
+                    elif self.n_tx_ant==2:
+                        self.dac_tile_block_dic = {0: [0], 2:[0]}
+                        self.dac_tiles_sync = []
+                    if self.n_rx_ant==1:
+                        self.adc_tile_block_dic = {2: [0]}
+                        self.adc_tiles_sync = [0,2]
+                    elif self.n_rx_ant==2:
+                        self.adc_tile_block_dic = {0: [0], 2:[0]}
+                        self.adc_tiles_sync = [0,2]
+                    
         else:
             if self.board=='rfsoc_2x2':
                 if 'sounder_bbf' in self.project:
@@ -104,14 +122,14 @@ class RFSoC(Signal_Utils_Rfsoc):
                 self.n_par_strms_tx = 4
                 self.n_par_strms_rx = 4
             elif 'sounder_if' in self.project:
-                self.n_par_strms_tx = 1
+                self.n_par_strms_tx = 8
                 self.n_par_strms_rx = 4
         else:
             if 'sounder_bbf' in self.project:
                 self.n_par_strms_tx = 4
                 self.n_par_strms_rx = 4
             elif 'sounder_if' in self.project:
-                self.n_par_strms_tx = 1
+                self.n_par_strms_tx = 4
                 self.n_par_strms_rx = 4
         
         if 'ddr4' in self.project:
@@ -153,14 +171,14 @@ class RFSoC(Signal_Utils_Rfsoc):
         self.verify_clock_tree()
         self.init_rfdc()
         if 'ddr4' in self.project:
-            self.init_tile_sync()
-            dacTiles=0x0
+            self.dac_tiles_sync_hex = 0x0
             for id in self.dac_tiles_sync:
-                dacTiles += 0x1 << id
-            adcTiles=0x0
+                self.dac_tiles_sync_hex += 0x1 << id
+            self.adc_tiles_sync_hex = 0x0
             for id in self.adc_tiles_sync:
-                adcTiles += 0x1 << id
-            self.sync_tiles(dacTiles=dacTiles, adcTiles=adcTiles)
+                self.adc_tiles_sync_hex += 0x1 << id
+            self.init_tile_sync()
+            self.sync_tiles(dacTiles=self.dac_tiles_sync_hex, adcTiles=self.adc_tiles_sync_hex)
         self.init_dac()
         self.init_adc()
         if 'sounder_if' in self.project:
@@ -205,7 +223,7 @@ class RFSoC(Signal_Utils_Rfsoc):
         
         while True:
             # Wait for a connection
-            self.print ('\nWaiting for a connection', thr=2)
+            self.print('\nWaiting for a connection', thr=2)
             self.connectionCMD, addrCMD = self.tcp_comm.TCPServerSocketCmd.accept()
             self.connectionData, addrDATA = self.tcp_comm.TCPServerSocketData.accept()
             
@@ -227,7 +245,7 @@ class RFSoC(Signal_Utils_Rfsoc):
                     try:
                         receivedCMD = self.connectionCMD.recv(self.tcp_comm.tcp_bufferSize)
                         if receivedCMD:
-                            self.print("\nClient CMD:{}".format(receivedCMD.decode()), thr=2)
+                            self.print("\nClient CMD:{}".format(receivedCMD.decode()), thr=5)
                             responseToCMDinBytes = self.parseAndExecute(receivedCMD)
                             self.connectionCMD.sendall(responseToCMDinBytes)
                         else:
@@ -251,6 +269,7 @@ class RFSoC(Signal_Utils_Rfsoc):
         if clientMsgParsed[0] == "receiveSamplesOnce":
             if len(clientMsgParsed) == 1:
                 iq_data = self.recv_frame_one(n_frame=self.n_frame_rd)
+                iq_data = np.array(iq_data).flatten()
                 iq_data = iq_data * (2 ** (self.adc_bits + 1) - 1)
                 re = iq_data.real.astype(np.int16)
                 im = iq_data.imag.astype(np.int16)
@@ -397,15 +416,18 @@ class RFSoC(Signal_Utils_Rfsoc):
     
 
     def allocate_input(self, n_frame=1):
+        size = self.n_rx_ant * n_frame * self.n_samples * 2
         if 'ddr4' in self.project:
-            self.adc_rx_buffer = allocate(shape=(n_frame * self.n_samples * 2,), target=self.ol.ddr4_0, dtype=np.int16)
+            # self.adc_rx_buffer = allocate(shape=(size,), target=self.ol.ddr4_0, dtype=np.int16)
+            self.adc_rx_buffer = allocate(shape=(size,), dtype=np.int16)
         else:
-            self.adc_rx_buffer = allocate(shape=(n_frame * self.n_samples * 2,), dtype=np.int16)
+            self.adc_rx_buffer = allocate(shape=(size,), dtype=np.int16)
         self.print("Input buffers allocation done", thr=1)
 
 
     def allocate_output(self, n_frame=1):
-        self.dac_tx_buffer = allocate(shape=(n_frame * self.n_samples * 2,), dtype=np.int16)
+        size = self.n_tx_ant * n_frame * self.n_samples * 2
+        self.dac_tx_buffer = allocate(shape=(size,), dtype=np.int16)
         self.print("Output buffers allocation done", thr=1)
 
 
@@ -470,7 +492,9 @@ class RFSoC(Signal_Utils_Rfsoc):
 
 
     def init_tile_sync(self):
-        self.sync_tiles(0x1, 0x1)
+        dacTiles = min(self.dac_tiles_sync_hex, 0x1)
+        adcTiles = min(self.adc_tiles_sync_hex, 0x1)
+        self.sync_tiles(dacTiles=dacTiles, adcTiles=adcTiles)
         self.ol.clocktreeMTS.clk_wiz_0.mmio.write_reg(self.CLOCKWIZARD_RESET_ADDRESS, self.CLOCKWIZARD_RESET_TOKEN)
         time.sleep(0.1)
 
@@ -614,40 +638,40 @@ class RFSoC(Signal_Utils_Rfsoc):
     def load_data_to_tx_buffer(self, txtd):
         self.txtd = txtd
         txtd_dac = self.txtd * (2 ** (self.dac_bits + 1) - 1)
-        txtd_dac_real = np.int16(txtd_dac.real).reshape(-1, self.n_par_strms_tx)
-        txtd_dac_imag = np.int16(txtd_dac.imag).reshape(-1, self.n_par_strms_tx)
 
-        data = np.zeros((txtd_dac_real.shape[0] * 2, txtd_dac_real.shape[1]), dtype='int16')
-
-        if self.tx_mode==1:
-            data[::2,:] = np.int16(txtd_dac_real)
-            data[1::2,:] = np.int16(txtd_dac_imag)
-        elif self.tx_mode==2:
-            data[::2,:] = np.int16(txtd_dac_imag)
-            data[1::2,:] = np.int16(txtd_dac_real)
-        else:
-            raise ValueError('Unsupported TX mode: %d' %(self.tx_mode))
+        txtd_dac_interleaved = np.zeros(np.prod(txtd_dac.shape)*2, dtype='int16').reshape(-1, self.n_par_strms_tx//2, 2)
+        for i in range(self.n_tx_ant):
+            txtd_dac_ant = txtd_dac[i].reshape(-1,self.n_par_strms_tx//2)
+            if self.tx_mode==1:
+                txtd_dac_interleaved[i::self.n_tx_ant,:,0] = np.int16(txtd_dac_ant.real)
+                txtd_dac_interleaved[i::self.n_tx_ant,:,1] = np.int16(txtd_dac_ant.imag)
+            elif self.tx_mode==2:
+                txtd_dac_interleaved[i::self.n_tx_ant,:,0] = np.int16(txtd_dac_ant.imag)
+                txtd_dac_interleaved[i::self.n_tx_ant,:,1] = np.int16(txtd_dac_ant.real)
+            else:
+                raise ValueError('Unsupported TX mode: %d' %(self.tx_mode))
         
-        data = data.flatten()
-        self.dac_tx_buffer[:] = data[:]
+        self.dac_tx_buffer[:] = txtd_dac_interleaved.flatten()[:]
 
         self.print("Loading txtd data to DAC TX buffer done", thr=1)
 
 
     def load_data_from_rx_buffer(self):
         rx_data = np.array(self.adc_rx_buffer).astype('int16') / (2 ** (self.adc_bits + 1) - 1)
-        rx_data = rx_data.reshape(-1, self.n_par_strms_rx)
-
-        if self.rx_mode==1:
-            rx_data = rx_data[::2,:] + 1j * rx_data[1::2,:]
-        elif self.rx_mode==2:
-            rx_data = rx_data[1::2,:] + 1j * rx_data[::2,:]
-        else:
-            raise ValueError('Unsupported RX mode: %d' %(self.rx_mode))
+        self.rxtd = []
         
-        self.rxtd = rx_data.reshape(-1)
-
-        self.print("Loading rxtd data from ADC RX buffer done", thr=2)
+        rx_data = rx_data.reshape(-1, self.n_par_strms_rx)
+        for i in range(self.n_rx_ant):
+            if self.rx_mode==1:
+                rx_data_ant = rx_data[i*2::self.n_rx_ant*2,:] + 1j * rx_data[i*2+1::self.n_rx_ant*2,:]
+            elif self.rx_mode==2:
+                rx_data_ant = rx_data[i*2+1::self.n_rx_ant*2,:] + 1j * rx_data[i*2::self.n_rx_ant*2,:]
+            else:
+                raise ValueError('Unsupported RX mode: %d' %(self.rx_mode))
+            self.rxtd.append(rx_data_ant.flatten())
+        
+        self.rxtd = np.array(self.rxtd)
+        self.print("Loading rxtd data from ADC RX buffer done", thr=5)
 
 
     def send_frame(self, txtd):
@@ -675,12 +699,14 @@ class RFSoC(Signal_Utils_Rfsoc):
 
 
     def recv_frame_one(self, n_frame=1):
+        # if 'ddr4' in self.project:
+        #     self.gpio_dic['led'].write(1)
         if 'ddr4' in self.project:
-            self.gpio_dic['led'].write(1)
-        if 'ddr4' in self.project:
-            self.rx_reg.write(0, self.n_samples // self.n_par_strms_rx)
+            # Suspicous code
+            self.rx_reg.write(0, self.n_rx_ant * self.n_samples // self.n_par_strms_rx)
+            # self.rx_reg.write(0, self.n_samples // self.n_par_strms_rx)
             self.rx_reg.write(4, self.n_skip // self.n_par_strms_rx)
-            self.rx_reg.write(8, n_frame * self.n_samples * 4)
+            self.rx_reg.write(8, self.n_rx_ant * n_frame * self.n_samples * 4)      # Must have self.n_rx_ant multiplier to work correctly
 
             self.gpio_dic['adc_reset'].write(0)
         else:
@@ -701,21 +727,21 @@ class RFSoC(Signal_Utils_Rfsoc):
             self.gpio_dic['adc_reset'].write(0)
 
         self.load_data_from_rx_buffer()
-        if 'ddr4' in self.project:
-            self.gpio_dic['led'].write(0)
-        self.print("Frames received from ADC", thr=2)
+        # if 'ddr4' in self.project:
+        #     self.gpio_dic['led'].write(0)
+        self.print("Frames received from ADC", thr=5)
 
         return self.rxtd
     
 
     def recv_frame(self, n_frame=1):
-        rxtd = np.zeros((len(self.beam_test), n_frame*self.n_samples), dtype='complex')
+        rxtd = np.zeros((len(self.beam_test), self.n_rx_ant*n_frame*self.n_samples), dtype='complex')
 
         for i, beam_index in enumerate(self.beam_test):
             if self.RFFE=='sivers':
                 self.siversControllerObj.setBeamIndexRX(beam_index)
-            self.recv_frame_one(self, n_frame=n_frame)
-            rxtd[i,:] = self.rxtd
+            self.recv_frame_one(n_frame=n_frame)
+            rxtd[i,:] = self.rxtd.flatten()
 
         rxfd = fft(rxtd, axis=1)
         rxfd = np.roll(rxfd, 1, axis=1)
@@ -725,7 +751,7 @@ class RFSoC(Signal_Utils_Rfsoc):
         # re = hest.real.astype(np.int16)
         # im = hest.imag.astype(np.int16)
 
-        self.print("Frames received from ADC", thr=2)
+        self.print("Frames received from ADC", thr=5)
 
         # return np.concatenate((re, im))
         return hest
