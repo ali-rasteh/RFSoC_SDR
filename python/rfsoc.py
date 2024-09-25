@@ -226,6 +226,7 @@ class RFSoC(Signal_Utils_Rfsoc):
             self.print('\nWaiting for a connection', thr=2)
             self.connectionCMD, addrCMD = self.tcp_comm.TCPServerSocketCmd.accept()
             self.connectionData, addrDATA = self.tcp_comm.TCPServerSocketData.accept()
+            self.print('\nConnection established', thr=2)
             
             after_idle_sec=1
             interval_sec=3
@@ -418,8 +419,8 @@ class RFSoC(Signal_Utils_Rfsoc):
     def allocate_input(self, n_frame=1):
         size = self.n_rx_ant * n_frame * self.n_samples * 2
         if 'ddr4' in self.project:
-            # self.adc_rx_buffer = allocate(shape=(size,), target=self.ol.ddr4_0, dtype=np.int16)
-            self.adc_rx_buffer = allocate(shape=(size,), dtype=np.int16)
+            self.adc_rx_buffer = allocate(shape=(size,), target=self.ol.ddr4_0, dtype=np.int16)
+            # self.adc_rx_buffer = allocate(shape=(size,), dtype=np.int16)
         else:
             self.adc_rx_buffer = allocate(shape=(size,), dtype=np.int16)
         self.print("Input buffers allocation done", thr=1)

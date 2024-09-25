@@ -129,6 +129,39 @@ class Signal_Utils(General):
         return delay
     
 
+    def extract_frac_delay(self, sig_1, sig_2):
+    
+        corr = np.correlate(sig_1, sig_2, mode='full')
+        max_corr_index = np.argmax(np.abs(corr))
+        delay_samples = max_corr_index - len(sig_2) + 1
+        
+        y0 = np.abs(corr[max_corr_index - 1])
+        y1 = np.abs(corr[max_corr_index])
+        y2 = np.abs(corr[max_corr_index + 1])
+        
+        offset = 0.5 * (y0 - y2) / (y0 - 2*y1 + y2)
+        total_delay = delay_samples + offset
+
+        return total_delay
+    
+
+    def calc_phase_offset(self, sig_1, sig_2):
+        # Return the phase offset between two signals in radians
+        corr = np.correlate(sig_1, sig_2)
+        max_idx = np.argmax(corr)
+        phase_offest = np.angle(corr[max_idx])
+
+        return phase_offest
+    
+
+    def adjust_phase(self, sig_1, sig_2, phase_offset):
+        # Adjust the phase of sig_1 with respect to sig_2 based on the given phase offset
+        sig_1_adj = sig_1 * np.exp(-1j * phase_offset)
+        sig_2_adj = sig_2.copy()
+
+        return sig_1_adj, sig_2_adj
+    
+
     def time_adjust(self, sig_1, sig_2, delay):
         """
         Adjust the time of sig_1 with respect to sig_2 based on the given delay.
@@ -145,16 +178,19 @@ class Signal_Utils(General):
             err2sig_ratio (float): Ratio of MSE to mean squared value of sig_2.
         """
         n_points = np.shape(sig_1)[0]
+        delay = int(delay)
 
-        if delay >= 0:
-            sig_1_adj = np.concatenate((sig_1[delay:], np.zeros(delay).astype(complex)))
-            sig_2_adj = sig_2.copy()
-        else:
-            delay = abs(delay)
-            sig_1_adj = sig_1.copy()
-            sig_2_adj = np.concatenate((sig_2[delay:], np.zeros(delay).astype(complex)))
+        # if delay >= 0:
+        #     sig_1_adj = np.concatenate((sig_1[delay:], np.zeros(delay).astype(complex)))
+        #     sig_2_adj = sig_2.copy()
+        # else:
+        #     delay = abs(delay)
+        #     sig_1_adj = sig_1.copy()
+        #     sig_2_adj = np.concatenate((sig_2[delay:], np.zeros(delay).astype(complex)))
+        sig_1_adj = np.roll(sig_1, -1*delay)
+        sig_2_adj = sig_2.copy()
 
-        mse = float(np.mean(np.abs(sig_1_adj[:n_points-delay] - sig_2_adj[:n_points-delay]) ** 2))
+        mse = float(np.mean(np.abs(sig_1_adj[max(-1*delay,0):n_points+min(-1*delay,0)] - sig_2_adj[max(-1*delay,0):n_points+min(-1*delay,0)]) ** 2))
         err2sig_ratio = float(mse / np.mean(np.abs(sig_2) ** 2))
 
         return sig_1_adj, sig_2_adj, mse, err2sig_ratio
@@ -601,16 +637,19 @@ class Signal_Utils(General):
 
 
     def channel_estimate(self, txtd, rxtd):
-        tx_ant_id = 0
-        rx_ant_id = 0
-
         n_tx_ant = txtd.shape[0]
         n_rx_ant = rxtd.shape[0]
         n_samples = min(txtd.shape[1], rxtd.shape[1])
+
         t = self.t_rx if self.n_samples_rx<self.n_samples_tx else self.t_tx
         freq = self.freq_rx if self.nfft_rx<self.nfft_tx else self.freq_tx
         txtd=txtd[:,:n_samples]
         rxtd=rxtd[:,:n_samples]
+
+        H_est = rxtd @ np.linalg.pinv(txtd)
+
+        H_est_full = np.zeros((n_tx_ant, n_rx_ant, n_samples), dtype='complex')
+        h_est_full = np.zeros((n_tx_ant, n_rx_ant, n_samples), dtype='complex')
         
         txfd = np.array([fft(txtd[ant_id, :]) for ant_id in range(n_tx_ant)])
         rxfd = np.array([fft(rxtd[ant_id, :]) for ant_id in range(n_rx_ant)])
@@ -618,29 +657,34 @@ class Signal_Utils(General):
         # txfd = np.roll(txfd, 1, axis=1)
 
         tol = 1e-8
-        txmean = np.mean(np.abs(txfd[tx_ant_id])**2)
-        H_est = rxfd[rx_ant_id] * np.conj(txfd[tx_ant_id]) / ((np.abs(txfd[tx_ant_id])**2) + tol*txmean)
-        # H_est = rxfd[rx_ant_id] * np.conj(txfd[tx_ant_id])
-        # H_est = rxfd[rx_ant_id] / txfd[tx_ant_id]
+        for tx_ant_id in range(n_tx_ant):
+            for rx_ant_id in range(n_rx_ant):
+                txmean = np.mean(np.abs(txfd[tx_ant_id])**2)
+                H_est_full_ = rxfd[rx_ant_id] * np.conj(txfd[tx_ant_id]) / ((np.abs(txfd[tx_ant_id])**2) + tol*txmean)
+                # H_est_full_ = rxfd[rx_ant_id] * np.conj(txfd[tx_ant_id])
+                # H_est_full_ = rxfd[rx_ant_id] / txfd[tx_ant_id]
 
-        h_est = ifft(H_est)
-        im = np.argmax(h_est)
-        h_est = np.roll(h_est, -im + len(h_est)//10)
-        h_est = h_est.flatten()
+                h_est_full_ = ifft(H_est_full_)
+                im = np.argmax(h_est_full_)
+                h_est_full_ = np.roll(h_est_full_, -im + len(h_est_full_)//10)
+                h_est_full_ = h_est_full_.flatten()
 
-        sig = np.abs(h_est) / np.max(np.abs(h_est))
-        title = 'Channel response in the time domain \n between TX antenna {} and RX antenna {}'.format(tx_ant_id, rx_ant_id)
-        xlabel = 'Time (s)'
-        ylabel = 'Normalized Magnitude (dB)'
-        self.plot_signal(t, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)
+                sig = np.abs(h_est_full_) / np.max(np.abs(h_est_full_))
+                title = 'Channel response in the time domain \n between TX antenna {} and RX antenna {}'.format(tx_ant_id, rx_ant_id)
+                xlabel = 'Time (s)'
+                ylabel = 'Normalized Magnitude (dB)'
+                self.plot_signal(t, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)
 
-        sig = np.abs(fftshift(H_est))
-        title = 'Channel response in the frequency domain \n between TX antenna {} and RX antenna {}'.format(tx_ant_id, rx_ant_id)
-        xlabel = 'Frequency (MHz)'
-        ylabel = 'Magnitude (dB)'
-        self.plot_signal(freq, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)
+                sig = np.abs(fftshift(H_est_full_))
+                title = 'Channel response in the frequency domain \n between TX antenna {} and RX antenna {}'.format(tx_ant_id, rx_ant_id)
+                xlabel = 'Frequency (MHz)'
+                ylabel = 'Magnitude (dB)'
+                self.plot_signal(freq, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)
 
-        return h_est
+                H_est_full[tx_ant_id, rx_ant_id, :] = H_est_full_
+                h_est_full[tx_ant_id, rx_ant_id, :] = h_est_full_
+
+        return H_est, h_est_full
 
 
     def channel_estimate_eq(self, txtd, rxtd):

@@ -67,7 +67,8 @@ class Params_Class(object):
             self.nfft=self.n_samples
             self.sig_modulation='qam'
             self.mix_phase_off=0.0
-            self.sig_path=os.path.join(os.getcwd(), 'txtd.npy')
+            self.sig_path=os.path.join(os.getcwd(), 'sigs/txtd.npy')
+            self.sig_save_path=os.path.join(os.getcwd(), 'sigs/mimo_trx.npz')
             self.wb_null_sc=10
             self.tcp_localIP = "0.0.0.0"
             self.tcp_bufferSize=2**10
@@ -90,18 +91,20 @@ class Params_Class(object):
             self.send_signal=True
             self.recv_signal=True
 
-            self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-50_20240920-174107.bit')
+            self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-52_20240922-190110.bit')
             self.project='sounder_if_ddr4'
             self.board='rfsoc_4x2'
             self.mode='client_rx'
             self.sig_mode='wideband'
-            self.sig_gen_mode = 'ZadoffChu'
+            self.sig_gen_mode = 'fft'
             self.wb_bw=500e6
             self.f_tone=5.0 * self.fs_tx / self.nfft #30e6
             self.n_tx_ant=2
             self.n_rx_ant=2
             self.server_ip='192.168.3.1'
-            self.animate_plot_mode='h_H_rxfd'        # h_rxtd_rxfd or h_H_rxfd
+            self.animate_plot_mode=['h','rxfd','rxtd01']        # h or rxtd or rxfd or txtd or txfd or rxtd01
+            self.beamforming=True
+            self.save_signal=False
             self.plot_level=0
             self.verbose_level=0
             
@@ -195,7 +198,7 @@ def rfsoc_run(params):
             client_inst.set_frequency(params.fc)
             client_inst.set_rx_gain()
 
-        signals_inst.animate_plot(client_inst, txtd_base, plot_mode=params.animate_plot_mode, plot_level=0)
+        signals_inst.animate_plot(client_inst, txtd_base, plot_mode=params.animate_plot_mode, save_signal=params.save_signal, plot_level=0)
         
         
 
