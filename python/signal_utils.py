@@ -643,10 +643,9 @@ class Signal_Utils(General):
 
         t = self.t_rx if self.n_samples_rx<self.n_samples_tx else self.t_tx
         freq = self.freq_rx if self.nfft_rx<self.nfft_tx else self.freq_tx
-        txtd=txtd[:,:n_samples]
-        rxtd=rxtd[:,:n_samples]
+        txtd=txtd.copy()[:,:n_samples]
+        rxtd=rxtd.copy()[:,:n_samples]
 
-        H_est = rxtd @ np.linalg.pinv(txtd)
 
         H_est_full = np.zeros((n_tx_ant, n_rx_ant, n_samples), dtype='complex')
         h_est_full = np.zeros((n_tx_ant, n_rx_ant, n_samples), dtype='complex')
@@ -665,6 +664,9 @@ class Signal_Utils(General):
                 # H_est_full_ = rxfd[rx_ant_id] / txfd[tx_ant_id]
 
                 h_est_full_ = ifft(H_est_full_)
+                H_est_full[tx_ant_id, rx_ant_id, :] = H_est_full_.copy()
+                h_est_full[tx_ant_id, rx_ant_id, :] = h_est_full_.copy()
+
                 im = np.argmax(h_est_full_)
                 h_est_full_ = np.roll(h_est_full_, -im + len(h_est_full_)//10)
                 h_est_full_ = h_est_full_.flatten()
@@ -681,64 +683,106 @@ class Signal_Utils(General):
                 ylabel = 'Magnitude (dB)'
                 self.plot_signal(freq, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)
 
-                H_est_full[tx_ant_id, rx_ant_id, :] = H_est_full_
-                h_est_full[tx_ant_id, rx_ant_id, :] = h_est_full_
+        H_est = np.linalg.pinv(txfd.T) @ rxfd.T
 
-        return H_est, h_est_full
+        time_pow = np.sum(np.abs(H_est_full)**2, axis=(0,1))
+        idx_max  = np.argmax(time_pow)
+        H_est_max = H_est_full[:,:,idx_max]
+
+        return h_est_full, H_est, H_est_max
 
 
-    def channel_estimate_eq(self, txtd, rxtd):
-        txfd = fft(txtd)
-        rxfd = fft(rxtd)
+    # def channel_estimate_eq(self, txtd, rxtd):
+    #     txfd = fft(txtd)
+    #     rxfd = fft(rxtd)
 
-        # Signal parameters
-        N_cp = 256
-        N_fft = 768
-        M = 16
-        x = txtd[N_cp:]
-        X = fft(x)
+    #     # Signal parameters
+    #     N_cp = 256
+    #     N_fft = 768
+    #     M = 16
+    #     x = txtd[N_cp:]
+    #     X = fft(x)
 
-        plt.figure(1)
-        plt.subplot(3, 1, 1)
+    #     plt.figure(1)
+    #     plt.subplot(3, 1, 1)
 
-        # Time synchronization
-        data_sync = rxtd[:4 * N_fft - 1]
-        rx = convolve(np.conj(x), data_sync, mode='full')
-        plt.plot(np.abs(rx))
-        index_ini = np.argmax(rx)
+    #     # Time synchronization
+    #     data_sync = rxtd[:4 * N_fft - 1]
+    #     rx = convolve(np.conj(x), data_sync, mode='full')
+    #     plt.plot(np.abs(rx))
+    #     index_ini = np.argmax(rx)
 
-        # Retrieve time-synced signal
-        N_vec = (np.tile(np.arange(N_fft), M) + np.repeat(np.arange(M), N_fft) * (N_fft + N_cp) + N_cp + 1)
-        Y = rxtd[N_vec + index_ini - 3].reshape((M, N_fft)).T
+    #     # Retrieve time-synced signal
+    #     N_vec = (np.tile(np.arange(N_fft), M) + np.repeat(np.arange(M), N_fft) * (N_fft + N_cp) + N_cp + 1)
+    #     Y = rxtd[N_vec + index_ini - 3].reshape((M, N_fft)).T
 
-        # Equalized frequency
-        H_hat = fft(Y, axis=0) / X[:,None]
-        # Averaged frequency
-        H_hat_avg = np.mean(H_hat, axis=1)
+    #     # Equalized frequency
+    #     H_hat = fft(Y, axis=0) / X[:,None]
+    #     # Averaged frequency
+    #     H_hat_avg = np.mean(H_hat, axis=1)
 
-        # Equalized time
-        h_hat = ifft(H_hat, axis=0)
-        h_hat = h_hat[:N_cp, :]
+    #     # Equalized time
+    #     h_hat = ifft(H_hat, axis=0)
+    #     h_hat = h_hat[:N_cp, :]
 
-        # Averaged time
-        h_hat_avg = np.mean(h_hat, axis=1)
+    #     # Averaged time
+    #     h_hat_avg = np.mean(h_hat, axis=1)
 
-        # Plots
-        plt.subplot(3, 1, 2)
-        plt.plot(np.abs(h_hat_avg))
+    #     # Plots
+    #     plt.subplot(3, 1, 2)
+    #     plt.plot(np.abs(h_hat_avg))
 
-        plt.subplot(3, 1, 3)
-        plt.plot(fftshift(10 * np.log10(np.abs(H_hat_avg) ** 2)))
-        plt.axis([1, N_fft, -100, 0])
+    #     plt.subplot(3, 1, 3)
+    #     plt.plot(fftshift(10 * np.log10(np.abs(H_hat_avg) ** 2)))
+    #     plt.axis([1, N_fft, -100, 0])
 
-        H_dd = fft(h_hat.T, axis=0).T / np.sqrt(N_fft * M)
-        H_dd_log = 10 * np.log10(np.abs(H_dd) ** 2)
-        H_dd_log[H_dd_log < -130] = -130
+    #     H_dd = fft(h_hat.T, axis=0).T / np.sqrt(N_fft * M)
+    #     H_dd_log = 10 * np.log10(np.abs(H_dd) ** 2)
+    #     H_dd_log[H_dd_log < -130] = -130
 
-        plt.figure(2)
-        plt.pcolor(H_dd_log)
-        plt.colorbar()
-        plt.show()
+    #     plt.figure(2)
+    #     plt.pcolor(H_dd_log)
+    #     plt.colorbar()
+    #     plt.show()
+
+
+    def channel_equalize(self, txtd, rxtd, H):
+        rxtd_eq = np.zeros_like(rxtd)
+        epsilon = 1e-6
+        try:
+            H_inv = np.linalg.inv(H)
+        except:
+            H_reg = H + epsilon * np.eye(H.shape[0])
+            H_inv = np.linalg.pinv(H_reg)
+
+        print("H_inv_det: ", np.abs(np.linalg.det(H_inv)))
+        if np.abs(np.linalg.det(H_inv)) < -1000:
+            rxfd = fft(rxtd, axis=-1)
+            rxfd_eq = rxfd.T @ H_inv
+            rxtd_eq = ifft(rxfd_eq.T, axis=-1)
+        else:
+            for i in range(rxtd_eq.shape[0]):
+                delay = self.extract_delay(rxtd[i], txtd[i])
+                print("delay: ", delay)
+                rxtd_eq[i], _, _, _ = self.time_adjust(rxtd[i], txtd[i], delay)
+                phase_offset = self.calc_phase_offset(rxtd_eq[i], txtd[i])
+                print("phase_offset: ", phase_offset)
+                rxtd_eq[i], _ = self.adjust_phase(rxtd_eq[i], txtd[i], phase_offset)
+
+        return rxtd_eq
+    
+
+    def estimate_params(self, H):
+        U, S, Vh = np.linalg.svd(H)
+        W_tx = Vh.conj().T
+        W_rx = U
+        # print("H_est_max: ", np.abs(H))
+        rx_phase = np.angle(U[0,0]*np.conj(U[1,0]))
+        # print("rx_phase: {:0.4f}".format(rx_phase*180/np.pi))
+        tx_phase = np.angle(Vh[0,0]*np.conj(Vh[0,1]))
+        # print("tx_phase: {:0.4f}".format(tx_phase*180/np.pi))
+
+        return tx_phase, rx_phase
 
 
     # plot_signal(self, x, sig, mode='time_IQ', scale='linear', title='Custom Title', xlabel='Time', ylabel='Amplitude', plot_args={'color': 'red', 'linestyle': '--'}, xlim=(0, 10), ylim=(-1, 1), legend=True)

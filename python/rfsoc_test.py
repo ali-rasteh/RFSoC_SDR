@@ -102,8 +102,8 @@ class Params_Class(object):
             self.n_tx_ant=2
             self.n_rx_ant=2
             self.server_ip='192.168.3.1'
-            self.animate_plot_mode=['h','rxfd','rxtd01']        # h or rxtd or rxfd or txtd or txfd or rxtd01
-            self.beamforming=True
+            self.animate_plot_mode=['IQ']        # h or rxtd or rxfd or txtd or txfd or rxtd01 or rxfd01 or IQ
+            self.beamforming=False
             self.save_signal=False
             self.plot_level=0
             self.verbose_level=0

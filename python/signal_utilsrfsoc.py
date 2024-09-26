@@ -81,7 +81,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.anim_paused = False
         n_plots = len(plot_mode)
         tx_ant_id = 0
-        rx_ant_id = 1
+        rx_ant_id = 0
 
         if save_signal:
             # test = np.load("./mimo_1.npz")
@@ -93,35 +93,33 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 print("Signal Save Iteration: ", i+1)
                 rxtd = client_inst.receive_data(mode='once')
                 rxtd = rxtd.squeeze(axis=0)
-                (rxtd_base, H_est, h_est_full) = self.rx_operations(txtd_base, rxtd)
+                rxtd_base = self.rx_operations(txtd_base, rxtd)
                 rxtd_base = rxtd_base[:self.n_samples]
                 txtd_save.append(txtd_base)
                 rxtd_save.append(rxtd_base)
             np.savez(self.sig_save_path, txtd=np.array(txtd_save), rxtd=np.array(rxtd_save))
 
         
-        def receive_data():
+        def receive_data(txtd_base):
             rxtd = client_inst.receive_data(mode='once')
             rxtd = rxtd.squeeze(axis=0)
-            (rxtd_base, H_est, h_est_full) = self.rx_operations(txtd_base, rxtd)
-            # max_idx = np.argmax(h_est_full)
-            time_pow = np.sum(np.abs(h_est_full)**2, axis=(0,1))
-            idx  = np.argmax(time_pow)
-            Hmax = h_est_full[:,:,idx]
-            U, S, Vh = np.linalg.svd(Hmax)
-            print("Hmax: ", np.abs(Hmax))
-            rx_phase = np.angle(U[0,0]*np.conj(U[1,0]))
-            print("rx_phase: {:0.4f}".format(rx_phase*180/np.pi))
-            tx_phase = np.angle(Vh[0,0]*np.conj(Vh[0,1]))
-            print("tx_phase: {:0.4f}".format(tx_phase*180/np.pi))
-            # print(S)
-            rxtd_base = rxtd_base[:,:self.n_samples]
-            txtd_base_p = txtd_base[tx_ant_id]
-            rxtd_base_p = rxtd_base[rx_ant_id]
-            txfd_base_p = np.abs(fftshift(fft(txtd_base_p)))
-            rxfd_base_p = np.abs(fftshift(fft(rxtd_base_p)))
+            rxtd_base = self.rx_operations(txtd_base, rxtd)
+
+            h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_base)
+            # h_est_full = self.channel_estimate_eq(txtd_base, rxtd_base)
+            
+            tx_phase, rx_phase = self.estimate_params(H_est_max)
+            rxtd_base = self.channel_equalize(txtd_base, rxtd_base, H_est_max)
+            # print("rxtd_eq: ", fft(rxtd_eq, axis=-1)[0,:2])
+            
+            txtd_base = txtd_base.copy()[:,:self.n_samples]
+            rxtd_base = rxtd_base.copy()[:,:self.n_samples]
+
             h_est_full = h_est_full[tx_ant_id, rx_ant_id]
+            im = np.argmax(h_est_full)
+            h_est_full = np.roll(h_est_full, -im + len(h_est_full)//10)
             H_est_full = np.abs(fftshift(fft(h_est_full)))
+
             sigs=[]
             for item in plot_mode:
                 if item=='h':
@@ -129,23 +127,29 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 elif item=='H':
                     sigs.append(self.lin_to_db(H_est_full, mode='mag'))
                 elif item=='rxtd':
-                    sigs.append(rxtd_base_p)
+                    sigs.append(rxtd_base[rx_ant_id])
                 elif item=='rxfd':
-                    sigs.append(self.lin_to_db(rxfd_base_p, mode='mag'))
+                    sigs.append(self.lin_to_db(np.abs(fftshift(fft(rxtd_base[rx_ant_id]))), mode='mag'))
                 elif item=='txtd':
-                    sigs.append(txtd_base_p)
+                    sigs.append(txtd_base[tx_ant_id])
                 elif item=='txfd':
-                    sigs.append(self.lin_to_db(txfd_base_p, mode='mag'))
+                    sigs.append(self.lin_to_db(np.abs(fftshift(fft(txtd_base[tx_ant_id]))), mode='mag'))
                 elif item=='rxtd01':
                     delay = self.extract_frac_delay(rxtd_base[0], rxtd_base[1])
-                    print("Fractional sample delay between antennas: {:0.4f}".format(delay))
+                    # print("Fractional sample delay between antennas: {:0.4f}".format(delay))
                     delay = self.extract_delay(rxtd_base[0], rxtd_base[1])
-                    print("Integer sample delay between antennas: ", delay)
+                    # print("Integer sample delay between antennas: ", delay)
                     rxtd_base[0], rxtd_base[1], _, _ = self.time_adjust(rxtd_base[0], rxtd_base[1], delay)
                     phase_offset = self.calc_phase_offset(rxtd_base[0], rxtd_base[1])
-                    print("Phase offset between antennas in degrees: ", phase_offset*180/np.pi)
+                    # print("Phase offset between antennas in degrees: ", phase_offset*180/np.pi)
                     rxtd_base[0], rxtd_base[1] = self.adjust_phase(rxtd_base[0], rxtd_base[1], phase_offset)
-                    sigs.append([rxtd_base[0,:100], rxtd_base[1,:100]])
+                    sigs.append([np.abs(rxtd_base[0,:100]), np.abs(rxtd_base[1,:100])])
+                elif item=='rxfd01':
+                    rxfd_base_0 = self.lin_to_db(np.abs(fftshift(fft(rxtd_base[0]))), mode='mag')
+                    rxfd_base_1 = self.lin_to_db(np.abs(fftshift(fft(rxtd_base[1]))), mode='mag')
+                    sigs.append([rxfd_base_0, rxfd_base_1])
+                elif item=='IQ':
+                    sigs.append(fft(rxtd_base[rx_ant_id], axis=-1))
 
             return (sigs)
 
@@ -156,7 +160,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         def update(frame):
             if self.anim_paused:
                 return line
-            sigs = receive_data()
+            sigs = receive_data(txtd_base)
             line_id = 0
             for i in range(n_plots):
                 if plot_mode[i]=='rxtd':
@@ -169,24 +173,30 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     line_id+=1
                     line[line_id].set_ydata(sigs[i].imag)
                     line_id+=1
-                elif plot_mode[i]=='rxtd01':
+                elif plot_mode[i]=='rxtd01' or plot_mode[i]=='rxfd01':
                     line[line_id].set_ydata(sigs[i][0])
                     line_id+=1
                     line[line_id].set_ydata(sigs[i][1])
                     line_id+=1
+                elif plot_mode[i]=='IQ':
+                    line[line_id].set_offsets(np.column_stack((sigs[i].real, sigs[i].imag)))
+                    line_id+=1
                 else:
                     line[line_id].set_ydata(sigs[i])
                     line_id+=1
-                ax[i].relim()
+                if plot_mode[i] is not 'IQ':
+                    ax[i].relim()
                 ax[i].autoscale_view()
 
             return line
 
 
         # Set up the figure and plot
-        sigs = receive_data()
+        sigs = receive_data(txtd_base)
         line = [None for i in range(2*n_plots)]
         fig, ax = plt.subplots(n_plots, 1)
+        if type(ax) is not list:
+            ax = [ax]
         fig.canvas.mpl_connect('key_press_event', toggle_pause)
         # fig, ax = plt.subplots(1, n_plots)
 
@@ -237,15 +247,37 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 ax[i].set_xlabel("Freq (MHz)")
                 ax[i].set_ylabel("Magnitude (dB)")
             elif plot_mode[i]=='rxtd01':
-                line[line_id], = ax[i].plot(self.t[:100], sigs[i][0], label='Antenna 0 RX')
+                line[line_id], = ax[i].plot(self.t[:100], sigs[i][0], label='Antenna 0')
                 line_id+=1
-                line[line_id], = ax[i].plot(self.t[:100], sigs[i][1], label='Antenna 1 RX')
+                line[line_id], = ax[i].plot(self.t[:100], sigs[i][1], label='Antenna 1')
                 line_id+=1
                 ax[i].set_title("Aligned RX signals in time domain for antennas 0 and 1")
                 ax[i].set_xlabel("Time (s)")
                 ax[i].set_ylabel("Magnitude")
+            elif plot_mode[i]=='rxfd01':
+                line[line_id], = ax[i].plot(self.freq, sigs[i][0], label='Antenna 0')
+                line_id+=1
+                line[line_id], = ax[i].plot(self.freq, sigs[i][1], label='Antenna 1')
+                line_id+=1
+                ax[i].set_title("Aligned RX signals spectrum for antennas 0 and 1")
+                ax[i].set_xlabel("Freq (MHz)")
+                ax[i].set_ylabel("Magnitude (dB)")
+            elif plot_mode[i]=='IQ':
+                line[line_id] = ax[i].scatter(sigs[i].real, sigs[i].imag, facecolors='none', edgecolors='b', s=100)
+                line_id+=1
+                # ax[i].set_xlim([-3, 3])
+                # ax[i].set_ylim([-3, 3])
+                ax[i].set_title("RX samples in IQ plane")
+                ax[i].set_xlabel("In-phase (I)")
+                ax[i].set_ylabel("Quadrature (Q)")
+                ax[i].axhline(0, color='black',linewidth=0.5)
+                ax[i].axvline(0, color='black',linewidth=0.5)
+                ax[i].set_aspect('equal')
+                
             # ax[i].autoscale()
-            ax[i].relim()
+            ax[i].grid(True)
+            if plot_mode[i] is not 'IQ':
+                ax[i].relim()
             ax[i].autoscale_view()
             ax[i].minorticks_on()
             ax[i].legend()
@@ -292,9 +324,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 ylabel = 'Magnitude (dB)'
                 self.plot_signal(x=self.freq_rx, sigs=rxtd_base[ant_id], mode='fft', scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=5)
 
-        H_est, h_est_full = self.channel_estimate(txtd_base, rxtd_base)
-        # h_est_full = self.channel_estimate_eq(txtd_base, rxtd_base)
-
         for ant_id in range(self.n_rx_ant):
             # n_samples = min(len(txtd_base), len(rxtd_base))
             txfd_base = np.abs(fftshift(fft(txtd_base[ant_id,:self.n_samples])))
@@ -313,5 +342,5 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             self.print("txfd_base max freq for antenna {}: {} MHz".format(ant_id, self.freq[(self.nfft>>1)+np.argmax(txfd_base[self.nfft>>1:])]), thr=5)
             self.print("rxfd_base max freq for antenna {}: {} MHz".format(ant_id, self.freq[(self.nfft>>1)+np.argmax(rxfd_base[self.nfft>>1:])]), thr=5)
 
-        return (rxtd_base, H_est, h_est_full)
+        return (rxtd_base)
 
