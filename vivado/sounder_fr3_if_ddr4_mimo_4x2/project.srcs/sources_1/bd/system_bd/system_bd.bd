@@ -1759,7 +1759,7 @@
                 "inst_hier_path": "dac_path/mem/axis_data_fifo_1",
                 "parameters": {
                   "FIFO_DEPTH": {
-                    "value": "16"
+                    "value": "32"
                   },
                   "IS_ACLK_ASYNC": {
                     "value": "0"
@@ -6972,14 +6972,14 @@
       },
       "dac_path_DAC0_AXIS": {
         "interface_ports": [
-          "dac_path/DAC0_AXIS",
-          "usp_rf_data_converter_0/s20_axis"
+          "usp_rf_data_converter_0/s00_axis",
+          "dac_path/DAC0_AXIS"
         ]
       },
       "dac_path_DAC1_AXIS": {
         "interface_ports": [
-          "usp_rf_data_converter_0/s00_axis",
-          "dac_path/DAC1_AXIS"
+          "dac_path/DAC1_AXIS",
+          "usp_rf_data_converter_0/s20_axis"
         ]
       },
       "ddr4_0_C0_DDR4": {

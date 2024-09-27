@@ -61,11 +61,11 @@ class Params_Class(object):
         if params.overwrite_configs:
             self.fs=245.76e6 * 4
             self.fc = 57.51e9
+            self.wl = constants.c / self.fc
             self.fs_tx=self.fs
             self.fs_rx=self.fs
             self.n_samples=1024
             self.nfft=self.n_samples
-            self.sig_modulation='qam'
             self.mix_phase_off=0.0
             self.sig_path=os.path.join(os.getcwd(), 'sigs/txtd.npy')
             self.sig_save_path=os.path.join(os.getcwd(), 'sigs/mimo_trx.npz')
@@ -91,25 +91,33 @@ class Params_Class(object):
             self.send_signal=True
             self.recv_signal=True
 
-            self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-52_20240922-190110.bit')
+            self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-57_20240927-003516.bit')
             self.project='sounder_if_ddr4'
             self.board='rfsoc_4x2'
             self.mode='client_rx'
-            self.sig_mode='wideband'
+            self.sig_mode='tone_1'
             self.sig_gen_mode = 'fft'
+            self.sig_modulation='4qam'
             self.wb_bw=500e6
             self.f_tone=5.0 * self.fs_tx / self.nfft #30e6
             self.n_tx_ant=2
             self.n_rx_ant=2
             self.server_ip='192.168.3.1'
-            self.animate_plot_mode=['IQ']        # h or rxtd or rxfd or txtd or txfd or rxtd01 or rxfd01 or IQ
+            self.animate_plot_mode=['rxfd', 'rxtd', 'h']        # h or rxtd or rxfd or txtd or txfd or rxtd01 or rxfd01 or IQ
             self.beamforming=False
+            self.ant_dim = 1
+            self.ant_dx = 0.5             # Antenna spacing in wavelengths (lambda)
+            self.ant_dy = 0.5
+            self.steer_phi_deg = 30        # Desired steering azimuth in degrees
+            self.steer_theta_deg = 0        # Desired steering elevation in degrees
             self.save_signal=False
             self.plot_level=0
             self.verbose_level=0
             
 
 
+        self.steer_phi_rad = np.deg2rad(self.steer_phi_deg)
+        self.steer_theta_rad = np.deg2rad(self.steer_theta_deg)
         self.n_samples_tx = self.n_frame_wr*self.n_samples
         self.n_samples_rx = self.n_frame_rd*self.n_samples
         self.nfft_tx = self.n_frame_wr*self.nfft
@@ -158,6 +166,11 @@ class Params_Class(object):
             self.f_max = abs(self.wb_bw/2)
         else:
             raise ValueError('Unsupported signal mode: ' + self.sig_mode)
+        
+        if self.n_tx_ant==1 and self.n_rx_ant==1:
+            self.ant_dim = 1
+            self.beamforming = False
+            
 
 
 

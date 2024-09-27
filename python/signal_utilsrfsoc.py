@@ -24,6 +24,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.n_tx_ant = params.n_tx_ant
         self.n_rx_ant = params.n_rx_ant
         self.beamforming = params.beamforming
+        self.ant_dx = params.ant_dx
+        self.ant_dy = params.ant_dy
 
         self.print("signals object initialization done", thr=1)
         
@@ -47,13 +49,17 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             xlabel = 'Frequency (MHz)'
             ylabel = 'Magnitude (dB)'
             self.plot_signal(x=self.freq_tx, sigs=txtd_base[ant_id], mode='fft', scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=4)
-            title = 'Base-band TX signal (real) in time domain at \n the time transition for antenna {}'.format(ant_id)
+            title = 'Base-band TX signal in time domain at \n the time transition for antenna {}'.format(ant_id)
             xlabel = 'Time (s)'
             ylabel = 'Magnitude'
             n=int(np.round(self.fs_tx/self.f_max))
             t=self.t_tx[:2*n]
-            sig=np.concatenate((txtd_base[ant_id].real[-n:], txtd_base[ant_id].real[:n]))
-            self.plot_signal(x=t, sigs=sig, mode='time', scale='linear', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=4)
+            sig_real=np.concatenate((txtd_base[ant_id].real[-n:], txtd_base[ant_id].real[:n]))
+            sig_imag=np.concatenate((txtd_base[ant_id].imag[-n:], txtd_base[ant_id].imag[:n]))
+            self.plot_signal(x=t, sigs={'real':sig_real, 'imag':sig_imag}, mode='time', scale='linear', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=4, legend=True)
+
+        txtd_base = np.array(txtd_base)
+        txtd = np.array(txtd)
 
         if self.mixer_mode=='digital' and self.mix_freq!=0:
             for ant_id in range(self.n_tx_ant):
@@ -69,8 +75,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             txtd = txtd_base.copy()
             # txfd = txfd_base.copy()
 
-        txtd_base = np.array(txtd_base)
-        txtd = np.array(txtd)
+        if self.beamforming:
+            txtd_base = self.beam_form(txtd_base)
+            txtd = self.beam_form(txtd)
 
         return (txtd_base, txtd)
 
@@ -108,8 +115,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_base)
             # h_est_full = self.channel_estimate_eq(txtd_base, rxtd_base)
             
-            tx_phase, rx_phase = self.estimate_params(H_est_max)
-            rxtd_base = self.channel_equalize(txtd_base, rxtd_base, H_est_max)
+            tx_phase, rx_phase = self.estimate_mimo_params(H_est_max)
+            # rxtd_base = self.channel_equalize(txtd_base, rxtd_base, H_est_max)
             # print("rxtd_eq: ", fft(rxtd_eq, axis=-1)[0,:2])
             
             txtd_base = txtd_base.copy()[:,:self.n_samples]
@@ -184,7 +191,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 else:
                     line[line_id].set_ydata(sigs[i])
                     line_id+=1
-                if plot_mode[i] is not 'IQ':
+                if plot_mode[i]!='IQ':
                     ax[i].relim()
                 ax[i].autoscale_view()
 
@@ -195,7 +202,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         sigs = receive_data(txtd_base)
         line = [None for i in range(2*n_plots)]
         fig, ax = plt.subplots(n_plots, 1)
-        if type(ax) is not list:
+        if type(ax) is not np.ndarray:
             ax = [ax]
         fig.canvas.mpl_connect('key_press_event', toggle_pause)
         # fig, ax = plt.subplots(1, n_plots)
@@ -267,7 +274,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 line_id+=1
                 # ax[i].set_xlim([-3, 3])
                 # ax[i].set_ylim([-3, 3])
-                ax[i].set_title("RX samples in IQ plane")
+                ax[i].set_title("RX samples in IQ plane for antenna {}".format(rx_ant_id))
                 ax[i].set_xlabel("In-phase (I)")
                 ax[i].set_ylabel("Quadrature (Q)")
                 ax[i].axhline(0, color='black',linewidth=0.5)
@@ -276,7 +283,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 
             # ax[i].autoscale()
             ax[i].grid(True)
-            if plot_mode[i] is not 'IQ':
+            if plot_mode[i]!='IQ':
                 ax[i].relim()
             ax[i].autoscale_view()
             ax[i].minorticks_on()

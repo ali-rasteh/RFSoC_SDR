@@ -37,6 +37,8 @@ class Signal_Utils(General):
         self.ant_dy=getattr(params, 'ant_dy', None)
         self.ant_dx=getattr(params, 'ant_dx', None)
         self.wl=getattr(params, 'wl', None)
+        self.steer_phi_rad=getattr(params, 'steer_phi_rad', None)
+        self.steer_theta_rad=getattr(params, 'steer_theta_rad', None)
 
         self.n_sigs_max = getattr(params, 'n_sigs_max', None)
         self.size_sam_mode = getattr(params, 'size_sam_mode', None)
@@ -556,20 +558,26 @@ class Signal_Utils(General):
         return tone_td
 
 
-    def generate_wideband(self, bw=200e6, wb_null_sc=10, modulation='qam', sig_mode='wideband', gen_mode='fft'):
+    def generate_wideband(self, bw=200e6, wb_null_sc=10, modulation='4qam', sig_mode='wideband', gen_mode='fft'):
         if gen_mode == 'fft':
             sc_min = int(np.round(-(bw/2)*self.nfft_tx/self.fs_tx))
             sc_max = int(np.round((bw/2)*self.nfft_tx/self.fs_tx))
             np.random.seed(self.seed)
-            if modulation=='qam':
-                sym = (1 + 1j, 1 - 1j, -1 + 1j, -1 - 1j)  # QAM symbols
+            if modulation=='psk':
+                sym = [1, -1]
+            elif modulation=='4qam':
+                sym = [I + 1j*Q for I in [-1, 1] for Q in [-1, 1]]
+            elif modulation=='16qam':
+                sym = [I + 1j*Q for I in [-3, -1, 1, 3] for Q in [-3, -1, 1, 3]]
+            elif modulation=='64qam':
+                sym = [I + 1j*Q for I in [-7, -5, -3, -1, 1, 3, 5, 7] for Q in [-7, -5, -3, -1, 1, 3, 5, 7]]
             else:
-                sym = ()
+                sym = []
                 # raise ValueError('Invalid signal modulation: ' + modulation)
 
             # Create the wideband sequence in frequency-domain
             wb_fd = np.zeros((self.nfft_tx,), dtype='complex')
-            if modulation == 'qam':
+            if len(sym)>0:
                 wb_fd[((self.nfft_tx >> 1) + sc_min):((self.nfft_tx >> 1) + sc_max)] = np.random.choice(sym, len(range(sc_min, sc_max)))
             else:
                 wb_fd[((self.nfft_tx >> 1) + sc_min):((self.nfft_tx >> 1) + sc_max)] = 1
@@ -608,6 +616,29 @@ class Signal_Utils(General):
         self.print("Wide-band signal generation done", thr=2)
 
         return wb_td
+    
+
+    def beam_form(self, sigs):
+        sigs_bf = sigs.copy()
+        n_sigs = sigs.shape[0]
+        if self.ant_dim == 1:
+            n_ant = n_sigs
+        elif self.ant_dim == 2:
+            n_ant_x = int(np.sqrt(n_sigs))
+            n_ant_y = int(np.sqrt(n_sigs))
+        for i in range(n_sigs):
+            if self.ant_dim == 1:
+                theta = -2 * np.pi * self.ant_dx * np.sin(self.steer_phi_rad) * i
+            elif self.ant_dim == 2:
+                m = i // n_ant_y
+                n = i % n_ant_y
+                theta = -2 * np.pi * (m*self.ant_dx*np.sin(self.steer_theta_rad)*np.cos(self.steer_phi_rad) +\
+                                      n*self.ant_dy*np.sin(self.steer_theta_rad)*np.sin(self.steer_phi_rad))
+            print('Theta: ', theta)
+            sigs_bf[i, :] = np.exp(1j * theta) * sigs[i, :]
+
+        return sigs_bf
+
     
 
 
@@ -748,39 +779,44 @@ class Signal_Utils(General):
 
     def channel_equalize(self, txtd, rxtd, H):
         rxtd_eq = np.zeros_like(rxtd)
-        epsilon = 1e-6
-        try:
-            H_inv = np.linalg.inv(H)
-        except:
+
+        print(np.abs(np.linalg.det(H)))
+
+        if np.linalg.matrix_rank(H) == min(H.shape) and np.abs(np.linalg.det(H)) > 1e-3:
+            H_inv = np.linalg.pinv(H)
+        else:
+            epsilon = 1e-6
             H_reg = H + epsilon * np.eye(H.shape[0])
             H_inv = np.linalg.pinv(H_reg)
 
-        print("H_inv_det: ", np.abs(np.linalg.det(H_inv)))
-        if np.abs(np.linalg.det(H_inv)) < -1000:
+        if np.abs(np.linalg.det(H)) > 1e-3:
             rxfd = fft(rxtd, axis=-1)
             rxfd_eq = rxfd.T @ H_inv
             rxtd_eq = ifft(rxfd_eq.T, axis=-1)
         else:
             for i in range(rxtd_eq.shape[0]):
                 delay = self.extract_delay(rxtd[i], txtd[i])
-                print("delay: ", delay)
                 rxtd_eq[i], _, _, _ = self.time_adjust(rxtd[i], txtd[i], delay)
                 phase_offset = self.calc_phase_offset(rxtd_eq[i], txtd[i])
-                print("phase_offset: ", phase_offset)
+                # print("phase_offset: ", phase_offset)
                 rxtd_eq[i], _ = self.adjust_phase(rxtd_eq[i], txtd[i], phase_offset)
 
         return rxtd_eq
     
 
-    def estimate_params(self, H):
+    def estimate_mimo_params(self, H):
         U, S, Vh = np.linalg.svd(H)
         W_tx = Vh.conj().T
         W_rx = U
-        # print("H_est_max: ", np.abs(H))
-        rx_phase = np.angle(U[0,0]*np.conj(U[1,0]))
-        # print("rx_phase: {:0.4f}".format(rx_phase*180/np.pi))
-        tx_phase = np.angle(Vh[0,0]*np.conj(Vh[0,1]))
-        # print("tx_phase: {:0.4f}".format(tx_phase*180/np.pi))
+        if H.shape[0] == 1:
+            tx_phase = 0
+            rx_phase = 0
+        elif H.shape[0] == 2:
+            # print("H_est_max: ", np.abs(H))
+            rx_phase = np.angle(U[0,0]*np.conj(U[1,0]))
+            # print("rx_phase: {:0.4f}".format(rx_phase*180/np.pi))
+            tx_phase = np.angle(Vh[0,0]*np.conj(Vh[0,1]))
+            # print("tx_phase: {:0.4f}".format(tx_phase*180/np.pi))
 
         return tx_phase, rx_phase
 

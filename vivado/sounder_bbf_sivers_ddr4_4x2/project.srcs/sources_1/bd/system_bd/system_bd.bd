@@ -58,7 +58,9 @@
           "control_tready": "",
           "control_tvalid": "",
           "dac_strm_mux": "",
-          "xlslice_0": ""
+          "xlslice_0": "",
+          "axis_register_slice_1": "",
+          "axis_clock_converter_0": ""
         },
         "soft_reset": {
           "dac_sresetn": "",
@@ -435,13 +437,13 @@
               "axis_clock_converter_0": {
                 "vlnv": "xilinx.com:ip:axis_clock_converter:1.1",
                 "xci_name": "system_bd_axis_clock_converter_0_0",
-                "xci_path": "ip\\system_bd_axis_clock_converter_0_0\\system_bd_axis_clock_converter_0_0.xci",
+                "xci_path": "ip/system_bd_axis_clock_converter_0_0/system_bd_axis_clock_converter_0_0.xci",
                 "inst_hier_path": "adc_path/mem/axis_clock_converter_0"
               },
               "axis_data_fifo_0": {
                 "vlnv": "xilinx.com:ip:axis_data_fifo:2.0",
                 "xci_name": "system_bd_axis_data_fifo_0_0",
-                "xci_path": "ip\\system_bd_axis_data_fifo_0_0\\system_bd_axis_data_fifo_0_0.xci",
+                "xci_path": "ip/system_bd_axis_data_fifo_0_0/system_bd_axis_data_fifo_0_0.xci",
                 "inst_hier_path": "adc_path/mem/axis_data_fifo_0",
                 "parameters": {
                   "FIFO_DEPTH": {
@@ -455,7 +457,7 @@
               "axis_register_slice_0": {
                 "vlnv": "xilinx.com:ip:axis_register_slice:1.1",
                 "xci_name": "system_bd_axis_register_slice_0_0",
-                "xci_path": "ip\\system_bd_axis_register_slice_0_0\\system_bd_axis_register_slice_0_0.xci",
+                "xci_path": "ip/system_bd_axis_register_slice_0_0/system_bd_axis_register_slice_0_0.xci",
                 "inst_hier_path": "adc_path/mem/axis_register_slice_0"
               }
             },
@@ -557,7 +559,7 @@
               "sync_0": {
                 "vlnv": "xilinx.com:user:sync:1.0",
                 "xci_name": "system_bd_sync_0_0",
-                "xci_path": "ip\\system_bd_sync_0_0\\system_bd_sync_0_0.xci",
+                "xci_path": "ip/system_bd_sync_0_0/system_bd_sync_0_0.xci",
                 "inst_hier_path": "adc_path/soft_reset/sync_0",
                 "parameters": {
                   "SRC_INPUT_REG": {
@@ -568,7 +570,7 @@
               "sync_1": {
                 "vlnv": "xilinx.com:user:sync:1.0",
                 "xci_name": "system_bd_sync_1_0",
-                "xci_path": "ip\\system_bd_sync_1_0\\system_bd_sync_1_0.xci",
+                "xci_path": "ip/system_bd_sync_1_0/system_bd_sync_1_0.xci",
                 "inst_hier_path": "adc_path/soft_reset/sync_1",
                 "parameters": {
                   "SRC_INPUT_REG": {
@@ -579,7 +581,7 @@
               "util_vector_logic_0": {
                 "vlnv": "xilinx.com:ip:util_vector_logic:2.0",
                 "xci_name": "system_bd_util_vector_logic_0_0",
-                "xci_path": "ip\\system_bd_util_vector_logic_0_0\\system_bd_util_vector_logic_0_0.xci",
+                "xci_path": "ip/system_bd_util_vector_logic_0_0/system_bd_util_vector_logic_0_0.xci",
                 "inst_hier_path": "adc_path/soft_reset/util_vector_logic_0",
                 "parameters": {
                   "C_OPERATION": {
@@ -593,7 +595,7 @@
               "util_vector_logic_3": {
                 "vlnv": "xilinx.com:ip:util_vector_logic:2.0",
                 "xci_name": "system_bd_util_vector_logic_3_0",
-                "xci_path": "ip\\system_bd_util_vector_logic_3_0\\system_bd_util_vector_logic_3_0.xci",
+                "xci_path": "ip/system_bd_util_vector_logic_3_0/system_bd_util_vector_logic_3_0.xci",
                 "inst_hier_path": "adc_path/soft_reset/util_vector_logic_3",
                 "parameters": {
                   "C_SIZE": {
@@ -604,7 +606,7 @@
               "util_vector_logic_4": {
                 "vlnv": "xilinx.com:ip:util_vector_logic:2.0",
                 "xci_name": "system_bd_util_vector_logic_4_0",
-                "xci_path": "ip\\system_bd_util_vector_logic_4_0\\system_bd_util_vector_logic_4_0.xci",
+                "xci_path": "ip/system_bd_util_vector_logic_4_0/system_bd_util_vector_logic_4_0.xci",
                 "inst_hier_path": "adc_path/soft_reset/util_vector_logic_4",
                 "parameters": {
                   "C_SIZE": {
@@ -615,7 +617,7 @@
               "xlconstant_0": {
                 "vlnv": "xilinx.com:ip:xlconstant:1.1",
                 "xci_name": "system_bd_xlconstant_0_0",
-                "xci_path": "ip\\system_bd_xlconstant_0_0\\system_bd_xlconstant_0_0.xci",
+                "xci_path": "ip/system_bd_xlconstant_0_0/system_bd_xlconstant_0_0.xci",
                 "inst_hier_path": "adc_path/soft_reset/xlconstant_0",
                 "parameters": {
                   "CONST_VAL": {
@@ -626,7 +628,7 @@
               "xlslice_0": {
                 "vlnv": "xilinx.com:ip:xlslice:1.0",
                 "xci_name": "system_bd_xlslice_0_0",
-                "xci_path": "ip\\system_bd_xlslice_0_0\\system_bd_xlslice_0_0.xci",
+                "xci_path": "ip/system_bd_xlslice_0_0/system_bd_xlslice_0_0.xci",
                 "inst_hier_path": "adc_path/soft_reset/xlslice_0",
                 "parameters": {
                   "DIN_FROM": {
@@ -724,7 +726,7 @@
           "axi_dma_0": {
             "vlnv": "xilinx.com:ip:axi_dma:7.1",
             "xci_name": "system_bd_axi_dma_0_0",
-            "xci_path": "ip\\system_bd_axi_dma_0_0\\system_bd_axi_dma_0_0.xci",
+            "xci_path": "ip/system_bd_axi_dma_0_0/system_bd_axi_dma_0_0.xci",
             "inst_hier_path": "adc_path/axi_dma_0",
             "parameters": {
               "c_addr_width": {
@@ -784,13 +786,13 @@
           "axis_combiner_0": {
             "vlnv": "xilinx.com:ip:axis_combiner:1.1",
             "xci_name": "system_bd_axis_combiner_0_0",
-            "xci_path": "ip\\system_bd_axis_combiner_0_0\\system_bd_axis_combiner_0_0.xci",
+            "xci_path": "ip/system_bd_axis_combiner_0_0/system_bd_axis_combiner_0_0.xci",
             "inst_hier_path": "adc_path/axis_combiner_0"
           },
           "axis_flow_ctrl_0": {
             "vlnv": "user.org:user:axis_flow_ctrl:1.0",
             "xci_name": "system_bd_axis_flow_ctrl_0_0",
-            "xci_path": "ip\\system_bd_axis_flow_ctrl_0_0\\system_bd_axis_flow_ctrl_0_0.xci",
+            "xci_path": "ip/system_bd_axis_flow_ctrl_0_0/system_bd_axis_flow_ctrl_0_0.xci",
             "inst_hier_path": "adc_path/axis_flow_ctrl_0",
             "parameters": {
               "C_AXIS_DWIDTH": {
@@ -801,7 +803,7 @@
           "smartconnect_0": {
             "vlnv": "xilinx.com:ip:smartconnect:1.0",
             "xci_name": "system_bd_smartconnect_0_0",
-            "xci_path": "ip\\system_bd_smartconnect_0_0\\system_bd_smartconnect_0_0.xci",
+            "xci_path": "ip/system_bd_smartconnect_0_0/system_bd_smartconnect_0_0.xci",
             "inst_hier_path": "adc_path/smartconnect_0",
             "parameters": {
               "NUM_MI": {
@@ -896,7 +898,7 @@
           "xlconstant_0": {
             "vlnv": "xilinx.com:ip:xlconstant:1.1",
             "xci_name": "system_bd_xlconstant_0_1",
-            "xci_path": "ip\\system_bd_xlconstant_0_1\\system_bd_xlconstant_0_1.xci",
+            "xci_path": "ip/system_bd_xlconstant_0_1/system_bd_xlconstant_0_1.xci",
             "inst_hier_path": "adc_path/xlconstant_0",
             "parameters": {
               "CONST_VAL": {
@@ -1130,7 +1132,7 @@
           "BUFG_DDR4": {
             "vlnv": "xilinx.com:ip:util_ds_buf:2.2",
             "xci_name": "system_bd_BUFG_DDR4_0",
-            "xci_path": "ip\\system_bd_BUFG_DDR4_0\\system_bd_BUFG_DDR4_0.xci",
+            "xci_path": "ip/system_bd_BUFG_DDR4_0/system_bd_BUFG_DDR4_0.xci",
             "inst_hier_path": "clocktreeMTS/BUFG_DDR4",
             "parameters": {
               "C_BUF_TYPE": {
@@ -1141,7 +1143,7 @@
           "BUFG_PL_CLK": {
             "vlnv": "xilinx.com:ip:util_ds_buf:2.2",
             "xci_name": "system_bd_BUFG_PL_CLK_0",
-            "xci_path": "ip\\system_bd_BUFG_PL_CLK_0\\system_bd_BUFG_PL_CLK_0.xci",
+            "xci_path": "ip/system_bd_BUFG_PL_CLK_0/system_bd_BUFG_PL_CLK_0.xci",
             "inst_hier_path": "clocktreeMTS/BUFG_PL_CLK",
             "parameters": {
               "C_BUF_TYPE": {
@@ -1152,25 +1154,25 @@
           "IBUFDS_DDR4": {
             "vlnv": "xilinx.com:ip:util_ds_buf:2.2",
             "xci_name": "system_bd_IBUFDS_DDR4_0",
-            "xci_path": "ip\\system_bd_IBUFDS_DDR4_0\\system_bd_IBUFDS_DDR4_0.xci",
+            "xci_path": "ip/system_bd_IBUFDS_DDR4_0/system_bd_IBUFDS_DDR4_0.xci",
             "inst_hier_path": "clocktreeMTS/IBUFDS_DDR4"
           },
           "IBUFDS_PL_CLK": {
             "vlnv": "xilinx.com:ip:util_ds_buf:2.2",
             "xci_name": "system_bd_IBUFDS_PL_CLK_0",
-            "xci_path": "ip\\system_bd_IBUFDS_PL_CLK_0\\system_bd_IBUFDS_PL_CLK_0.xci",
+            "xci_path": "ip/system_bd_IBUFDS_PL_CLK_0/system_bd_IBUFDS_PL_CLK_0.xci",
             "inst_hier_path": "clocktreeMTS/IBUFDS_PL_CLK"
           },
           "IBUFDS_SYSREF": {
             "vlnv": "xilinx.com:ip:util_ds_buf:2.2",
             "xci_name": "system_bd_IBUFDS_SYSREF_0",
-            "xci_path": "ip\\system_bd_IBUFDS_SYSREF_0\\system_bd_IBUFDS_SYSREF_0.xci",
+            "xci_path": "ip/system_bd_IBUFDS_SYSREF_0/system_bd_IBUFDS_SYSREF_0.xci",
             "inst_hier_path": "clocktreeMTS/IBUFDS_SYSREF"
           },
           "adc_control": {
             "vlnv": "xilinx.com:ip:xlslice:1.0",
             "xci_name": "system_bd_adc_control_0",
-            "xci_path": "ip\\system_bd_adc_control_0\\system_bd_adc_control_0.xci",
+            "xci_path": "ip/system_bd_adc_control_0/system_bd_adc_control_0.xci",
             "inst_hier_path": "clocktreeMTS/adc_control",
             "parameters": {
               "DIN_FROM": {
@@ -1190,7 +1192,7 @@
           "clk_wiz_0": {
             "vlnv": "xilinx.com:ip:clk_wiz:6.0",
             "xci_name": "system_bd_clk_wiz_0_0",
-            "xci_path": "ip\\system_bd_clk_wiz_0_0\\system_bd_clk_wiz_0_0.xci",
+            "xci_path": "ip/system_bd_clk_wiz_0_0/system_bd_clk_wiz_0_0.xci",
             "inst_hier_path": "clocktreeMTS/clk_wiz_0",
             "parameters": {
               "CLKIN1_JITTER_PS": {
@@ -1339,7 +1341,7 @@
           "dac_control": {
             "vlnv": "xilinx.com:ip:xlslice:1.0",
             "xci_name": "system_bd_dac_control_0",
-            "xci_path": "ip\\system_bd_dac_control_0\\system_bd_dac_control_0.xci",
+            "xci_path": "ip/system_bd_dac_control_0/system_bd_dac_control_0.xci",
             "inst_hier_path": "clocktreeMTS/dac_control",
             "parameters": {
               "DIN_FROM": {
@@ -1359,7 +1361,7 @@
           "sync_0": {
             "vlnv": "xilinx.com:user:sync:1.0",
             "xci_name": "system_bd_sync_0_1",
-            "xci_path": "ip\\system_bd_sync_0_1\\system_bd_sync_0_1.xci",
+            "xci_path": "ip/system_bd_sync_0_1/system_bd_sync_0_1.xci",
             "inst_hier_path": "clocktreeMTS/sync_0",
             "parameters": {
               "DEST_SYNC_FF": {
@@ -1373,7 +1375,7 @@
           "sync_1": {
             "vlnv": "xilinx.com:user:sync:1.0",
             "xci_name": "system_bd_sync_1_1",
-            "xci_path": "ip\\system_bd_sync_1_1\\system_bd_sync_1_1.xci",
+            "xci_path": "ip/system_bd_sync_1_1/system_bd_sync_1_1.xci",
             "inst_hier_path": "clocktreeMTS/sync_1",
             "parameters": {
               "DEST_SYNC_FF": {
@@ -1387,7 +1389,7 @@
           "sync_2": {
             "vlnv": "xilinx.com:user:sync:1.0",
             "xci_name": "system_bd_sync_2_0",
-            "xci_path": "ip\\system_bd_sync_2_0\\system_bd_sync_2_0.xci",
+            "xci_path": "ip/system_bd_sync_2_0/system_bd_sync_2_0.xci",
             "inst_hier_path": "clocktreeMTS/sync_2",
             "parameters": {
               "DEST_SYNC_FF": {
@@ -1401,7 +1403,7 @@
           "sync_3": {
             "vlnv": "xilinx.com:user:sync:1.0",
             "xci_name": "system_bd_sync_3_0",
-            "xci_path": "ip\\system_bd_sync_3_0\\system_bd_sync_3_0.xci",
+            "xci_path": "ip/system_bd_sync_3_0/system_bd_sync_3_0.xci",
             "inst_hier_path": "clocktreeMTS/sync_3",
             "parameters": {
               "DEST_SYNC_FF": {
@@ -1415,7 +1417,7 @@
           "xlconstant_0": {
             "vlnv": "xilinx.com:ip:xlconstant:1.1",
             "xci_name": "system_bd_xlconstant_0_2",
-            "xci_path": "ip\\system_bd_xlconstant_0_2\\system_bd_xlconstant_0_2.xci",
+            "xci_path": "ip/system_bd_xlconstant_0_2/system_bd_xlconstant_0_2.xci",
             "inst_hier_path": "clocktreeMTS/xlconstant_0",
             "parameters": {
               "CONST_VAL": {
@@ -1691,7 +1693,7 @@
               "axis_broadcaster_1": {
                 "vlnv": "xilinx.com:ip:axis_broadcaster:1.1",
                 "xci_name": "system_bd_axis_broadcaster_1_0",
-                "xci_path": "ip\\system_bd_axis_broadcaster_1_0\\system_bd_axis_broadcaster_1_0.xci",
+                "xci_path": "ip/system_bd_axis_broadcaster_1_0/system_bd_axis_broadcaster_1_0.xci",
                 "inst_hier_path": "dac_path/mem/axis_broadcaster_1",
                 "parameters": {
                   "M00_TDATA_REMAP": {
@@ -1720,7 +1722,7 @@
               "axis_broadcaster_2": {
                 "vlnv": "xilinx.com:ip:axis_broadcaster:1.1",
                 "xci_name": "system_bd_axis_broadcaster_2_0",
-                "xci_path": "ip\\system_bd_axis_broadcaster_2_0\\system_bd_axis_broadcaster_2_0.xci",
+                "xci_path": "ip/system_bd_axis_broadcaster_2_0/system_bd_axis_broadcaster_2_0.xci",
                 "inst_hier_path": "dac_path/mem/axis_broadcaster_2",
                 "parameters": {
                   "M00_TDATA_REMAP": {
@@ -1749,7 +1751,7 @@
               "axis_data_fifo_0": {
                 "vlnv": "xilinx.com:ip:axis_data_fifo:2.0",
                 "xci_name": "system_bd_axis_data_fifo_0_1",
-                "xci_path": "ip\\system_bd_axis_data_fifo_0_1\\system_bd_axis_data_fifo_0_1.xci",
+                "xci_path": "ip/system_bd_axis_data_fifo_0_1/system_bd_axis_data_fifo_0_1.xci",
                 "inst_hier_path": "dac_path/mem/axis_data_fifo_0",
                 "parameters": {
                   "FIFO_DEPTH": {
@@ -1760,24 +1762,21 @@
               "axis_data_fifo_1": {
                 "vlnv": "xilinx.com:ip:axis_data_fifo:2.0",
                 "xci_name": "system_bd_axis_data_fifo_1_0",
-                "xci_path": "ip\\system_bd_axis_data_fifo_1_0\\system_bd_axis_data_fifo_1_0.xci",
+                "xci_path": "ip/system_bd_axis_data_fifo_1_0/system_bd_axis_data_fifo_1_0.xci",
                 "inst_hier_path": "dac_path/mem/axis_data_fifo_1",
                 "parameters": {
                   "FIFO_DEPTH": {
-                    "value": "16"
+                    "value": "32"
                   },
                   "IS_ACLK_ASYNC": {
-                    "value": "1"
-                  },
-                  "SYNCHRONIZATION_STAGES": {
-                    "value": "2"
+                    "value": "0"
                   }
                 }
               },
               "axis_data_fifo_2": {
                 "vlnv": "xilinx.com:ip:axis_data_fifo:2.0",
                 "xci_name": "system_bd_axis_data_fifo_2_0",
-                "xci_path": "ip\\system_bd_axis_data_fifo_2_0\\system_bd_axis_data_fifo_2_0.xci",
+                "xci_path": "ip/system_bd_axis_data_fifo_2_0/system_bd_axis_data_fifo_2_0.xci",
                 "inst_hier_path": "dac_path/mem/axis_data_fifo_2",
                 "parameters": {
                   "FIFO_DEPTH": {
@@ -1791,13 +1790,13 @@
               "axis_register_slice_0": {
                 "vlnv": "xilinx.com:ip:axis_register_slice:1.1",
                 "xci_name": "system_bd_axis_register_slice_0_1",
-                "xci_path": "ip\\system_bd_axis_register_slice_0_1\\system_bd_axis_register_slice_0_1.xci",
+                "xci_path": "ip/system_bd_axis_register_slice_0_1/system_bd_axis_register_slice_0_1.xci",
                 "inst_hier_path": "dac_path/mem/axis_register_slice_0"
               },
               "control_tready": {
                 "vlnv": "xilinx.com:ip:util_vector_logic:2.0",
                 "xci_name": "system_bd_control_tready_0",
-                "xci_path": "ip\\system_bd_control_tready_0\\system_bd_control_tready_0.xci",
+                "xci_path": "ip/system_bd_control_tready_0/system_bd_control_tready_0.xci",
                 "inst_hier_path": "dac_path/mem/control_tready",
                 "parameters": {
                   "C_SIZE": {
@@ -1808,7 +1807,7 @@
               "control_tvalid": {
                 "vlnv": "xilinx.com:ip:util_vector_logic:2.0",
                 "xci_name": "system_bd_control_tvalid_0",
-                "xci_path": "ip\\system_bd_control_tvalid_0\\system_bd_control_tvalid_0.xci",
+                "xci_path": "ip/system_bd_control_tvalid_0/system_bd_control_tvalid_0.xci",
                 "inst_hier_path": "dac_path/mem/control_tvalid",
                 "parameters": {
                   "C_SIZE": {
@@ -1819,7 +1818,7 @@
               "dac_strm_mux": {
                 "vlnv": "user.org:user:adc_strm_mux:1.0",
                 "xci_name": "system_bd_dac_strm_mux_0",
-                "xci_path": "ip\\system_bd_dac_strm_mux_0\\system_bd_dac_strm_mux_0.xci",
+                "xci_path": "ip/system_bd_dac_strm_mux_0/system_bd_dac_strm_mux_0.xci",
                 "inst_hier_path": "dac_path/mem/dac_strm_mux",
                 "parameters": {
                   "AXIS_TDATA_WIDTH": {
@@ -1833,7 +1832,7 @@
               "xlslice_0": {
                 "vlnv": "xilinx.com:ip:xlslice:1.0",
                 "xci_name": "system_bd_xlslice_0_1",
-                "xci_path": "ip\\system_bd_xlslice_0_1\\system_bd_xlslice_0_1.xci",
+                "xci_path": "ip/system_bd_xlslice_0_1/system_bd_xlslice_0_1.xci",
                 "inst_hier_path": "dac_path/mem/xlslice_0",
                 "parameters": {
                   "DIN_FROM": {
@@ -1849,9 +1848,38 @@
                     "value": "1"
                   }
                 }
+              },
+              "axis_register_slice_1": {
+                "vlnv": "xilinx.com:ip:axis_register_slice:1.1",
+                "xci_name": "system_bd_axis_register_slice_0_2",
+                "xci_path": "ip/system_bd_axis_register_slice_0_2/system_bd_axis_register_slice_0_2.xci",
+                "inst_hier_path": "dac_path/mem/axis_register_slice_1"
+              },
+              "axis_clock_converter_0": {
+                "vlnv": "xilinx.com:ip:axis_clock_converter:1.1",
+                "xci_name": "system_bd_axis_clock_converter_0_1",
+                "xci_path": "ip/system_bd_axis_clock_converter_0_1/system_bd_axis_clock_converter_0_1.xci",
+                "inst_hier_path": "dac_path/mem/axis_clock_converter_0",
+                "parameters": {
+                  "HAS_TKEEP": {
+                    "value": "1"
+                  },
+                  "HAS_TLAST": {
+                    "value": "1"
+                  },
+                  "TDATA_NUM_BYTES": {
+                    "value": "16"
+                  }
+                }
               }
             },
             "interface_nets": {
+              "S_AXIS_1": {
+                "interface_ports": [
+                  "S_AXIS",
+                  "axis_register_slice_1/S_AXIS"
+                ]
+              },
               "axis_broadcaster_1_M00_AXIS": {
                 "interface_ports": [
                   "axis_broadcaster_1/M00_AXIS",
@@ -1874,6 +1902,12 @@
                 "interface_ports": [
                   "M02_AXIS",
                   "axis_broadcaster_2/M01_AXIS"
+                ]
+              },
+              "axis_clock_converter_0_M_AXIS": {
+                "interface_ports": [
+                  "axis_clock_converter_0/M_AXIS",
+                  "axis_data_fifo_1/S_AXIS"
                 ]
               },
               "axis_data_fifo_0_M_AXIS": {
@@ -1900,16 +1934,16 @@
                   "axis_register_slice_0/M_AXIS"
                 ]
               },
+              "axis_register_slice_1_M_AXIS": {
+                "interface_ports": [
+                  "axis_register_slice_1/M_AXIS",
+                  "axis_clock_converter_0/S_AXIS"
+                ]
+              },
               "dac_strm_mux_m0_axi_stream": {
                 "interface_ports": [
                   "axis_data_fifo_2/S_AXIS",
                   "dac_strm_mux/m0_axi_stream"
-                ]
-              },
-              "dma_dac_0_M_AXIS_MM2S": {
-                "interface_ports": [
-                  "S_AXIS",
-                  "axis_data_fifo_1/S_AXIS"
                 ]
               }
             },
@@ -1942,7 +1976,8 @@
               "ddr4_0_c0_ddr4_ui_clk": {
                 "ports": [
                   "ddr4_clk",
-                  "axis_data_fifo_1/s_axis_aclk"
+                  "axis_register_slice_1/aclk",
+                  "axis_clock_converter_0/s_axis_aclk"
                 ]
               },
               "m_axis_aclk_1": {
@@ -1951,10 +1986,11 @@
                   "axis_broadcaster_1/aclk",
                   "axis_broadcaster_2/aclk",
                   "axis_data_fifo_0/s_axis_aclk",
-                  "axis_data_fifo_1/m_axis_aclk",
                   "axis_data_fifo_2/s_axis_aclk",
                   "axis_register_slice_0/aclk",
-                  "dac_strm_mux/s_axis_aclk"
+                  "dac_strm_mux/s_axis_aclk",
+                  "axis_clock_converter_0/m_axis_aclk",
+                  "axis_data_fifo_1/s_axis_aclk"
                 ]
               },
               "util_vector_logic_0_Res": {
@@ -1964,7 +2000,9 @@
                   "axis_broadcaster_2/aresetn",
                   "axis_data_fifo_0/s_axis_aresetn",
                   "axis_data_fifo_2/s_axis_aresetn",
-                  "axis_register_slice_0/aresetn"
+                  "axis_register_slice_0/aresetn",
+                  "axis_clock_converter_0/m_axis_aresetn",
+                  "axis_data_fifo_1/s_axis_aresetn"
                 ]
               },
               "util_vector_logic_0_Res1": {
@@ -1976,7 +2014,8 @@
               "util_vector_logic_1_Res": {
                 "ports": [
                   "ddr4_resetn",
-                  "axis_data_fifo_1/s_axis_aresetn"
+                  "axis_clock_converter_0/s_axis_aresetn",
+                  "axis_register_slice_1/aresetn"
                 ]
               },
               "util_vector_logic_1_Res1": {
@@ -2033,7 +2072,7 @@
               "dac_sresetn": {
                 "vlnv": "xilinx.com:ip:xlslice:1.0",
                 "xci_name": "system_bd_dac_sresetn_0",
-                "xci_path": "ip\\system_bd_dac_sresetn_0\\system_bd_dac_sresetn_0.xci",
+                "xci_path": "ip/system_bd_dac_sresetn_0/system_bd_dac_sresetn_0.xci",
                 "inst_hier_path": "dac_path/soft_reset/dac_sresetn",
                 "parameters": {
                   "DIN_FROM": {
@@ -2053,7 +2092,7 @@
               "sync_0": {
                 "vlnv": "xilinx.com:user:sync:1.0",
                 "xci_name": "system_bd_sync_0_2",
-                "xci_path": "ip\\system_bd_sync_0_2\\system_bd_sync_0_2.xci",
+                "xci_path": "ip/system_bd_sync_0_2/system_bd_sync_0_2.xci",
                 "inst_hier_path": "dac_path/soft_reset/sync_0",
                 "parameters": {
                   "SRC_INPUT_REG": {
@@ -2064,7 +2103,7 @@
               "sync_1": {
                 "vlnv": "xilinx.com:user:sync:1.0",
                 "xci_name": "system_bd_sync_1_2",
-                "xci_path": "ip\\system_bd_sync_1_2\\system_bd_sync_1_2.xci",
+                "xci_path": "ip/system_bd_sync_1_2/system_bd_sync_1_2.xci",
                 "inst_hier_path": "dac_path/soft_reset/sync_1",
                 "parameters": {
                   "SRC_INPUT_REG": {
@@ -2075,7 +2114,7 @@
               "util_vector_logic_0": {
                 "vlnv": "xilinx.com:ip:util_vector_logic:2.0",
                 "xci_name": "system_bd_util_vector_logic_0_1",
-                "xci_path": "ip\\system_bd_util_vector_logic_0_1\\system_bd_util_vector_logic_0_1.xci",
+                "xci_path": "ip/system_bd_util_vector_logic_0_1/system_bd_util_vector_logic_0_1.xci",
                 "inst_hier_path": "dac_path/soft_reset/util_vector_logic_0",
                 "parameters": {
                   "C_SIZE": {
@@ -2086,7 +2125,7 @@
               "util_vector_logic_1": {
                 "vlnv": "xilinx.com:ip:util_vector_logic:2.0",
                 "xci_name": "system_bd_util_vector_logic_1_0",
-                "xci_path": "ip\\system_bd_util_vector_logic_1_0\\system_bd_util_vector_logic_1_0.xci",
+                "xci_path": "ip/system_bd_util_vector_logic_1_0/system_bd_util_vector_logic_1_0.xci",
                 "inst_hier_path": "dac_path/soft_reset/util_vector_logic_1",
                 "parameters": {
                   "C_SIZE": {
@@ -2097,7 +2136,7 @@
               "util_vector_logic_2": {
                 "vlnv": "xilinx.com:ip:util_vector_logic:2.0",
                 "xci_name": "system_bd_util_vector_logic_2_0",
-                "xci_path": "ip\\system_bd_util_vector_logic_2_0\\system_bd_util_vector_logic_2_0.xci",
+                "xci_path": "ip/system_bd_util_vector_logic_2_0/system_bd_util_vector_logic_2_0.xci",
                 "inst_hier_path": "dac_path/soft_reset/util_vector_logic_2",
                 "parameters": {
                   "C_OPERATION": {
@@ -2111,7 +2150,7 @@
               "xlconstant_0": {
                 "vlnv": "xilinx.com:ip:xlconstant:1.1",
                 "xci_name": "system_bd_xlconstant_0_3",
-                "xci_path": "ip\\system_bd_xlconstant_0_3\\system_bd_xlconstant_0_3.xci",
+                "xci_path": "ip/system_bd_xlconstant_0_3/system_bd_xlconstant_0_3.xci",
                 "inst_hier_path": "dac_path/soft_reset/xlconstant_0",
                 "parameters": {
                   "CONST_VAL": {
@@ -2200,7 +2239,7 @@
           "axi_dma_0": {
             "vlnv": "xilinx.com:ip:axi_dma:7.1",
             "xci_name": "system_bd_axi_dma_0_1",
-            "xci_path": "ip\\system_bd_axi_dma_0_1\\system_bd_axi_dma_0_1.xci",
+            "xci_path": "ip/system_bd_axi_dma_0_1/system_bd_axi_dma_0_1.xci",
             "inst_hier_path": "dac_path/axi_dma_0",
             "parameters": {
               "c_addr_width": {
@@ -2254,7 +2293,7 @@
           "smartconnect_0": {
             "vlnv": "xilinx.com:ip:smartconnect:1.0",
             "xci_name": "system_bd_smartconnect_0_1",
-            "xci_path": "ip\\system_bd_smartconnect_0_1\\system_bd_smartconnect_0_1.xci",
+            "xci_path": "ip/system_bd_smartconnect_0_1/system_bd_smartconnect_0_1.xci",
             "inst_hier_path": "dac_path/smartconnect_0",
             "parameters": {
               "NUM_MI": {
@@ -2529,13 +2568,13 @@
           "binary_latch_counter_0": {
             "vlnv": "xilinx:user:binary_latch_counter:1.0",
             "xci_name": "system_bd_binary_latch_counter_0_0",
-            "xci_path": "ip\\system_bd_binary_latch_counter_0_0\\system_bd_binary_latch_counter_0_0.xci",
+            "xci_path": "ip/system_bd_binary_latch_counter_0_0/system_bd_binary_latch_counter_0_0.xci",
             "inst_hier_path": "reset_block/binary_latch_counter_0"
           },
           "clk_wiz_0": {
             "vlnv": "xilinx.com:ip:clk_wiz:6.0",
             "xci_name": "system_bd_clk_wiz_0_1",
-            "xci_path": "ip\\system_bd_clk_wiz_0_1\\system_bd_clk_wiz_0_1.xci",
+            "xci_path": "ip/system_bd_clk_wiz_0_1/system_bd_clk_wiz_0_1.xci",
             "inst_hier_path": "reset_block/clk_wiz_0",
             "parameters": {
               "CLKIN1_JITTER_PS": {
@@ -2573,25 +2612,25 @@
           "rst_adc_245M": {
             "vlnv": "xilinx.com:ip:proc_sys_reset:5.0",
             "xci_name": "system_bd_rst_adc_245M_0",
-            "xci_path": "ip\\system_bd_rst_adc_245M_0\\system_bd_rst_adc_245M_0.xci",
+            "xci_path": "ip/system_bd_rst_adc_245M_0/system_bd_rst_adc_245M_0.xci",
             "inst_hier_path": "reset_block/rst_adc_245M"
           },
           "rst_ddr4_200M": {
             "vlnv": "xilinx.com:ip:proc_sys_reset:5.0",
             "xci_name": "system_bd_rst_ddr4_200M_0",
-            "xci_path": "ip\\system_bd_rst_ddr4_200M_0\\system_bd_rst_ddr4_200M_0.xci",
+            "xci_path": "ip/system_bd_rst_ddr4_200M_0/system_bd_rst_ddr4_200M_0.xci",
             "inst_hier_path": "reset_block/rst_ddr4_200M"
           },
           "rst_ps8_100M": {
             "vlnv": "xilinx.com:ip:proc_sys_reset:5.0",
             "xci_name": "system_bd_rst_ps8_100M_0",
-            "xci_path": "ip\\system_bd_rst_ps8_100M_0\\system_bd_rst_ps8_100M_0.xci",
+            "xci_path": "ip/system_bd_rst_ps8_100M_0/system_bd_rst_ps8_100M_0.xci",
             "inst_hier_path": "reset_block/rst_ps8_100M"
           },
           "util_vector_logic_0": {
             "vlnv": "xilinx.com:ip:util_vector_logic:2.0",
             "xci_name": "system_bd_util_vector_logic_0_2",
-            "xci_path": "ip\\system_bd_util_vector_logic_0_2\\system_bd_util_vector_logic_0_2.xci",
+            "xci_path": "ip/system_bd_util_vector_logic_0_2/system_bd_util_vector_logic_0_2.xci",
             "inst_hier_path": "reset_block/util_vector_logic_0",
             "parameters": {
               "C_OPERATION": {
@@ -2605,7 +2644,7 @@
           "util_vector_logic_1": {
             "vlnv": "xilinx.com:ip:util_vector_logic:2.0",
             "xci_name": "system_bd_util_vector_logic_1_1",
-            "xci_path": "ip\\system_bd_util_vector_logic_1_1\\system_bd_util_vector_logic_1_1.xci",
+            "xci_path": "ip/system_bd_util_vector_logic_1_1/system_bd_util_vector_logic_1_1.xci",
             "inst_hier_path": "reset_block/util_vector_logic_1",
             "parameters": {
               "C_OPERATION": {
@@ -2716,7 +2755,7 @@
       "ddr4_0": {
         "vlnv": "xilinx.com:ip:ddr4:2.2",
         "xci_name": "system_bd_ddr4_0_0",
-        "xci_path": "ip\\system_bd_ddr4_0_0\\system_bd_ddr4_0_0.xci",
+        "xci_path": "ip/system_bd_ddr4_0_0/system_bd_ddr4_0_0.xci",
         "inst_hier_path": "ddr4_0",
         "parameters": {
           "C0.BANK_GROUP_WIDTH": {
@@ -2778,7 +2817,7 @@
       "irq_concat": {
         "vlnv": "xilinx.com:ip:xlconcat:2.1",
         "xci_name": "system_bd_irq_concat_0",
-        "xci_path": "ip\\system_bd_irq_concat_0\\system_bd_irq_concat_0.xci",
+        "xci_path": "ip/system_bd_irq_concat_0/system_bd_irq_concat_0.xci",
         "inst_hier_path": "irq_concat",
         "parameters": {
           "NUM_PORTS": {
@@ -2791,7 +2830,7 @@
       },
       "ps8_axi_periph": {
         "vlnv": "xilinx.com:ip:axi_interconnect:2.1",
-        "xci_path": "ip\\system_bd_ps8_axi_periph_0\\system_bd_ps8_axi_periph_0.xci",
+        "xci_path": "ip/system_bd_ps8_axi_periph_0/system_bd_ps8_axi_periph_0.xci",
         "inst_hier_path": "ps8_axi_periph",
         "xci_name": "system_bd_ps8_axi_periph_0",
         "parameters": {
@@ -2946,7 +2985,7 @@
           "xbar": {
             "vlnv": "xilinx.com:ip:axi_crossbar:2.1",
             "xci_name": "system_bd_xbar_0",
-            "xci_path": "ip\\system_bd_xbar_0\\system_bd_xbar_0.xci",
+            "xci_path": "ip/system_bd_xbar_0/system_bd_xbar_0.xci",
             "inst_hier_path": "ps8_axi_periph/xbar",
             "parameters": {
               "NUM_MI": {
@@ -3024,7 +3063,7 @@
               "auto_ds": {
                 "vlnv": "xilinx.com:ip:axi_dwidth_converter:2.1",
                 "xci_name": "system_bd_auto_ds_0",
-                "xci_path": "ip\\system_bd_auto_ds_0\\system_bd_auto_ds_0.xci",
+                "xci_path": "ip/system_bd_auto_ds_0/system_bd_auto_ds_0.xci",
                 "inst_hier_path": "ps8_axi_periph/s00_couplers/auto_ds",
                 "parameters": {
                   "MI_DATA_WIDTH": {
@@ -3047,7 +3086,7 @@
               "auto_pc": {
                 "vlnv": "xilinx.com:ip:axi_protocol_converter:2.1",
                 "xci_name": "system_bd_auto_pc_0",
-                "xci_path": "ip\\system_bd_auto_pc_0\\system_bd_auto_pc_0.xci",
+                "xci_path": "ip/system_bd_auto_pc_0/system_bd_auto_pc_0.xci",
                 "inst_hier_path": "ps8_axi_periph/s00_couplers/auto_pc",
                 "parameters": {
                   "MI_PROTOCOL": {
@@ -3562,7 +3601,7 @@
       "smartconnect_0": {
         "vlnv": "xilinx.com:ip:smartconnect:1.0",
         "xci_name": "system_bd_smartconnect_0_2",
-        "xci_path": "ip\\system_bd_smartconnect_0_2\\system_bd_smartconnect_0_2.xci",
+        "xci_path": "ip/system_bd_smartconnect_0_2/system_bd_smartconnect_0_2.xci",
         "inst_hier_path": "smartconnect_0",
         "parameters": {
           "NUM_SI": {
@@ -3654,7 +3693,7 @@
       "usp_rf_data_converter_0": {
         "vlnv": "xilinx.com:ip:usp_rf_data_converter:2.6",
         "xci_name": "system_bd_usp_rf_data_converter_0_0",
-        "xci_path": "ip\\system_bd_usp_rf_data_converter_0_0\\system_bd_usp_rf_data_converter_0_0.xci",
+        "xci_path": "ip/system_bd_usp_rf_data_converter_0_0/system_bd_usp_rf_data_converter_0_0.xci",
         "inst_hier_path": "usp_rf_data_converter_0",
         "parameters": {
           "ADC0_Multi_Tile_Sync": {
@@ -3791,19 +3830,19 @@
       "xlconstant_0": {
         "vlnv": "xilinx.com:ip:xlconstant:1.1",
         "xci_name": "system_bd_xlconstant_0_4",
-        "xci_path": "ip\\system_bd_xlconstant_0_4\\system_bd_xlconstant_0_4.xci",
+        "xci_path": "ip/system_bd_xlconstant_0_4/system_bd_xlconstant_0_4.xci",
         "inst_hier_path": "xlconstant_0"
       },
       "xlconstant_1": {
         "vlnv": "xilinx.com:ip:xlconstant:1.1",
         "xci_name": "system_bd_xlconstant_1_0",
-        "xci_path": "ip\\system_bd_xlconstant_1_0\\system_bd_xlconstant_1_0.xci",
+        "xci_path": "ip/system_bd_xlconstant_1_0/system_bd_xlconstant_1_0.xci",
         "inst_hier_path": "xlconstant_1"
       },
       "xlconstant_2": {
         "vlnv": "xilinx.com:ip:xlconstant:1.1",
         "xci_name": "system_bd_xlconstant_2_0",
-        "xci_path": "ip\\system_bd_xlconstant_2_0\\system_bd_xlconstant_2_0.xci",
+        "xci_path": "ip/system_bd_xlconstant_2_0/system_bd_xlconstant_2_0.xci",
         "inst_hier_path": "xlconstant_2",
         "parameters": {
           "CONST_VAL": {
@@ -3817,7 +3856,7 @@
       "xlslice_0": {
         "vlnv": "xilinx.com:ip:xlslice:1.0",
         "xci_name": "system_bd_xlslice_0_2",
-        "xci_path": "ip\\system_bd_xlslice_0_2\\system_bd_xlslice_0_2.xci",
+        "xci_path": "ip/system_bd_xlslice_0_2/system_bd_xlslice_0_2.xci",
         "inst_hier_path": "xlslice_0",
         "parameters": {
           "DIN_FROM": {
@@ -3837,7 +3876,7 @@
       "xlslice_1": {
         "vlnv": "xilinx.com:ip:xlslice:1.0",
         "xci_name": "system_bd_xlslice_1_0",
-        "xci_path": "ip\\system_bd_xlslice_1_0\\system_bd_xlslice_1_0.xci",
+        "xci_path": "ip/system_bd_xlslice_1_0/system_bd_xlslice_1_0.xci",
         "inst_hier_path": "xlslice_1",
         "parameters": {
           "DIN_FROM": {
@@ -3857,7 +3896,7 @@
       "zynq_ultra_ps_e_0": {
         "vlnv": "xilinx.com:ip:zynq_ultra_ps_e:3.4",
         "xci_name": "system_bd_zynq_ultra_ps_e_0_0",
-        "xci_path": "ip\\system_bd_zynq_ultra_ps_e_0_0\\system_bd_zynq_ultra_ps_e_0_0.xci",
+        "xci_path": "ip/system_bd_zynq_ultra_ps_e_0_0/system_bd_zynq_ultra_ps_e_0_0.xci",
         "inst_hier_path": "zynq_ultra_ps_e_0",
         "parameters": {
           "CAN0_BOARD_INTERFACE": {

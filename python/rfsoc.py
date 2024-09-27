@@ -640,18 +640,32 @@ class RFSoC(Signal_Utils_Rfsoc):
         self.txtd = txtd
         txtd_dac = self.txtd * (2 ** (self.dac_bits + 1) - 1)
 
-        txtd_dac_interleaved = np.zeros(np.prod(txtd_dac.shape)*2, dtype='int16').reshape(-1, self.n_par_strms_tx//2, 2)
-        for i in range(self.n_tx_ant):
-            txtd_dac_ant = txtd_dac[i].reshape(-1,self.n_par_strms_tx//2)
-            if self.tx_mode==1:
-                txtd_dac_interleaved[i::self.n_tx_ant,:,0] = np.int16(txtd_dac_ant.real)
-                txtd_dac_interleaved[i::self.n_tx_ant,:,1] = np.int16(txtd_dac_ant.imag)
-            elif self.tx_mode==2:
-                txtd_dac_interleaved[i::self.n_tx_ant,:,0] = np.int16(txtd_dac_ant.imag)
-                txtd_dac_interleaved[i::self.n_tx_ant,:,1] = np.int16(txtd_dac_ant.real)
-            else:
-                raise ValueError('Unsupported TX mode: %d' %(self.tx_mode))
-        
+        if 'sounder_if' in self.project:
+            txtd_dac_interleaved = np.zeros(np.prod(txtd_dac.shape)*2, dtype='int16').reshape(-1, self.n_par_strms_tx//2, 2)
+            for i in range(self.n_tx_ant):
+                txtd_dac_ant = txtd_dac[i].reshape(-1,self.n_par_strms_tx//2)
+                if self.tx_mode==1:
+                    txtd_dac_interleaved[i::self.n_tx_ant,:,0] = np.int16(txtd_dac_ant.real)
+                    txtd_dac_interleaved[i::self.n_tx_ant,:,1] = np.int16(txtd_dac_ant.imag)
+                elif self.tx_mode==2:
+                    txtd_dac_interleaved[i::self.n_tx_ant,:,0] = np.int16(txtd_dac_ant.imag)
+                    txtd_dac_interleaved[i::self.n_tx_ant,:,1] = np.int16(txtd_dac_ant.real)
+                else:
+                    raise ValueError('Unsupported TX mode: %d' %(self.tx_mode))
+            
+        else:
+            txtd_dac = txtd_dac.reshape(txtd_dac.shape[0], -1, self.n_par_strms_tx)
+            txtd_dac_interleaved = np.zeros((np.prod(txtd_dac.shape)*2//self.n_par_strms_tx, self.n_par_strms_tx), dtype='int16')
+            for i in range(self.n_tx_ant):
+                if self.tx_mode==1:
+                    txtd_dac_interleaved[i*2::self.n_tx_ant*2,:] = np.int16(txtd_dac[i].real)
+                    txtd_dac_interleaved[i*2+1::self.n_tx_ant*2,:] = np.int16(txtd_dac[i].imag)
+                elif self.tx_mode==2:
+                    txtd_dac_interleaved[i*2::self.n_tx_ant*2,:] = np.int16(txtd_dac[i].imag)
+                    txtd_dac_interleaved[i*2+1::self.n_tx_ant*2,:] = np.int16(txtd_dac[i].real)
+                else:
+                    raise ValueError('Unsupported RX mode: %d' %(self.rx_mode))
+
         self.dac_tx_buffer[:] = txtd_dac_interleaved.flatten()[:]
 
         self.print("Loading txtd data to DAC TX buffer done", thr=1)
