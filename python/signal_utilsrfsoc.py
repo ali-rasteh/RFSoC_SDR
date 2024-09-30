@@ -12,8 +12,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.f_max = params.f_max
         self.filter_signal = params.filter_signal
         self.sig_mode = params.sig_mode
+        self.wb_bw_mode = params.wb_bw_mode
         self.wb_bw = params.wb_bw
+        self.wb_sc_range = params.wb_sc_range
+        self.tone_f_mode = params.tone_f_mode
         self.f_tone = params.f_tone
+        self.sc_tone = params.sc_tone
         self.sig_modulation = params.sig_modulation
         self.sig_gen_mode = params.sig_gen_mode
         self.sig_path = params.sig_path
@@ -35,9 +39,17 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         txtd = []
         for ant_id in range(self.n_tx_ant):
             if 'tone' in self.sig_mode:
-                txtd_base_s = self.generate_tone(f=self.f_tone, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode)
+                if self.tone_f_mode=='freq':
+                    self.sc_tone = None
+                elif self.tone_f_mode=='sc':
+                    self.f_tone = None
+                txtd_base_s = self.generate_tone(sc=self.sc_tone, f=self.f_tone, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode)
             elif 'wideband' in self.sig_mode:
-                txtd_base_s = self.generate_wideband(bw=self.wb_bw, modulation=self.sig_modulation, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode)
+                if self.wb_bw_mode=='freq':
+                    self.wb_sc_range = None
+                elif self.wb_bw_mode=='sc':
+                    self.wb_bw = None
+                txtd_base_s = self.generate_wideband(sc_range=self.wb_sc_range, bw=self.wb_bw, modulation=self.sig_modulation, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode)
             elif self.sig_mode == 'load':
                 txtd_base_s = np.load(self.sig_path)
             else:
@@ -340,14 +352,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             xlabel = 'Frequency (MHz)'
             ylabel = 'Magnitude (dB)'
             scale = np.max(txfd_base)/np.max(rxfd_base)
-            self.print("TX to RX spectrum scale for antenna {}: {:0.3f}".format(ant_id, scale), thr=5)
+            self.print("TX to RX spectrum scale for antenna {}: {:0.3f}".format(ant_id, scale), thr=4)
             xlim=(-2*self.f_max/1e6, 2*self.f_max/1e6)
             f1=np.abs(self.freq - xlim[0]).argmin()
             f2=np.abs(self.freq - xlim[1]).argmin()
             ylim=(np.min(rxfd_base[f1:f2]*scale), 1.1*np.max(rxfd_base[f1:f2]*scale))
             self.plot_signal(x=self.freq, sigs={"txfd_base":txfd_base, "Scaled rxfd_base":rxfd_base*scale}, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, xlim=xlim, ylim=ylim, legend=True, plot_level=5)
-            self.print("txfd_base max freq for antenna {}: {} MHz".format(ant_id, self.freq[(self.nfft>>1)+np.argmax(txfd_base[self.nfft>>1:])]), thr=5)
-            self.print("rxfd_base max freq for antenna {}: {} MHz".format(ant_id, self.freq[(self.nfft>>1)+np.argmax(rxfd_base[self.nfft>>1:])]), thr=5)
+            self.print("txfd_base max freq for antenna {}: {} MHz".format(ant_id, self.freq[(self.nfft>>1)+np.argmax(txfd_base[self.nfft>>1:])]), thr=4)
+            self.print("rxfd_base max freq for antenna {}: {} MHz".format(ant_id, self.freq[(self.nfft>>1)+np.argmax(rxfd_base[self.nfft>>1:])]), thr=4)
 
         return (rxtd_base)
 

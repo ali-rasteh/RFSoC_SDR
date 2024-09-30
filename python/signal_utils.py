@@ -528,7 +528,14 @@ class Signal_Utils(General):
         print(f"Dataset of data shape {data.shape} and mask shape {masks.shape} saved to {dataset_path}")
 
 
-    def generate_tone(self, f=10e6, sig_mode='tone_2', gen_mode='fft'):
+    def generate_tone(self, sc=None, f=None, sig_mode='tone_2', gen_mode='fft'):
+        if sc is None and f is None:
+            raise ValueError('Both subcarrier index and frequency cannot be None.')
+        elif sc is not None:
+            f = sc*self.fs_tx/self.nfft_tx
+        elif f is not None:
+            sc = int(np.round((f)*self.nfft_tx/self.fs_tx))
+
         if gen_mode == 'time':
             wt = np.multiply(2 * np.pi * f, self.t_tx)
             if sig_mode=='tone_1':
@@ -538,7 +545,6 @@ class Signal_Utils(General):
                 # tone_td = np.cos(wt)
 
         elif gen_mode == 'fft':
-            sc = int(np.round((f)*self.nfft_tx/self.fs_tx))
             tone_fd = np.zeros((self.nfft_tx,), dtype='complex')
             if sig_mode=='tone_1':
                 tone_fd[(self.nfft_tx >> 1) + sc] = 1
@@ -558,10 +564,15 @@ class Signal_Utils(General):
         return tone_td
 
 
-    def generate_wideband(self, bw=200e6, wb_null_sc=10, modulation='4qam', sig_mode='wideband', gen_mode='fft'):
+    def generate_wideband(self, sc_range=None, bw=None, wb_null_sc=10, modulation='4qam', sig_mode='wideband', gen_mode='fft'):
+        if sc_range is None and bw is None:
+            raise ValueError('Both subcarrier range and bandwidth cannot be None.')
+        elif sc_range is not None:
+            bw = (sc_range[1]-sc_range[0])*self.fs_tx/self.nfft_tx
+        elif bw is not None:
+            sc_range = [int(np.round(-(bw/2)*self.nfft_tx/self.fs_tx)), int(np.round(-(bw/2)*self.nfft_tx/self.fs_tx))]
+
         if gen_mode == 'fft':
-            sc_min = int(np.round(-(bw/2)*self.nfft_tx/self.fs_tx))
-            sc_max = int(np.round((bw/2)*self.nfft_tx/self.fs_tx))
             np.random.seed(self.seed)
             if modulation=='psk':
                 sym = [1, -1]
@@ -578,9 +589,9 @@ class Signal_Utils(General):
             # Create the wideband sequence in frequency-domain
             wb_fd = np.zeros((self.nfft_tx,), dtype='complex')
             if len(sym)>0:
-                wb_fd[((self.nfft_tx >> 1) + sc_min):((self.nfft_tx >> 1) + sc_max)] = np.random.choice(sym, len(range(sc_min, sc_max)))
+                wb_fd[((self.nfft_tx >> 1) + sc_range[0]):((self.nfft_tx >> 1) + sc_range[1])] = np.random.choice(sym, len(range(sc_range[0], sc_range[1])))
             else:
-                wb_fd[((self.nfft_tx >> 1) + sc_min):((self.nfft_tx >> 1) + sc_max)] = 1
+                wb_fd[((self.nfft_tx >> 1) + sc_range[0]):((self.nfft_tx >> 1) + sc_range[1])] = 1
             if sig_mode=='wideband_null':
                 wb_fd[((self.nfft_tx >> 1) - wb_null_sc):((self.nfft_tx >> 1) + wb_null_sc)] = 0
 
