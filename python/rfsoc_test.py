@@ -5,6 +5,7 @@ try:
 except:
     pass
 from signal_utilsrfsoc import Signal_Utils_Rfsoc
+from signal_utils import Signal_Utils
 from tcp_comm import Tcp_Comm
 
 
@@ -90,31 +91,32 @@ class Params_Class(object):
             self.run_tcp_server=True
             self.send_signal=True
             self.recv_signal=True
-
-            self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-57_20240927-003516.bit')
-            self.project='sounder_if_ddr4'
-            self.board='rfsoc_2x2'
-            self.mode='client_rx'
-            self.sig_mode='tone_1'
-            self.sig_gen_mode = 'fft'
-            self.sig_modulation='4qam'
-            self.wb_bw_mode='sc'    # sc or freq
-            self.wb_sc_range=[-100,100]
-            self.wb_bw=500e6
-            self.tone_f_mode='sc'    # sc or freq
-            self.sc_tone=5
-            self.f_tone=10.0 * self.fs_tx / self.nfft
-            self.n_tx_ant=1
-            self.n_rx_ant=1
             self.server_ip='192.168.3.1'
-            self.animate_plot_mode=['rxfd', 'rxtd', 'txtd']        # h or rxtd or rxfd or txtd or txfd or rxtd01 or rxfd01 or IQ
-            self.beamforming=False
             self.ant_dim = 1
             self.ant_dx = 0.5             # Antenna spacing in wavelengths (lambda)
             self.ant_dy = 0.5
+            self.save_signal=False
+            self.sig_modulation='4qam'
+
+            self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-57_20240927-003516.bit')
+            self.project='sounder_bbf_ddr4'
+            self.board='rfsoc_4x2'
+            self.mode='client_rx'
+            self.sig_mode='tone_2'
+            self.sig_gen_mode = 'time'
+            self.sig_gain_db=0
+            self.wb_bw_mode='sc'    # sc or freq
+            self.wb_sc_range=[-250,250]
+            self.wb_bw=500e6
+            self.tone_f_mode='sc'    # sc or freq
+            self.sc_tone=10
+            self.f_tone=10.0 * self.fs_tx / self.nfft
+            self.n_tx_ant=1
+            self.n_rx_ant=1
+            self.animate_plot_mode=['rxfd', 'rxtd', 'h']        # h or rxtd or rxfd or txtd or txfd or rxtd01 or rxfd01 or IQ
+            self.beamforming=False
             self.steer_phi_deg = 30        # Desired steering azimuth in degrees
             self.steer_theta_deg = 0        # Desired steering elevation in degrees
-            self.save_signal=False
             self.plot_level=0
             self.verbose_level=0
             
@@ -174,7 +176,7 @@ class Params_Class(object):
         if self.n_tx_ant==1 and self.n_rx_ant==1:
             self.ant_dim = 1
             self.beamforming = False
-            
+
 
 
 
