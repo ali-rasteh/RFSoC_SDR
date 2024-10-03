@@ -1755,7 +1755,7 @@
                 "inst_hier_path": "dac_path/mem/axis_data_fifo_0",
                 "parameters": {
                   "FIFO_DEPTH": {
-                    "value": "16"
+                    "value": "512"
                   }
                 }
               },
@@ -1766,7 +1766,7 @@
                 "inst_hier_path": "dac_path/mem/axis_data_fifo_1",
                 "parameters": {
                   "FIFO_DEPTH": {
-                    "value": "32"
+                    "value": "512"
                   },
                   "IS_ACLK_ASYNC": {
                     "value": "0"

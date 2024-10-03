@@ -77,7 +77,7 @@ class RFSoC(Signal_Utils_Rfsoc):
                 elif 'sounder_if' in self.project:
                     if self.n_tx_ant==1:
                         self.dac_tile_block_dic = {2: [0]}
-                        self.dac_tiles_sync = [0]
+                        self.dac_tiles_sync = []
                     elif self.n_tx_ant==2:
                         self.dac_tile_block_dic = {0: [0], 2:[0]}
                         self.dac_tiles_sync = []

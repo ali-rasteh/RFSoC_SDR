@@ -12,6 +12,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.f_max = params.f_max
         self.filter_signal = params.filter_signal
         self.sig_mode = params.sig_mode
+        self.sig_gain_db = params.sig_gain_db
         self.wb_bw_mode = params.wb_bw_mode
         self.wb_bw = params.wb_bw
         self.wb_sc_range = params.wb_sc_range
@@ -39,6 +40,10 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         txtd = []
         for ant_id in range(self.n_tx_ant):
             if 'tone' in self.sig_mode:
+                if self.sig_mode=='tone_1':
+                    nsc = 1
+                elif self.sig_mode=='tone_2':
+                    nsc = 2
                 if self.tone_f_mode=='freq':
                     self.sc_tone = None
                 elif self.tone_f_mode=='sc':
@@ -47,15 +52,25 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             elif 'wideband' in self.sig_mode:
                 if self.wb_bw_mode=='freq':
                     self.wb_sc_range = None
+                    nsc = int(self.wb_bw / self.fs_tx * self.nfft_tx)
                 elif self.wb_bw_mode=='sc':
                     self.wb_bw = None
+                    nsc = self.wb_sc_range[1] - self.wb_sc_range[0] + 1
                 txtd_base_s = self.generate_wideband(sc_range=self.wb_sc_range, bw=self.wb_bw, modulation=self.sig_modulation, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode)
             elif self.sig_mode == 'load':
                 txtd_base_s = np.load(self.sig_path)
             else:
                 raise ValueError('Unsupported signal mode: ' + self.sig_mode)
             txtd_base_s /= np.max([np.abs(txtd_base_s.real), np.abs(txtd_base_s.imag)])
+            txtd_base_s *= self.db_to_lin(self.sig_gain_db, mode='mag')
             txtd_base.append(txtd_base_s)
+
+            self.sig_pow_dbm = self.lin_to_db(0.5 * 1000, mode='pow') + self.sig_gain_db
+            bw = (nsc/self.nfft_tx) * self.fs_tx
+            self.sig_psd_dbm = self.sig_pow_dbm - self.lin_to_db(bw, mode='pow')
+            self.sig_psd_dbm_sc = self.sig_pow_dbm - self.lin_to_db(nsc, mode='pow')
+            print('TX Signal power for antenna {}: {:0.3f} dbm'.format(ant_id, self.sig_pow_dbm))
+            print('TX Signal PSD for antenna {}: {:0.3f} dBm/Hz = {:0.3f} dBm/MHz = {:0.3f} dBm/sc'.format(ant_id, self.sig_psd_dbm, self.sig_psd_dbm+self.lin_to_db(1e6, mode='pow'), self.sig_psd_dbm_sc))
 
             title = 'TX signal spectrum in base-band for antenna {}'.format(ant_id)
             xlabel = 'Frequency (MHz)'
@@ -71,7 +86,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             self.plot_signal(x=t, sigs={'real':sig_real, 'imag':sig_imag}, mode='time', scale='linear', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=4, legend=True)
 
         txtd_base = np.array(txtd_base)
-        txtd = np.array(txtd)
 
         if self.mixer_mode=='digital' and self.mix_freq!=0:
             for ant_id in range(self.n_tx_ant):
@@ -87,6 +101,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             txtd = txtd_base.copy()
             # txfd = txfd_base.copy()
 
+        txtd = np.array(txtd)
+        
         if self.beamforming:
             txtd_base = self.beam_form(txtd_base)
             txtd = self.beam_form(txtd)
@@ -225,7 +241,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             if plot_mode[i]=='h':
                 line[line_id], = ax[i].plot(self.t, sigs[i])
                 line_id+=1
-                ax[i].set_title("Channel response in the time domain \n between TX antenna {} and RX antenna {}".format(tx_ant_id, rx_ant_id))
+                ax[i].set_title("Channel response in the time domain between TX antenna {} and RX antenna {}".format(tx_ant_id, rx_ant_id))
                 ax[i].set_xlabel("Time (s)")
                 ax[i].set_ylabel("Normalized Magnitude (dB)")
                 # ax[i].set_xlim(np.min(self.t), np.max(self.t))

@@ -8,3 +8,6 @@ project_v1-0-28_20240825-013613
 project_v1-0-30_20240825-122913
 project_v1-0-32_20240825-131516
 project_v1-0-40_20240825-150934
+project_v1-0-45_20240913-143317
+project_v1-0-60_20241001-153930 : Changed the FIFO sizes in DAC chain to 512 to see the effect on transmitted waveform.
+project_v1-0-61_20241001-163545 : Removed the DAC 0 synchronization tick

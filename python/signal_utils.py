@@ -541,8 +541,8 @@ class Signal_Utils(General):
             if sig_mode=='tone_1':
                 tone_td = np.cos(wt) + 1j * np.sin(wt)
             elif sig_mode=='tone_2':
-                tone_td = np.cos(wt) + 1j * np.cos(wt)
-                # tone_td = np.cos(wt)
+                # tone_td = np.cos(wt) + 1j * np.cos(wt)
+                tone_td = np.cos(wt)
 
         elif gen_mode == 'fft':
             tone_fd = np.zeros((self.nfft_tx,), dtype='complex')
