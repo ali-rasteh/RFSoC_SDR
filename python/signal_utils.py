@@ -528,13 +528,13 @@ class Signal_Utils(General):
         print(f"Dataset of data shape {data.shape} and mask shape {masks.shape} saved to {dataset_path}")
 
 
-    def generate_tone(self, sc=None, f=None, sig_mode='tone_2', gen_mode='fft'):
-        if sc is None and f is None:
-            raise ValueError('Both subcarrier index and frequency cannot be None.')
-        elif sc is not None:
+    def generate_tone(self, freq_mode='sc', sc=None, f=None, sig_mode='tone_2', gen_mode='fft'):
+        if freq_mode=='sc':
             f = sc*self.fs_tx/self.nfft_tx
-        elif f is not None:
+        elif freq_mode=='freq':
             sc = int(np.round((f)*self.nfft_tx/self.fs_tx))
+        else:
+            raise ValueError('Invalid frequency mode: ' + freq_mode)
 
         if gen_mode == 'time':
             wt = np.multiply(2 * np.pi * f, self.t_tx)
@@ -564,12 +564,10 @@ class Signal_Utils(General):
         return tone_td
 
 
-    def generate_wideband(self, sc_range=None, bw=None, wb_null_sc=10, modulation='4qam', sig_mode='wideband', gen_mode='fft'):
-        if sc_range is None and bw is None:
-            raise ValueError('Both subcarrier range and bandwidth cannot be None.')
-        elif sc_range is not None:
+    def generate_wideband(self, bw_mode='sc', sc_range=None, bw=None, wb_null_sc=10, modulation='4qam', sig_mode='wideband', gen_mode='fft'):
+        if bw_mode=='sc':
             bw = (sc_range[1]-sc_range[0])*self.fs_tx/self.nfft_tx
-        elif bw is not None:
+        elif bw_mode=='freq':
             sc_range = [int(np.round(-(bw/2)*self.nfft_tx/self.fs_tx)), int(np.round(-(bw/2)*self.nfft_tx/self.fs_tx))]
 
         if gen_mode == 'fft':
@@ -651,6 +649,12 @@ class Signal_Utils(General):
         return sigs_bf
 
     
+    def filter_noise_symbols(self, sig, mag_thr=1e-2):
+        sig_fil = sig.copy()
+        sig_fil = sig_fil[np.abs(sig_fil) > mag_thr]
+        # sig_fil[np.abs(sig_fil) < mag_thr] = 0
+
+        return sig_fil
 
 
     def filter(self, sig, center_freq=0, cutoff=50e6, fil_order=1000, plot=False):
@@ -677,20 +681,96 @@ class Signal_Utils(General):
 
         return sig_shift
 
+    
+    def estimate_cfo(self, txtd, rxtd, h_est_full, method='phase', sc_range=[0,0]):
+        txtd = txtd.copy()
+        rxtd = rxtd.copy()
+        h_est_full = h_est_full.copy()
+
+        n_rx_ant = h_est_full.shape[0]
+        n_tx_ant = h_est_full.shape[1]
+        n_samples = min(txtd.shape[1], rxtd.shape[1])
+
+        if method == 'phase':
+            # txfd = fftshift(fft(txtd, axis=-1))
+            # rxfd = fftshift(fft(rxtd, axis=-1))
+            # txfd_freq = np.mean(np.abs(txfd) * self.freq_tx[None, :]*1e6, axis=-1)
+            # rxfd_freq = np.mean(np.abs(rxfd) * self.freq_rx[None, :]*1e6, axis=-1)
+            # cfo_est = txfd_freq[None, :] - rxfd_freq[:, None]
+
+            cfo_est = np.zeros((n_rx_ant, n_tx_ant))
+
+            for tx_ant_id in range(n_tx_ant):
+                for rx_ant_id in range(n_rx_ant):
+                    h_est_full_ = h_est_full[rx_ant_id, tx_ant_id]
+                    H_est_full_ = fft(h_est_full_)
+
+                    # txfd = fftshift(fft(txtd[tx_ant_id], axis=-1))
+                    # rxfd = fftshift(fft(rxtd[rx_ant_id], axis=-1))
+                    # txfd = txfd[(sc_range[0]+n_samples//2):(sc_range[1]+n_samples//2)]
+                    # rxfd = rxfd[(sc_range[0]+n_samples//2):(sc_range[1]+n_samples//2)]
+
+                    # Compute the phase difference between tx and rx symbols
+                    # phi = np.angle(rxfd * np.conj(txfd))
+                    phi = np.angle(fftshift(H_est_full_))
+                    phi = phi[(sc_range[0]+n_samples//2):(sc_range[1]+n_samples//2)]
+                    # self.plot_signal(np.arange(len(phi)), phi)
+
+                    # Unwrap the phase to prevent discontinuities
+                    phi_unwrapped = np.unwrap(phi)
+
+                    # Perform linear regression to find the slope of the phase difference
+                    # This slope is proportional to the frequency offset
+                    N = np.arange(len(phi_unwrapped))
+                    # self.plot_signal(N, phi_unwrapped)
+                    p = np.polyfit(N, phi_unwrapped, deg=1)
+                    slope = p[0]             # Slope of the fitted line
+                    # print(f"Slope: {slope}")
+
+                    # Estimate the frequency offset using the slope
+                    cfo_est[rx_ant_id, tx_ant_id] = (slope / (2 * np.pi))*self.fs_rx
+
+            # self.print(f"Estimated frequency offset: {} Hz".firmat(cfo_est), 0)
+        
+        elif method == 'correlation':
+            length = rxtd.shape[1]
+            corr_out = np.mean(rxtd[1:length]*np.conj(rxtd[0:length-1]),axis=1)
+            cfo_est = (np.angle(corr_out)/(2*np.pi))*-1
+
+        return cfo_est
+
+    
+    def sync_frequency(self, rxtd, cfo):
+        rxtd = rxtd.copy()
+        n_rx_ant = rxtd.shape[0]
+        for i in range(n_rx_ant):
+            rxtd[i, :] = self.freq_shift(rxtd[i, :], shift=-1*cfo[i,0], fs=self.fs_rx)
+        return rxtd
+    
+
+    def sync_time(self, txtd, rxtd):
+        txtd = txtd.copy()
+        rxtd = rxtd.copy()
+        n_tx_ant = txtd.shape[0]
+        n_rx_ant = rxtd.shape[0]
+        for i in range(n_rx_ant):
+            delay = self.extract_delay(rxtd[i], txtd[0])
+            rxtd[i], _, _, _ = self.time_adjust(rxtd[i], txtd[0], delay)
+        return rxtd
+
 
     def channel_estimate(self, txtd, rxtd):
         n_tx_ant = txtd.shape[0]
         n_rx_ant = rxtd.shape[0]
         n_samples = min(txtd.shape[1], rxtd.shape[1])
-
-        t = self.t_rx if self.n_samples_rx<self.n_samples_tx else self.t_tx
-        freq = self.freq_rx if self.nfft_rx<self.nfft_tx else self.freq_tx
         txtd=txtd.copy()[:,:n_samples]
         rxtd=rxtd.copy()[:,:n_samples]
 
+        t = self.t_rx if self.n_samples_rx<self.n_samples_tx else self.t_tx
+        freq = self.freq_rx if self.nfft_rx<self.nfft_tx else self.freq_tx
 
-        H_est_full = np.zeros((n_tx_ant, n_rx_ant, n_samples), dtype='complex')
-        h_est_full = np.zeros((n_tx_ant, n_rx_ant, n_samples), dtype='complex')
+        H_est_full = np.zeros((n_rx_ant, n_tx_ant, n_samples), dtype='complex')
+        h_est_full = np.zeros((n_rx_ant, n_tx_ant, n_samples), dtype='complex')
         
         txfd = np.array([fft(txtd[ant_id, :]) for ant_id in range(n_tx_ant)])
         rxfd = np.array([fft(rxtd[ant_id, :]) for ant_id in range(n_rx_ant)])
@@ -706,8 +786,8 @@ class Signal_Utils(General):
                 # H_est_full_ = rxfd[rx_ant_id] / txfd[tx_ant_id]
 
                 h_est_full_ = ifft(H_est_full_)
-                H_est_full[tx_ant_id, rx_ant_id, :] = H_est_full_.copy()
-                h_est_full[tx_ant_id, rx_ant_id, :] = h_est_full_.copy()
+                H_est_full[rx_ant_id, tx_ant_id, :] = H_est_full_.copy()
+                h_est_full[rx_ant_id, tx_ant_id, :] = h_est_full_.copy()
 
                 im = np.argmax(h_est_full_)
                 h_est_full_ = np.roll(h_est_full_, -im + len(h_est_full_)//10)
@@ -725,7 +805,9 @@ class Signal_Utils(General):
                 ylabel = 'Magnitude (dB)'
                 self.plot_signal(freq, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)
 
-        H_est = np.linalg.pinv(txfd.T) @ rxfd.T
+        # H_est = np.linalg.pinv(txfd.T) @ rxfd.T
+        # H_est = H_est.T
+        H_est = rxfd @ np.linalg.pinv(txfd)
 
         time_pow = np.sum(np.abs(H_est_full)**2, axis=(0,1))
         idx_max  = np.argmax(time_pow)
@@ -789,36 +871,37 @@ class Signal_Utils(General):
 
 
     def channel_equalize(self, txtd, rxtd, H):
+        txtd = txtd.copy()
         rxtd_eq = np.zeros_like(rxtd)
 
-        print(np.abs(np.linalg.det(H)))
-
+        print('H_det: {}'.format(np.abs(np.linalg.det(H))))
+        
         if np.linalg.matrix_rank(H) == min(H.shape) and np.abs(np.linalg.det(H)) > 1e-3:
             H_inv = np.linalg.pinv(H)
         else:
             epsilon = 1e-6
-            H_reg = H + epsilon * np.eye(H.shape[0])
-            H_inv = np.linalg.pinv(H_reg)
+            H = H + epsilon * np.eye(H.shape[0])
+            H_inv = np.linalg.pinv(H)
 
         if np.abs(np.linalg.det(H)) > 1e-3:
             rxfd = fft(rxtd, axis=-1)
-            rxfd_eq = rxfd.T @ H_inv
-            rxtd_eq = ifft(rxfd_eq.T, axis=-1)
+            rxfd_eq = H_inv @ rxfd
+            rxtd_eq = ifft(rxfd_eq, axis=-1)
         else:
             for i in range(rxtd_eq.shape[0]):
-                delay = self.extract_delay(rxtd[i], txtd[i])
-                rxtd_eq[i], _, _, _ = self.time_adjust(rxtd[i], txtd[i], delay)
-                phase_offset = self.calc_phase_offset(rxtd_eq[i], txtd[i])
+                # delay = self.extract_delay(rxtd[i], txtd[i])
+                # rxtd_eq[i], _, _, _ = self.time_adjust(rxtd[i], txtd[i], delay)
+                phase_offset = self.calc_phase_offset(rxtd[i], txtd[i])
                 # print("phase_offset: ", phase_offset)
-                rxtd_eq[i], _ = self.adjust_phase(rxtd_eq[i], txtd[i], phase_offset)
+                rxtd_eq[i], _ = self.adjust_phase(rxtd[i], txtd[i], phase_offset)
 
         return rxtd_eq
     
 
     def estimate_mimo_params(self, H):
         U, S, Vh = np.linalg.svd(H)
-        W_tx = Vh.conj().T
-        W_rx = U
+        # W_tx = Vh.conj().T
+        # W_rx = U
         if H.shape[0] == 1:
             tx_phase = 0
             rx_phase = 0
@@ -833,7 +916,7 @@ class Signal_Utils(General):
 
 
     # plot_signal(self, x, sig, mode='time_IQ', scale='linear', title='Custom Title', xlabel='Time', ylabel='Amplitude', plot_args={'color': 'red', 'linestyle': '--'}, xlim=(0, 10), ylim=(-1, 1), legend=True)
-    def plot_signal(self, x, sigs, mode='time', scale='dB10', plot_level=0, **kwargs):
+    def plot_signal(self, x, sigs, mode='time', scale='linear', plot_level=0, **kwargs):
         if self.plot_level<plot_level:
             return
         

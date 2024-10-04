@@ -99,21 +99,21 @@ class Params_Class(object):
             self.sig_modulation='4qam'
 
             self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-57_20240927-003516.bit')
-            self.project='sounder_bbf_ddr4'
+            self.project='sounder_if_ddr4'
             self.board='rfsoc_4x2'
             self.mode='client_rx'
-            self.sig_mode='tone_2'
-            self.sig_gen_mode = 'time'
-            self.sig_gain_db=0
+            self.sig_mode='wideband'
+            self.sig_gen_mode = 'fft'
+            self.sig_gain_db=-2
             self.wb_bw_mode='sc'    # sc or freq
             self.wb_sc_range=[-250,250]
             self.wb_bw=500e6
             self.tone_f_mode='sc'    # sc or freq
             self.sc_tone=10
             self.f_tone=10.0 * self.fs_tx / self.nfft
-            self.n_tx_ant=1
-            self.n_rx_ant=1
-            self.animate_plot_mode=['rxfd', 'rxtd', 'h']        # h or rxtd or rxfd or txtd or txfd or rxtd01 or rxfd01 or IQ
+            self.n_tx_ant=2
+            self.n_rx_ant=2
+            self.animate_plot_mode=['rxfd_phase', 'rxtd', 'IQ']
             self.beamforming=False
             self.steer_phi_deg = 30        # Desired steering azimuth in degrees
             self.steer_theta_deg = 0        # Desired steering elevation in degrees
@@ -166,10 +166,13 @@ class Params_Class(object):
 
         if 'tone' in self.sig_mode:
             self.f_max = abs(self.f_tone)
+            self.sc_range = [self.sc_tone, self.sc_tone]
         elif 'wideband' in self.sig_mode:
             self.f_max = abs(self.wb_bw/2)
+            self.sc_range = self.wb_sc_range
         elif self.sig_mode == 'load':
             self.f_max = abs(self.wb_bw/2)
+            self.sc_range = self.wb_sc_range
         else:
             raise ValueError('Unsupported signal mode: ' + self.sig_mode)
         

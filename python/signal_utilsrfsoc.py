@@ -16,6 +16,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.wb_bw_mode = params.wb_bw_mode
         self.wb_bw = params.wb_bw
         self.wb_sc_range = params.wb_sc_range
+        self.sc_range = params.sc_range
         self.tone_f_mode = params.tone_f_mode
         self.f_tone = params.f_tone
         self.sc_tone = params.sc_tone
@@ -44,19 +45,13 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     nsc = 1
                 elif self.sig_mode=='tone_2':
                     nsc = 2
-                if self.tone_f_mode=='freq':
-                    self.sc_tone = None
-                elif self.tone_f_mode=='sc':
-                    self.f_tone = None
-                txtd_base_s = self.generate_tone(sc=self.sc_tone, f=self.f_tone, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode)
+                txtd_base_s = self.generate_tone(freq_mode=self.tone_f_mode, sc=self.sc_tone, f=self.f_tone, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode)
             elif 'wideband' in self.sig_mode:
                 if self.wb_bw_mode=='freq':
-                    self.wb_sc_range = None
                     nsc = int(self.wb_bw / self.fs_tx * self.nfft_tx)
                 elif self.wb_bw_mode=='sc':
-                    self.wb_bw = None
                     nsc = self.wb_sc_range[1] - self.wb_sc_range[0] + 1
-                txtd_base_s = self.generate_wideband(sc_range=self.wb_sc_range, bw=self.wb_bw, modulation=self.sig_modulation, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode)
+                txtd_base_s = self.generate_wideband(bw_mode=self.wb_bw_mode, sc_range=self.wb_sc_range, bw=self.wb_bw, modulation=self.sig_modulation, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode)
             elif self.sig_mode == 'load':
                 txtd_base_s = np.load(self.sig_path)
             else:
@@ -140,27 +135,38 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             rxtd = rxtd.squeeze(axis=0)
             rxtd_base = self.rx_operations(txtd_base, rxtd)
 
-            h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_base)
-            # h_est_full = self.channel_estimate_eq(txtd_base, rxtd_base)
-            
-            tx_phase, rx_phase = self.estimate_mimo_params(H_est_max)
-            # rxtd_base = self.channel_equalize(txtd_base, rxtd_base, H_est_max)
-            # print("rxtd_eq: ", fft(rxtd_eq, axis=-1)[0,:2])
-            
             txtd_base = txtd_base.copy()[:,:self.n_samples]
             rxtd_base = rxtd_base.copy()[:,:self.n_samples]
 
-            h_est_full = h_est_full[tx_ant_id, rx_ant_id]
-            im = np.argmax(h_est_full)
-            h_est_full = np.roll(h_est_full, -im + len(h_est_full)//10)
-            H_est_full = np.abs(fftshift(fft(h_est_full)))
+            rxtd_base = self.sync_time(txtd_base, rxtd_base)
+            h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_base)
+            cfo = self.estimate_cfo(txtd_base, rxtd_base, h_est_full, method='phase', sc_range=self.sc_range)
+            print("CFO1: ", cfo)
+            rxtd_base = self.sync_frequency(rxtd_base, cfo)
+            rxtd_base = self.sync_time(txtd_base, rxtd_base)
+            h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_base)
+            cfo = self.estimate_cfo(txtd_base, rxtd_base, h_est_full, method='phase', sc_range=self.sc_range)
+            print("CFO2: ", cfo)
+            h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_base)
+            
+            # tx_phase, rx_phase = self.estimate_mimo_params(H_est_max)
+            rxtd_base = self.channel_equalize(txtd_base, rxtd_base, H_est_max)
+
+            h_est_full = h_est_full[rx_ant_id, tx_ant_id]
+            H_est_full = fft(h_est_full)
 
             sigs=[]
             for item in plot_mode:
                 if item=='h':
-                    sigs.append(self.lin_to_db(np.abs(h_est_full) / np.max(np.abs(h_est_full)), mode='mag'))
+                    im = np.argmax(h_est_full)
+                    h_est_full_p = np.roll(h_est_full, -im + len(h_est_full)//10)
+                    sigs.append(self.lin_to_db(np.abs(h_est_full_p) / np.max(np.abs(h_est_full_p)), mode='mag'))
                 elif item=='H':
-                    sigs.append(self.lin_to_db(H_est_full, mode='mag'))
+                    sigs.append(self.lin_to_db(np.abs(fftshift(H_est_full)), mode='mag'))
+                elif item=='H_phase':
+                    phi = np.angle(fftshift(H_est_full))
+                    phi = np.unwrap(phi)
+                    sigs.append(phi)
                 elif item=='rxtd':
                     sigs.append(rxtd_base[rx_ant_id])
                 elif item=='rxfd':
@@ -185,6 +191,24 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     sigs.append([rxfd_base_0, rxfd_base_1])
                 elif item=='IQ':
                     sigs.append(fft(rxtd_base[rx_ant_id], axis=-1))
+                elif item=='rxtd_phase':
+                    sigs.append(np.angle(rxtd_base[rx_ant_id]))
+                elif item=='rxfd_phase':
+                    sigs.append(np.angle(fftshift(fft(rxtd_base[rx_ant_id], axis=-1))))
+                elif item=='txtd_phase':
+                    sigs.append(np.angle(txtd_base[tx_ant_id]))
+                elif item=='txfd_phase':
+                    sigs.append(np.angle(fftshift(fft(txtd_base[tx_ant_id], axis=-1))))
+                elif item=='trxtd_phase_diff':
+                    phi = np.angle(rxtd_base[rx_ant_id] * np.conj(txtd_base[tx_ant_id]))
+                    phi = np.unwrap(phi)
+                    sigs.append(phi)
+                elif item=='trxfd_phase_diff':
+                    phi = np.angle(fftshift(fft(rxtd_base[rx_ant_id], axis=-1)) * np.conj(fftshift(fft(txtd_base[tx_ant_id], axis=-1))))
+                    phi = np.unwrap(phi)
+                    sigs.append(phi)
+                else:
+                    raise ValueError('Unsupported plot mode: ' + item)
 
             return (sigs)
 
@@ -241,7 +265,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             if plot_mode[i]=='h':
                 line[line_id], = ax[i].plot(self.t, sigs[i])
                 line_id+=1
-                ax[i].set_title("Channel response in the time domain between TX antenna {} and RX antenna {}".format(tx_ant_id, rx_ant_id))
+                ax[i].set_title("Channel response mag in the time domain between TX antenna {} and RX antenna {}".format(tx_ant_id, rx_ant_id))
                 ax[i].set_xlabel("Time (s)")
                 ax[i].set_ylabel("Normalized Magnitude (dB)")
                 # ax[i].set_xlim(np.min(self.t), np.max(self.t))
@@ -250,9 +274,15 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             elif plot_mode[i]=='H':
                 line[line_id], = ax[i].plot(self.freq, sigs[i])
                 line_id+=1
-                ax[i].set_title("Channel response in the frequency domain between TX antenna {} and RX antenna {}".format(tx_ant_id, rx_ant_id))
+                ax[i].set_title("Channel response mag in the frequency domain between TX antenna {} and RX antenna {}".format(tx_ant_id, rx_ant_id))
                 ax[i].set_xlabel("Frequency (MHz)")
                 ax[i].set_ylabel("Magnitude (dB)")
+            elif plot_mode[i]=='H_phase':
+                line[line_id], = ax[i].plot(self.freq, sigs[i])
+                line_id+=1
+                ax[i].set_title("Channel response phase in the frequency domain between TX antenna {} and RX antenna {}".format(tx_ant_id, rx_ant_id))
+                ax[i].set_xlabel("Frequency (MHz)")
+                ax[i].set_ylabel("Phase (radians)")
             elif plot_mode[i]=='rxtd':
                 line[line_id], = ax[i].plot(self.t, sigs[i].real, label='I')
                 line_id+=1
@@ -308,6 +338,42 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 ax[i].axhline(0, color='black',linewidth=0.5)
                 ax[i].axvline(0, color='black',linewidth=0.5)
                 ax[i].set_aspect('equal')
+            elif plot_mode[i]=='rxtd_phase':
+                line[line_id], = ax[i].plot(self.t, sigs[i])
+                line_id+=1
+                ax[i].set_title("RX signal phase in time domain for antenna {}".format(rx_ant_id))
+                ax[i].set_xlabel("Time (s)")
+                ax[i].set_ylabel("Phase (radians)")
+            elif plot_mode[i]=='rxfd_phase':
+                line[line_id], = ax[i].plot(self.freq, sigs[i])
+                line_id+=1
+                ax[i].set_title("RX signal phase spectrum for antenna {}".format(rx_ant_id))
+                ax[i].set_xlabel("Freq (MHz)")
+                ax[i].set_ylabel("Phase (radians)")
+            elif plot_mode[i]=='txtd_phase':
+                line[line_id], = ax[i].plot(self.t, sigs[i])
+                line_id+=1
+                ax[i].set_title("TX signal phase in time domain for antenna {}".format(tx_ant_id))
+                ax[i].set_xlabel("Time (s)")
+                ax[i].set_ylabel("Phase (radians)")
+            elif plot_mode[i]=='txfd_phase':
+                line[line_id], = ax[i].plot(self.freq, sigs[i])
+                line_id+=1
+                ax[i].set_title("TX signal phase spectrum for antenna {}".format(tx_ant_id))
+                ax[i].set_xlabel("Freq (MHz)")
+                ax[i].set_ylabel("Phase (radians)")
+            elif plot_mode[i]=='trxtd_phase_diff':
+                line[line_id], = ax[i].plot(self.t, sigs[i])
+                line_id+=1
+                ax[i].set_title("Phase difference between TX and RX signals in time domain for TX antenna {} and RX antenna {}".format(tx_ant_id, rx_ant_id))
+                ax[i].set_xlabel("Time (s)")
+                ax[i].set_ylabel("Phase (radians)")
+            elif plot_mode[i]=='trxfd_phase_diff':
+                line[line_id], = ax[i].plot(self.freq, sigs[i])
+                line_id+=1
+                ax[i].set_title("Phase difference between TX and RX signals in frequency domain for TX antenna {} and RX antenna {}".format(tx_ant_id, rx_ant_id))
+                ax[i].set_xlabel("Freq (MHz)")
+                ax[i].set_ylabel("Phase (radians)")
                 
             # ax[i].autoscale()
             ax[i].grid(True)

@@ -111,11 +111,6 @@ class RFSoC(Signal_Utils_Rfsoc):
                     self.adc_tile_block_dic = {2: [0]}
                     self.dac_tiles_sync = []
                     self.adc_tiles_sync = []
-        self.dac_tile_id = list(self.dac_tile_block_dic.keys())[0]
-        self.dac_block_id = self.dac_tile_block_dic[self.dac_tile_id][0]
-        self.adc_tile_id = list(self.adc_tile_block_dic.keys())[0]
-        self.adc_block_id = self.adc_tile_block_dic[self.adc_tile_id][0]
-
 
         if 'ddr4' in self.project:
             if 'sounder_bbf' in self.project:
@@ -534,9 +529,6 @@ class RFSoC(Signal_Utils_Rfsoc):
     
 
     def init_dac(self):
-        self.dac_tile = self.rfdc.dac_tiles[self.dac_tile_id]
-        self.dac_block = self.dac_tile.blocks[self.dac_block_id]
-
         if 'sounder_if' in self.project and not 'ddr4' in self.project:
             # self.dac_tile.Reset()
             # self.dac_tile.SetupFIFO(True)
@@ -549,9 +541,6 @@ class RFSoC(Signal_Utils_Rfsoc):
 
 
     def init_adc(self):
-        self.adc_tile = self.rfdc.adc_tiles[self.adc_tile_id]
-        self.adc_block = self.adc_tile.blocks[self.adc_block_id]
-
         if 'sounder_if' in self.project and not 'ddr4' in self.project:
             # # self.adc_tile.Reset()
             # # self.adc_tile.SetupFIFO(True)
@@ -572,15 +561,20 @@ class RFSoC(Signal_Utils_Rfsoc):
         cofig_str += ', do_mixer_settings: ' + str(self.do_mixer_settings)
         self.print(cofig_str, thr=2)
 
-        if self.do_pll_settings:
-            self.dac_tile.DynamicPLLConfig(self.DynamicPLLConfig[0], self.DynamicPLLConfig[1], self.DynamicPLLConfig[2])
-        # print(self.rfdc.dac_tiles[self.dac_tile_id].blocks[self.dac_block_id].MixerSettings)
-        if self.do_mixer_settings:
-            self.dac_block.MixerSettings['Freq'] = self.mix_freq_dac/1e6
-            self.dac_block.MixerSettings['PhaseOffset'] = self.mix_phase_off
-            # self.dac_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_IMMEDIATE
-            self.dac_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_TILE
-            self.dac_block.UpdateEvent(xrfdc.EVNT_SRC_TILE)
+        for tile_id in self.dac_tile_block_dic:
+            for block_id in self.dac_tile_block_dic[tile_id]:
+                dac_tile = self.rfdc.dac_tiles[tile_id]
+                dac_block = dac_tile.blocks[block_id]
+
+                if self.do_pll_settings:
+                    dac_tile.DynamicPLLConfig(self.DynamicPLLConfig[0], self.DynamicPLLConfig[1], self.DynamicPLLConfig[2])
+                # print(dac_block.MixerSettings)
+                if self.do_mixer_settings:
+                    dac_block.MixerSettings['Freq'] = self.mix_freq_dac/1e6
+                    dac_block.MixerSettings['PhaseOffset'] = self.mix_phase_off
+                    # dac_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_IMMEDIATE
+                    dac_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_TILE
+                    dac_block.UpdateEvent(xrfdc.EVNT_SRC_TILE)
 
         self.print("DAC Mixer Settings done", thr=1)
 
@@ -591,31 +585,36 @@ class RFSoC(Signal_Utils_Rfsoc):
         cofig_str += ', do_mixer_settings: ' + str(self.do_mixer_settings)
         self.print(cofig_str, thr=2)
 
-        if self.do_pll_settings:
-            self.adc_tile.DynamicPLLConfig(self.DynamicPLLConfig[0], self.DynamicPLLConfig[1], self.DynamicPLLConfig[2])
-        # print(self.rfdc.adc_tiles[self.adc_tile_id].blocks[self.adc_block_id].MixerSettings)
-        # attributes = dir(self.rfdc.adc_tiles[self.adc_tile_id].blocks[self.adc_block_id].MixerSettings)
-        # for name in attributes:
-        #     print(name)
-        if self.do_mixer_settings:
-            # self.adc_block.NyquistZone = 1
-            # self.adc_block.MixerSettings = {
-            #     'CoarseMixFreq'  : xrfdc.COARSE_MIX_BYPASS,
-            #     'EventSource'    : xrfdc.EVNT_SRC_TILE,
-            #     'FineMixerScale' : xrfdc.MIXER_SCALE_1P0,
-            #     'Freq'           : -1*mix_freq/1e6,
-            #     'MixerMode'      : xrfdc.MIXER_MODE_R2C,
-            #     'MixerType'      : xrfdc.MIXER_TYPE_FINE,
-            #     'PhaseOffset'    : 0.0
-            # }
-            self.adc_block.MixerSettings['Freq'] = -1*self.mix_freq_adc/1e6
-            self.adc_block.MixerSettings['PhaseOffset'] = self.mix_phase_off
-            # self.adc_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_IMMEDIATE
-            self.adc_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_TILE
-            # self.adc_block.UpdateEvent(xrfdc.EVENT_MIXER)
-            self.adc_block.UpdateEvent(xrfdc.EVNT_SRC_TILE)
-            # self.adc_block.MixerSettings['Freq'] = -1*self.mix_freq_adc/1e6
-        
+        for tile_id in self.adc_tile_block_dic:
+            for block_id in self.adc_tile_block_dic[tile_id]:
+                adc_tile = self.rfdc.adc_tiles[tile_id]
+                adc_block = adc_tile.blocks[block_id]
+
+                if self.do_pll_settings:
+                    adc_tile.DynamicPLLConfig(self.DynamicPLLConfig[0], self.DynamicPLLConfig[1], self.DynamicPLLConfig[2])
+                # print(adc_block.MixerSettings)
+                # attributes = dir(adc_block.MixerSettings)
+                # for name in attributes:
+                #     print(name)
+                if self.do_mixer_settings:
+                    # adc_block.NyquistZone = 1
+                    # adc_block.MixerSettings = {
+                    #     'CoarseMixFreq'  : xrfdc.COARSE_MIX_BYPASS,
+                    #     'EventSource'    : xrfdc.EVNT_SRC_TILE,
+                    #     'FineMixerScale' : xrfdc.MIXER_SCALE_1P0,
+                    #     'Freq'           : -1*mix_freq/1e6,
+                    #     'MixerMode'      : xrfdc.MIXER_MODE_R2C,
+                    #     'MixerType'      : xrfdc.MIXER_TYPE_FINE,
+                    #     'PhaseOffset'    : 0.0
+                    # }
+                    adc_block.MixerSettings['Freq'] = -1*self.mix_freq_adc/1e6
+                    adc_block.MixerSettings['PhaseOffset'] = self.mix_phase_off
+                    # adc_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_IMMEDIATE
+                    adc_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_TILE
+                    # adc_block.UpdateEvent(xrfdc.EVENT_MIXER)
+                    adc_block.UpdateEvent(xrfdc.EVNT_SRC_TILE)
+                    # adc_block.MixerSettings['Freq'] = -1*self.mix_freq_adc/1e6
+            
         self.print("ADC Mixer Settings done", thr=1)
 
 
