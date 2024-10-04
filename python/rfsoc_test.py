@@ -113,7 +113,7 @@ class Params_Class(object):
             self.f_tone=10.0 * self.fs_tx / self.nfft
             self.n_tx_ant=2
             self.n_rx_ant=2
-            self.animate_plot_mode=['rxfd_phase', 'rxtd', 'IQ']
+            self.animate_plot_mode=['H_phase', 'H', "IQ"]
             self.beamforming=False
             self.steer_phi_deg = 30        # Desired steering azimuth in degrees
             self.steer_theta_deg = 0        # Desired steering elevation in degrees

@@ -67,8 +67,9 @@ if import_pynq:
 
 
 fft = be_np.fft.fft
-fftshift = be_np.fft.fftshift
 ifft = be_np.fft.ifft
+fftshift = be_np.fft.fftshift
+ifftshift = be_np.fft.ifftshift
 
 randn = be_np.random.randn
 rand = be_np.random.rand

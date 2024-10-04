@@ -138,34 +138,34 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             txtd_base = txtd_base.copy()[:,:self.n_samples]
             rxtd_base = rxtd_base.copy()[:,:self.n_samples]
 
-            rxtd_base = self.sync_time(txtd_base, rxtd_base)
-            h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_base)
-            cfo = self.estimate_cfo(txtd_base, rxtd_base, h_est_full, method='phase', sc_range=self.sc_range)
-            print("CFO1: ", cfo)
-            rxtd_base = self.sync_frequency(rxtd_base, cfo)
-            rxtd_base = self.sync_time(txtd_base, rxtd_base)
-            h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_base)
-            cfo = self.estimate_cfo(txtd_base, rxtd_base, h_est_full, method='phase', sc_range=self.sc_range)
-            print("CFO2: ", cfo)
-            h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_base)
-            
-            # tx_phase, rx_phase = self.estimate_mimo_params(H_est_max)
-            rxtd_base = self.channel_equalize(txtd_base, rxtd_base, H_est_max)
+            rxtd_base = self.sync_time(rxtd_base, txtd_base, sc_range=self.sc_range)
 
-            h_est_full = h_est_full[rx_ant_id, tx_ant_id]
-            H_est_full = fft(h_est_full)
+            # cfo_coarse = self.estimate_cfo(txtd_base, rxtd_base, mode='coarse', sc_range=self.sc_range)
+            # rxtd_base_t = self.sync_frequency(rxtd_base, cfo_coarse, mode='time')
+            # cfo_fine = self.estimate_cfo(txtd_base, rxtd_base_t, mode='fine', sc_range=self.sc_range)
+            # cfo = cfo_coarse + cfo_fine
+            # rxtd_base = self.sync_frequency(rxtd_base, cfo, mode='time')
+
+            h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_base)
+            # tx_phase, rx_phase = self.estimate_mimo_params(H_est_max)
+            rxtd_base = self.channel_equalize(txtd_base, rxtd_base, H_est_max, sc_range=self.sc_range)
+
+            H_est_full = fft(h_est_full, axis=-1)
 
             sigs=[]
             for item in plot_mode:
                 if item=='h':
-                    im = np.argmax(h_est_full)
-                    h_est_full_p = np.roll(h_est_full, -im + len(h_est_full)//10)
-                    sigs.append(self.lin_to_db(np.abs(h_est_full_p) / np.max(np.abs(h_est_full_p)), mode='mag'))
+                    h_est_full_ = h_est_full[rx_ant_id, tx_ant_id]
+                    im = np.argmax(h_est_full_)
+                    h_est_full_ = np.roll(h_est_full_, -im + len(h_est_full_)//10)
+                    sigs.append(self.lin_to_db(np.abs(h_est_full_) / np.max(np.abs(h_est_full_)), mode='mag'))
                 elif item=='H':
-                    sigs.append(self.lin_to_db(np.abs(fftshift(H_est_full)), mode='mag'))
+                    H_est_full_ = H_est_full[rx_ant_id, tx_ant_id]
+                    sigs.append(self.lin_to_db(np.abs(fftshift(H_est_full_)), mode='mag'))
                 elif item=='H_phase':
-                    phi = np.angle(fftshift(H_est_full))
-                    phi = np.unwrap(phi)
+                    H_est_full_ = H_est_full[rx_ant_id, tx_ant_id]
+                    phi = np.angle(fftshift(H_est_full_))
+                    # phi = np.unwrap(phi)
                     sigs.append(phi)
                 elif item=='rxtd':
                     sigs.append(rxtd_base[rx_ant_id])
@@ -176,14 +176,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 elif item=='txfd':
                     sigs.append(self.lin_to_db(np.abs(fftshift(fft(txtd_base[tx_ant_id]))), mode='mag'))
                 elif item=='rxtd01':
-                    delay = self.extract_frac_delay(rxtd_base[0], rxtd_base[1])
-                    # print("Fractional sample delay between antennas: {:0.4f}".format(delay))
-                    delay = self.extract_delay(rxtd_base[0], rxtd_base[1])
-                    # print("Integer sample delay between antennas: ", delay)
-                    rxtd_base[0], rxtd_base[1], _, _ = self.time_adjust(rxtd_base[0], rxtd_base[1], delay)
-                    phase_offset = self.calc_phase_offset(rxtd_base[0], rxtd_base[1])
-                    # print("Phase offset between antennas in degrees: ", phase_offset*180/np.pi)
-                    rxtd_base[0], rxtd_base[1] = self.adjust_phase(rxtd_base[0], rxtd_base[1], phase_offset)
+                    # phase_offset = self.calc_phase_offset(rxtd_base[0], rxtd_base[1])
+                    # rxtd_base[0], rxtd_base[1] = self.adjust_phase(rxtd_base[0], rxtd_base[1], phase_offset)
                     sigs.append([np.abs(rxtd_base[0,:100]), np.abs(rxtd_base[1,:100])])
                 elif item=='rxfd01':
                     rxfd_base_0 = self.lin_to_db(np.abs(fftshift(fft(rxtd_base[0]))), mode='mag')
@@ -192,20 +186,28 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 elif item=='IQ':
                     sigs.append(fft(rxtd_base[rx_ant_id], axis=-1))
                 elif item=='rxtd_phase':
-                    sigs.append(np.angle(rxtd_base[rx_ant_id]))
+                    phi = np.angle(rxtd_base[rx_ant_id])
+                    # phi = np.unwrap(phi)
+                    sigs.append(phi)
                 elif item=='rxfd_phase':
-                    sigs.append(np.angle(fftshift(fft(rxtd_base[rx_ant_id], axis=-1))))
+                    phi = np.angle(fftshift(fft(rxtd_base[rx_ant_id], axis=-1)))
+                    # phi = np.unwrap(phi)
+                    sigs.append(phi)
                 elif item=='txtd_phase':
-                    sigs.append(np.angle(txtd_base[tx_ant_id]))
+                    phi = np.angle(txtd_base[tx_ant_id])
+                    # phi = np.unwrap(phi)
+                    sigs.append(phi)
                 elif item=='txfd_phase':
-                    sigs.append(np.angle(fftshift(fft(txtd_base[tx_ant_id], axis=-1))))
+                    phi = np.angle(fftshift(fft(txtd_base[tx_ant_id], axis=-1)))
+                    # phi = np.unwrap(phi)
+                    sigs.append(phi)
                 elif item=='trxtd_phase_diff':
                     phi = np.angle(rxtd_base[rx_ant_id] * np.conj(txtd_base[tx_ant_id]))
-                    phi = np.unwrap(phi)
+                    # phi = np.unwrap(phi)
                     sigs.append(phi)
                 elif item=='trxfd_phase_diff':
                     phi = np.angle(fftshift(fft(rxtd_base[rx_ant_id], axis=-1)) * np.conj(fftshift(fft(txtd_base[tx_ant_id], axis=-1))))
-                    phi = np.unwrap(phi)
+                    # phi = np.unwrap(phi)
                     sigs.append(phi)
                 else:
                     raise ValueError('Unsupported plot mode: ' + item)

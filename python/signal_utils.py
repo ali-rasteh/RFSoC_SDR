@@ -131,23 +131,39 @@ class Signal_Utils(General):
         return delay
     
 
-    def extract_frac_delay(self, sig_1, sig_2):
+    def extract_frac_delay(self, sig_1, sig_2, sc_range=[0, 0]):
     
-        corr = np.correlate(sig_1, sig_2, mode='full')
-        max_corr_index = np.argmax(np.abs(corr))
-        delay_samples = max_corr_index - len(sig_2) + 1
+        # corr = np.correlate(sig_1, sig_2, mode='full')
+        # max_corr_index = np.argmax(np.abs(corr))
+        # # delay_samples = max_corr_index - len(sig_2) + 1
         
-        y0 = np.abs(corr[max_corr_index - 1])
-        y1 = np.abs(corr[max_corr_index])
-        y2 = np.abs(corr[max_corr_index + 1])
+        # y0 = np.abs(corr[max_corr_index - 1])
+        # y1 = np.abs(corr[max_corr_index])
+        # y2 = np.abs(corr[max_corr_index + 1])
         
-        offset = 0.5 * (y0 - y2) / (y0 - 2*y1 + y2)
-        total_delay = delay_samples + offset
+        # frac_delay = 0.5 * (y0 - y2) / (y0 - 2*y1 + y2)
+        # # total_delay = delay_samples + frac_delay
 
-        return total_delay
+        sig_1_f = fftshift(fft(sig_1, axis=-1))
+        sig_2_f = fftshift(fft(sig_2, axis=-1))
+        nfft = len(sig_1_f)
+
+        phi = np.angle(sig_1_f * np.conj(sig_2_f))
+        phi = phi[(sc_range[0]+nfft//2):(sc_range[1]+nfft//2)]
+
+        # Unwrap the phase to prevent discontinuities
+        phi = np.unwrap(phi)
+
+        # Perform linear regression to find the slope of the phase difference
+        p = np.polyfit(np.arange(len(phi)), phi, deg=1)
+        slope = p[0]             # Slope of the fitted line
+        # Estimate the fractional delay using the slope
+        frac_delay = -1 * (slope / (2 * np.pi))*nfft
+
+        return frac_delay
     
 
-    def calc_phase_offset(self, sig_1, sig_2):
+    def calc_phase_offset(self, sig_1, sig_2, sc_range=[0, 0]):
         # Return the phase offset between two signals in radians
         corr = np.correlate(sig_1, sig_2)
         max_idx = np.argmax(corr)
@@ -196,6 +212,18 @@ class Signal_Utils(General):
         err2sig_ratio = float(mse / np.mean(np.abs(sig_2) ** 2))
 
         return sig_1_adj, sig_2_adj, mse, err2sig_ratio
+
+
+    def adjust_frac_delay(self, sig_1, sig_2, frac_delay):
+        sig_1_f = fftshift(fft(sig_1, axis=-1))
+        sig_2_f = fftshift(fft(sig_2, axis=-1))
+        
+        omega = self.om_rx
+        sig_1_f = np.exp(1j * omega * frac_delay) * sig_1_f
+        sig_1_adj = ifft(ifftshift(sig_1_f), axis=-1)
+        sig_2_adj = sig_2.copy()
+
+        return sig_1_adj, sig_2_adj
     
 
     def gen_spatial_sig(self, ant_dim=1, N_sig=1, N_r=1, az_range=[-np.pi, np.pi], el_range=[-np.pi/2, np.pi/2], mode='uniform'):
@@ -682,80 +710,86 @@ class Signal_Utils(General):
         return sig_shift
 
     
-    def estimate_cfo(self, txtd, rxtd, h_est_full, method='phase', sc_range=[0,0]):
+    def estimate_cfo(self, txtd, rxtd, mode='fine', sc_range=[0,0]):
         txtd = txtd.copy()
         rxtd = rxtd.copy()
-        h_est_full = h_est_full.copy()
+        # h_est_full = h_est_full.copy()
+        txfd = fft(txtd, axis=-1)
+        rxfd = fft(rxtd, axis=-1)
 
-        n_rx_ant = h_est_full.shape[0]
-        n_tx_ant = h_est_full.shape[1]
+        n_rx_ant = rxtd.shape[0]
+        n_tx_ant = txtd.shape[0]
         n_samples = min(txtd.shape[1], rxtd.shape[1])
 
-        if method == 'phase':
-            # txfd = fftshift(fft(txtd, axis=-1))
-            # rxfd = fftshift(fft(rxtd, axis=-1))
-            # txfd_freq = np.mean(np.abs(txfd) * self.freq_tx[None, :]*1e6, axis=-1)
-            # rxfd_freq = np.mean(np.abs(rxfd) * self.freq_rx[None, :]*1e6, axis=-1)
-            # cfo_est = txfd_freq[None, :] - rxfd_freq[:, None]
+        cfo_est = np.zeros((n_rx_ant))
 
-            cfo_est = np.zeros((n_rx_ant, n_tx_ant))
+        for tx_ant_id in range(1):
+            for rx_ant_id in range(n_rx_ant):
 
-            for tx_ant_id in range(n_tx_ant):
-                for rx_ant_id in range(n_rx_ant):
-                    h_est_full_ = h_est_full[rx_ant_id, tx_ant_id]
-                    H_est_full_ = fft(h_est_full_)
+                if mode == 'coarse':
+                    N = len(txtd[tx_ant_id])
+                    # Compute the correlation between the two halves
+                    Corr = np.sum(rxtd[rx_ant_id, :N//2] * np.conj(rxtd[rx_ant_id, N//2:N]))
+                    # Estimate the frequency offset
+                    coarse_cfo = -1 * np.angle(Corr) / (2 * np.pi * (N//2)) * (self.fs_rx)
+                    cfo_est[rx_ant_id] = coarse_cfo
 
-                    # txfd = fftshift(fft(txtd[tx_ant_id], axis=-1))
-                    # rxfd = fftshift(fft(rxtd[rx_ant_id], axis=-1))
-                    # txfd = txfd[(sc_range[0]+n_samples//2):(sc_range[1]+n_samples//2)]
-                    # rxfd = rxfd[(sc_range[0]+n_samples//2):(sc_range[1]+n_samples//2)]
+                elif mode == 'fine':
+                    # h_est_full_ = h_est_full[rx_ant_id, tx_ant_id]
+                    # H_est_full_ = fft(h_est_full_)
+                    # phi = np.angle(fftshift(H_est_full_))
 
-                    # Compute the phase difference between tx and rx symbols
-                    # phi = np.angle(rxfd * np.conj(txfd))
-                    phi = np.angle(fftshift(H_est_full_))
+                    # phi = np.angle(rxtd[rx_ant_id] * np.conj(txtd[tx_ant_id]))
+                    phi = np.angle(rxfd[rx_ant_id] * np.conj(txfd[tx_ant_id]))
                     phi = phi[(sc_range[0]+n_samples//2):(sc_range[1]+n_samples//2)]
-                    # self.plot_signal(np.arange(len(phi)), phi)
 
                     # Unwrap the phase to prevent discontinuities
-                    phi_unwrapped = np.unwrap(phi)
+                    phi = np.unwrap(phi)
 
                     # Perform linear regression to find the slope of the phase difference
-                    # This slope is proportional to the frequency offset
-                    N = np.arange(len(phi_unwrapped))
-                    # self.plot_signal(N, phi_unwrapped)
-                    p = np.polyfit(N, phi_unwrapped, deg=1)
+                    N = np.arange(len(phi))
+                    p = np.polyfit(N, phi, deg=1)
                     slope = p[0]             # Slope of the fitted line
-                    # print(f"Slope: {slope}")
-
                     # Estimate the frequency offset using the slope
-                    cfo_est[rx_ant_id, tx_ant_id] = (slope / (2 * np.pi))*self.fs_rx
+                    fine_cfo = (slope / (2 * np.pi))*(self.fs_rx)
+                    cfo_est[rx_ant_id] = fine_cfo
+
+                else:
+                    raise ValueError('Invalid CFO estimation mode: ' + mode)
 
             # self.print(f"Estimated frequency offset: {} Hz".firmat(cfo_est), 0)
-        
-        elif method == 'correlation':
-            length = rxtd.shape[1]
-            corr_out = np.mean(rxtd[1:length]*np.conj(rxtd[0:length-1]),axis=1)
-            cfo_est = (np.angle(corr_out)/(2*np.pi))*-1
 
         return cfo_est
 
     
-    def sync_frequency(self, rxtd, cfo):
+    def sync_frequency(self, rxtd, cfo, mode='time'):
         rxtd = rxtd.copy()
         n_rx_ant = rxtd.shape[0]
-        for i in range(n_rx_ant):
-            rxtd[i, :] = self.freq_shift(rxtd[i, :], shift=-1*cfo[i,0], fs=self.fs_rx)
+        rxfd = fft(rxtd, axis=-1)
+        if mode == 'time':
+            for i in range(n_rx_ant):
+                rxtd[i, :] = self.freq_shift(rxtd[i, :], shift=-1*cfo[i], fs=self.fs_rx)
+        elif mode == 'freq':
+            for i in range(n_rx_ant):
+                rxfd[i, :] = self.freq_shift(rxfd[i, :], shift=-1*cfo[i], fs=self.fs_rx)
+            rxtd = ifft(rxfd, axis=-1)
         return rxtd
     
 
-    def sync_time(self, txtd, rxtd):
-        txtd = txtd.copy()
+    def sync_time(self, rxtd, txtd, sc_range=[0,0]):
         rxtd = rxtd.copy()
-        n_tx_ant = txtd.shape[0]
+        txtd = txtd.copy()
+        n_samples = min(txtd.shape[1], rxtd.shape[1])
         n_rx_ant = rxtd.shape[0]
-        for i in range(n_rx_ant):
-            delay = self.extract_delay(rxtd[i], txtd[0])
-            rxtd[i], _, _, _ = self.time_adjust(rxtd[i], txtd[0], delay)
+        n_tx_ant = txtd.shape[0]
+
+        for rx_ant_id in range(n_rx_ant):
+            delay = self.extract_delay(rxtd[rx_ant_id], txtd[0])
+            rxtd[rx_ant_id], _, _, _ = self.time_adjust(rxtd[rx_ant_id], txtd[0], delay)
+
+            frac_delay = self.extract_frac_delay(rxtd[rx_ant_id], txtd[0], sc_range=sc_range)
+            rxtd[rx_ant_id], _ = self.adjust_frac_delay(rxtd[rx_ant_id], txtd[0], frac_delay)
+
         return rxtd
 
 
@@ -870,9 +904,15 @@ class Signal_Utils(General):
     #     plt.show()
 
 
-    def channel_equalize(self, txtd, rxtd, H):
+    def channel_equalize(self, txtd, rxtd, H, sc_range=[0,0]):
         txtd = txtd.copy()
+        rxtd = rxtd.copy()
+
+        txfd = fft(txtd, axis=-1)
+        rxfd = fft(rxtd, axis=-1)
         rxtd_eq = np.zeros_like(rxtd)
+        rxfd_eq = np.zeros_like(rxfd)
+        nfft = txfd.shape[-1]
 
         print('H_det: {}'.format(np.abs(np.linalg.det(H))))
         
@@ -884,16 +924,13 @@ class Signal_Utils(General):
             H_inv = np.linalg.pinv(H)
 
         if np.abs(np.linalg.det(H)) > 1e-3:
-            rxfd = fft(rxtd, axis=-1)
             rxfd_eq = H_inv @ rxfd
             rxtd_eq = ifft(rxfd_eq, axis=-1)
         else:
-            for i in range(rxtd_eq.shape[0]):
-                # delay = self.extract_delay(rxtd[i], txtd[i])
-                # rxtd_eq[i], _, _, _ = self.time_adjust(rxtd[i], txtd[i], delay)
-                phase_offset = self.calc_phase_offset(rxtd[i], txtd[i])
-                # print("phase_offset: ", phase_offset)
-                rxtd_eq[i], _ = self.adjust_phase(rxtd[i], txtd[i], phase_offset)
+            for rx_ant_id in range(rxtd_eq.shape[0]):
+                phase_offset = self.calc_phase_offset(rxfd[rx_ant_id], txfd[0])
+                rxfd_eq[rx_ant_id], _ = self.adjust_phase(rxfd[rx_ant_id], txfd[0], phase_offset)
+            rxtd_eq = ifft(rxfd_eq, axis=-1)
 
         return rxtd_eq
     
