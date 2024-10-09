@@ -14,7 +14,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.sig_mode = params.sig_mode
         self.sig_gain_db = params.sig_gain_db
         self.wb_bw_mode = params.wb_bw_mode
-        self.wb_bw = params.wb_bw
+        self.wb_bw_range = params.wb_bw_range
         self.wb_sc_range = params.wb_sc_range
         self.sc_range = params.sc_range
         self.tone_f_mode = params.tone_f_mode
@@ -26,7 +26,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.sig_save_path = params.sig_save_path
         self.mixer_mode = params.mixer_mode
         self.mix_freq = params.mix_freq
-        self.filter_bw = params.filter_bw
+        self.filter_bw_range = params.filter_bw_range
         self.n_tx_ant = params.n_tx_ant
         self.n_rx_ant = params.n_rx_ant
         self.beamforming = params.beamforming
@@ -47,11 +47,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     nsc = 2
                 txtd_base_s = self.generate_tone(freq_mode=self.tone_f_mode, sc=self.sc_tone, f=self.f_tone, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode)
             elif 'wideband' in self.sig_mode:
-                if self.wb_bw_mode=='freq':
-                    nsc = int(self.wb_bw / self.fs_tx * self.nfft_tx)
-                elif self.wb_bw_mode=='sc':
-                    nsc = self.wb_sc_range[1] - self.wb_sc_range[0] + 1
-                txtd_base_s = self.generate_wideband(bw_mode=self.wb_bw_mode, sc_range=self.wb_sc_range, bw=self.wb_bw, modulation=self.sig_modulation, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode)
+                nsc = self.wb_sc_range[1] - self.wb_sc_range[0] + 1
+                txtd_base_s = self.generate_wideband(bw_mode=self.wb_bw_mode, sc_range=self.wb_sc_range, bw_range=self.wb_bw_range, modulation=self.sig_modulation, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode)
             elif self.sig_mode == 'load':
                 txtd_base_s = np.load(self.sig_path)
             else:
@@ -105,7 +102,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         return (txtd_base, txtd)
 
 
-    def animate_plot(self, client_inst, txtd_base, plot_mode=['h', 'rxtd', 'rxfd'], save_signal=False, plot_level=0):
+    def animate_plot(self, client_tcp, client_tcp_lintrack, txtd_base, plot_mode=['h', 'rxtd', 'rxfd'], save_list=False, plot_level=0):
         if self.plot_level<plot_level:
             return
         self.anim_paused = False
@@ -113,7 +110,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         tx_ant_id = 0
         rx_ant_id = 0
 
-        if save_signal:
+        if 'signal' in save_list:
             # test = np.load("./mimo_1.npz")
             n_save = 1000
             txtd_save=[]
@@ -121,7 +118,21 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             for i in range(n_save):
                 time.sleep(0.01)
                 print("Signal Save Iteration: ", i+1)
-                rxtd = client_inst.receive_data(mode='once')
+                rxtd = client_tcp.receive_data(mode='once')
+                rxtd = rxtd.squeeze(axis=0)
+                rxtd_base = self.rx_operations(txtd_base, rxtd)
+                rxtd_base = rxtd_base[:self.n_samples]
+                txtd_save.append(txtd_base)
+                rxtd_save.append(rxtd_base)
+            np.savez(self.sig_save_path, txtd=np.array(txtd_save), rxtd=np.array(rxtd_save))
+
+        if 'channel' in save_list:
+            n_save = 1000
+            channel_save=[]
+            for i in range(n_save):
+                time.sleep(0.01)
+                print("Channel Save Iteration: ", i+1)
+                rxtd = client_tcp.receive_data(mode='once')
                 rxtd = rxtd.squeeze(axis=0)
                 rxtd_base = self.rx_operations(txtd_base, rxtd)
                 rxtd_base = rxtd_base[:self.n_samples]
@@ -131,7 +142,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         
         def receive_data(txtd_base):
-            rxtd = client_inst.receive_data(mode='once')
+            rxtd = client_tcp.receive_data(mode='once')
             rxtd = rxtd.squeeze(axis=0)
             rxtd_base = self.rx_operations(txtd_base, rxtd)
 
@@ -242,6 +253,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 elif plot_mode[i]=='IQ':
                     line[line_id].set_offsets(np.column_stack((sigs[i].real, sigs[i].imag)))
                     line_id+=1
+                    ax[i].set_xlim(min(sigs[i].real) - 0, max(sigs[i].real) + 0)
+                    ax[i].set_ylim(min(sigs[i].imag) - 0, max(sigs[i].imag) + 0)
                 else:
                     line[line_id].set_ydata(sigs[i])
                     line_id+=1
@@ -340,6 +353,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 ax[i].axhline(0, color='black',linewidth=0.5)
                 ax[i].axvline(0, color='black',linewidth=0.5)
                 ax[i].set_aspect('equal')
+                ax[i].set_xlim(min(sigs[i].real)-0, max(sigs[i].real-0))
+                ax[i].set_ylim(min(sigs[i].imag)-0, max(sigs[i].imag-0))
             elif plot_mode[i]=='rxtd_phase':
                 line[line_id], = ax[i].plot(self.t, sigs[i])
                 line_id+=1
@@ -402,7 +417,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             title = 'RX signal in time domain (zoomed) for antenna {}'.format(ant_id)
             xlabel = 'Time (s)'
             ylabel = 'Magnitude'
-            # xlim=(0, 10/(self.filter_bw/2))
             n = 4*int(np.round(self.fs_rx/self.f_max))
             self.plot_signal(x=self.t_rx[:n], sigs=rxtd[ant_id,:n], mode='time_IQ', scale='linear', title=title, xlabel=xlabel, ylabel=ylabel, legend=True, plot_level=5)
 
@@ -420,7 +434,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         if self.filter_signal:
             for ant_id in range(self.n_rx_ant):
-                rxtd_base[ant_id,:] = self.filter(rxtd_base[ant_id,:], cutoff=self.filter_bw)
+                cf = (self.filter_bw_range[0]+self.filter_bw_range[1])/2
+                cutoff = self.filter_bw_range[1] - self.filter_bw_range[0]
+                rxtd_base[ant_id,:] = self.filter(rxtd_base[ant_id,:], center_freq=cf, cutoff=cutoff, fil_order=128, plot=False)
 
                 title = 'RX signal spectrum after filtering in base-band for antenna {}'.format(ant_id)
                 xlabel = 'Frequency (MHz)'

@@ -9,37 +9,18 @@ class Tcp_Comm(General):
     def __init__(self, params):
         super().__init__(params)
 
-        self.mode = params.mode
-        self.fc = params.fc
-        self.beam_test = params.beam_test
-        self.server_ip = params.server_ip
-        self.TCP_port_Cmd = params.TCP_port_Cmd
-        self.TCP_port_Data = params.TCP_port_Data
-        self.tcp_localIP = params.tcp_localIP
-        self.tcp_bufferSize = params.tcp_bufferSize
-        self.adc_bits = params.adc_bits
-        self.dac_bits = params.dac_bits
-        self.RFFE = params.RFFE
-        self.n_frame_rd = params.n_frame_rd
-        self.n_samples = params.n_samples
-        self.n_tx_ant = params.n_tx_ant
-        self.n_rx_ant = params.n_rx_ant
-
-        if self.RFFE=='sivers':
-            self.tx_bb_gain = 0x3
-            self.tx_bb_phase = 0x0
-            self.tx_bb_iq_gain = 0x77
-            self.tx_bfrf_gain = 0x7F
-            self.rx_gain_ctrl_bb1 = 0x33
-            self.rx_gain_ctrl_bb2 = 0x00
-            self.rx_gain_ctrl_bb3 = 0x33
-            self.rx_gain_ctrl_bfrf = 0x7F
+        self.server_ip = getattr(params, 'server_ip', '0.0.0.0')
+        self.TCP_port_Cmd = getattr(params, 'TCP_port_Cmd', 8080)
+        self.TCP_port_Data = getattr(params, 'TCP_port_Data', 8081)
+        self.tcp_localIP = getattr(params, 'tcp_localIP', '0.0.0.0')
+        self.tcp_bufferSize = getattr(params, 'tcp_bufferSize', 2**10)
+        self.after_idle_sec = 1
+        self.interval_sec = 3
+        self.max_fails = 5
 
         self.nbytes = 2
-        self.nread = self.n_rx_ant * self.n_frame_rd * self.n_samples
 
-        self.print("Client object init done, Succesfully connected to the server", thr=1)
-
+        self.print("Tcp_Comm object init done", thr=5)
 
     def close(self):
         self.radio_control.close()
@@ -67,7 +48,48 @@ class Tcp_Comm(General):
         bufsize = self.TCPServerSocketData.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF) 
         # self.print ("Buffer size [Before]:%d" %bufsize, thr=2)
         self.print("TCP server is up", thr=1)
+    
+    def run_tcp_server(self, call_back_func):
+        # Listen for incoming connections
+        self.TCPServerSocketCmd.listen(1)
+        self.TCPServerSocketData.listen(1)
         
+        while True:
+            # Wait for a connection
+            self.print('\nWaiting for a connection', thr=2)
+            self.connectionCMD, addrCMD = self.TCPServerSocketCmd.accept()
+            self.connectionData, addrDATA = self.TCPServerSocketData.accept()
+            self.print('\nConnection established', thr=2)
+            
+            
+            self.connectionData.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+            self.connectionData.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, self.after_idle_sec)
+            self.connectionData.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, self.interval_sec)
+            self.connectionData.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, self.max_fails)
+            
+            self.connectionCMD.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+            self.connectionCMD.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, self.after_idle_sec)
+            self.connectionCMD.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, self.interval_sec)
+            self.connectionCMD.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, self.max_fails)            
+            
+            try:
+                while True:
+                    try:
+                        receivedCMD = self.connectionCMD.recv(self.tcp_bufferSize)
+                        if receivedCMD:
+                            self.print("\nClient CMD:{}".format(receivedCMD.decode()), thr=5)
+                            responseToCMDinBytes = call_back_func(receivedCMD)
+                            self.connectionCMD.sendall(responseToCMDinBytes)
+                        else:
+                            break
+                    except:
+                        break
+            finally:
+                # Clean up the connection
+                self.print('\nConnection is closed.', thr=2)
+                self.connectionCMD.close()                  
+                self.connectionData.close()
+
     def init_tcp_client(self):
         self.radio_control = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
         self.radio_control.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -76,6 +98,39 @@ class Tcp_Comm(General):
         self.radio_data = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
         self.radio_data.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.radio_data.connect((self.server_ip, self.TCP_port_Data))
+
+        self.print("Client succesfully connected to the server", thr=1)
+
+
+
+class Tcp_Comm_RFSoC(Tcp_Comm):
+    def __init__(self, params):
+        params.server_ip = params.rfsoc_server_ip
+        super().__init__(params)
+
+        self.fc = params.fc
+        self.beam_test = params.beam_test
+        self.adc_bits = params.adc_bits
+        self.dac_bits = params.dac_bits
+        self.RFFE = params.RFFE
+        self.n_frame_rd = params.n_frame_rd
+        self.n_samples = params.n_samples
+        self.n_tx_ant = params.n_tx_ant
+        self.n_rx_ant = params.n_rx_ant
+
+        if self.RFFE=='sivers':
+            self.tx_bb_gain = 0x3
+            self.tx_bb_phase = 0x0
+            self.tx_bb_iq_gain = 0x77
+            self.tx_bfrf_gain = 0x7F
+            self.rx_gain_ctrl_bb1 = 0x33
+            self.rx_gain_ctrl_bb2 = 0x00
+            self.rx_gain_ctrl_bb3 = 0x33
+            self.rx_gain_ctrl_bfrf = 0x7F
+
+        self.nread = self.n_rx_ant * self.n_frame_rd * self.n_samples
+
+        self.print("Tcp_Comm_RFSoC object init done", thr=1)
 
     def set_mode(self, mode):
         if mode == 'RXen0_TXen1' or mode == 'RXen1_TXen0' or mode == 'RXen0_TXen0':
@@ -132,4 +187,25 @@ class Tcp_Comm(General):
         rxtd = data[:self.nread*nbeams] + 1j*data[self.nread*nbeams:]
         rxtd = rxtd.reshape(nbeams, self.n_rx_ant, self.nread//self.n_rx_ant)
         return rxtd
+    
+
+
+class Tcp_Comm_LinTrack(Tcp_Comm):
+    def __init__(self, params):
+        params.server_ip = params.lintrack_server_ip
+        super().__init__(params)
+
+        self.print("Tcp_Comm_LinTrack object init done", thr=1)
+
+    def move_forward(self, distance=0.0):
+        self.radio_control.sendall(b"MoveForward "+str.encode(str(distance)))
+        data = self.radio_control.recv(1024)
+        self.print("Result of move_forward: {}".format(data),thr=1)
+        return data
+    
+    def move_backward(self, distance=0.0):
+        self.radio_control.sendall(b"MoveBackward "+str.encode(str(distance)))
+        data = self.radio_control.recv(1024)
+        self.print("Result of move_forward: {}".format(data),thr=1)
+        return data
     

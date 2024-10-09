@@ -592,11 +592,11 @@ class Signal_Utils(General):
         return tone_td
 
 
-    def generate_wideband(self, bw_mode='sc', sc_range=None, bw=None, wb_null_sc=10, modulation='4qam', sig_mode='wideband', gen_mode='fft'):
+    def generate_wideband(self, bw_mode='sc', sc_range=None, bw_range=None, wb_null_sc=10, modulation='4qam', sig_mode='wideband', gen_mode='fft'):
         if bw_mode=='sc':
-            bw = (sc_range[1]-sc_range[0])*self.fs_tx/self.nfft_tx
+            bw_range = [sc_range[0]*self.fs_tx/self.nfft_tx, sc_range[1]*self.fs_tx/self.nfft_tx]
         elif bw_mode=='freq':
-            sc_range = [int(np.round(-(bw/2)*self.nfft_tx/self.fs_tx)), int(np.round(-(bw/2)*self.nfft_tx/self.fs_tx))]
+            sc_range = [int(np.round(bw_range[0]*self.nfft_tx/self.fs_tx)), int(np.round(bw_range[1]*self.nfft_tx/self.fs_tx))]
 
         if gen_mode == 'fft':
             np.random.seed(self.seed)
@@ -687,7 +687,7 @@ class Signal_Utils(General):
 
     def filter(self, sig, center_freq=0, cutoff=50e6, fil_order=1000, plot=False):
         filter_fir = firwin(fil_order, cutoff / self.fs_rx)
-        filter_fir = self.freq_shift(filter_fir, shift=center_freq)
+        filter_fir = self.freq_shift(filter_fir, shift=center_freq, fs=self.fs_rx)
 
         if plot:
             plt.figure()
@@ -699,6 +699,7 @@ class Signal_Utils(General):
             plt.show()
 
         sig_fil = lfilter(filter_fir, 1, sig)
+        # sig_fil = filtfilt(filter_fir, 1, sig)
 
         return sig_fil
 

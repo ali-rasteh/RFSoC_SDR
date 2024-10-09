@@ -1,7 +1,7 @@
 from backend import *
 from backend import be_np as np, be_scp as scipy
 from signal_utilsrfsoc import Signal_Utils_Rfsoc
-from tcp_comm import Tcp_Comm
+from tcp_comm import Tcp_Comm_RFSoC
 try:
     from siversController import *
 except:
@@ -181,7 +181,7 @@ class RFSoC(Signal_Utils_Rfsoc):
             self.set_adc_mixer()
         self.dma_init()
         if self.run_tcp_server:
-            self.tcp_comm = Tcp_Comm(params)
+            self.tcp_comm = Tcp_Comm_RFSoC(params)
             self.tcp_comm.init_tcp_server()
 
         self.print("rfsoc initialization done", thr=1)
@@ -211,51 +211,11 @@ class RFSoC(Signal_Utils_Rfsoc):
         self.print("Sivers EVK controller is loaded", thr=1)
 
 
-    def run(self):
-        # Listen for incoming connections
-        self.tcp_comm.TCPServerSocketCmd.listen(1)
-        self.tcp_comm.TCPServerSocketData.listen(1)
-        
-        while True:
-            # Wait for a connection
-            self.print('\nWaiting for a connection', thr=2)
-            self.connectionCMD, addrCMD = self.tcp_comm.TCPServerSocketCmd.accept()
-            self.connectionData, addrDATA = self.tcp_comm.TCPServerSocketData.accept()
-            self.print('\nConnection established', thr=2)
-            
-            after_idle_sec=1
-            interval_sec=3
-            max_fails=5
-            self.connectionData.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-            self.connectionData.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, after_idle_sec)
-            self.connectionData.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, interval_sec)
-            self.connectionData.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, max_fails)
-            
-            self.connectionCMD.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-            self.connectionCMD.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, after_idle_sec)
-            self.connectionCMD.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, interval_sec)
-            self.connectionCMD.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, max_fails)            
-            
-            try:
-                while True:
-                    try:
-                        receivedCMD = self.connectionCMD.recv(self.tcp_comm.tcp_bufferSize)
-                        if receivedCMD:
-                            self.print("\nClient CMD:{}".format(receivedCMD.decode()), thr=5)
-                            responseToCMDinBytes = self.parseAndExecute(receivedCMD)
-                            self.connectionCMD.sendall(responseToCMDinBytes)
-                        else:
-                            break
-                    except:
-                        break
-            finally:
-                # Clean up the connection
-                self.print('\nConnection is closed.', thr=2)
-                self.connectionCMD.close()                  
-                self.connectionData.close()
+    def run_tcp(self):
+        self.tcp_comm.run_tcp_server(self.parse_and_execute)
 
 
-    def parseAndExecute(self, receivedCMD):
+    def parse_and_execute(self, receivedCMD):
         clientMsg = receivedCMD.decode()
         invalidCommandMessage = "ERROR: Invalid command"
         invalidNumberOfArgumentsMessage = "ERROR: Invalid number of arguments"
@@ -270,17 +230,17 @@ class RFSoC(Signal_Utils_Rfsoc):
                 re = iq_data.real.astype(np.int16)
                 im = iq_data.imag.astype(np.int16)
                 iq_data = np.concatenate((re, im))
-                self.connectionData.sendall(iq_data.tobytes())
+                self.tcp_comm.connectionData.sendall(iq_data.tobytes())
                 responseToCMD = "Success"
             else:
                 responseToCMD = invalidNumberOfArgumentsMessage
-        if clientMsgParsed[0] == "receiveSamples":
+        elif clientMsgParsed[0] == "receiveSamples":
             if len(clientMsgParsed) == 1:
                 iq_data = self.recv_frame(n_frame=self.n_frame_rd)
                 re = iq_data.real.astype(np.int16)
                 im = iq_data.imag.astype(np.int16)
                 iq_data = np.concatenate((re, im))
-                self.connectionData.sendall(iq_data.tobytes())
+                self.tcp_comm.connectionData.sendall(iq_data.tobytes())
                 responseToCMD = "Success"
             else:
                 responseToCMD = invalidNumberOfArgumentsMessage

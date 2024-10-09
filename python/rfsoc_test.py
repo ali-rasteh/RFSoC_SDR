@@ -6,7 +6,7 @@ except:
     pass
 from signal_utilsrfsoc import Signal_Utils_Rfsoc
 from signal_utils import Signal_Utils
-from tcp_comm import Tcp_Comm
+from tcp_comm import Tcp_Comm_RFSoC, Tcp_Comm_LinTrack
 
 
 
@@ -32,11 +32,11 @@ class Params_Class(object):
         # parser.add_argument("--do_mixer_settings", action="store_true", default=False, help="If true, performs mixer settings")
         # parser.add_argument("--sig_mode", type=str, default='wideband', help="Signal mode, tone_1 or tone_2 or wideband or wideband_null or load")
         # parser.add_argument("--sig_gen_mode", type=str, default='fft', help="signal generation mode, time, or fft or ofdm, or ZadoffChu")
-        # parser.add_argument("--wb_bw", type=float, default=900e6, help="Wideband signal bandwidth")
+        # parser.add_argument("--wb_bw_range", type=float, default=[-450e6,450e6], help="Wideband signal bandwidth range")
         # parser.add_argument("--f_tone", type=float, default=20e6, help="Tone signal frequency")         # 16.4e6 * 2 for function generator
         # parser.add_argument("--do_pll_settings", action="store_true", default=False, help="If true, performs PLL settings")
         # parser.add_argument("--filter_signal", action="store_true", default=False, help="If true, performs filtering on the RX signal")
-        # parser.add_argument("--filter_bw", type=float, default=900e6, help="Final filter BW on the RX signal")
+        # parser.add_argument("--filter_bw_range", type=float, default=[-450e6, 450e6], help="Final filter BW range on the RX signal")
         # parser.add_argument("--project", type=str, default='sounder_if_ddr4', help="Project to use, sounder_bbf_ddr4 or sounder_if_ddr4 or sounder_bbf or sounder_if")
         # parser.add_argument("--board", type=str, default='rfsoc_4x2', help="Board to use")
         # parser.add_argument("--RFFE", type=str, default='piradio', help="RF front end to use, piradio or sivers")
@@ -47,7 +47,8 @@ class Params_Class(object):
         # parser.add_argument("--plot_level", type=int, default=0, help="level of plotting outputs")
         # parser.add_argument("--verbose_level", type=int, default=0, help="level of printing output")
         # parser.add_argument("--mode", type=str, default='server', help="mode of operation, server or client_tx or client_rx")
-        # parser.add_argument("--server_ip", type=str, default='192.168.1.3', help="RFSoC board IP as the server")
+        # parser.add_argument("--rfsoc_server_ip", type=str, default='192.168.1.3', help="RFSoC board IP as the server")
+        # parser.add_argument("--lintrack_server_ip", type=str, default='0.0.0.0', help="Linear track controller board IP as the server")
         # parser.add_argument("--n_frame_wr", type=int, default=1, help="Number of frames to write")
         # parser.add_argument("--n_frame_rd", type=int, default=1, help="Number of frames to read")
         # parser.add_argument("--n_tx_ant", type=int, default=1, help="Number transmitter antennas")
@@ -70,6 +71,7 @@ class Params_Class(object):
             self.mix_phase_off=0.0
             self.sig_path=os.path.join(os.getcwd(), 'sigs/txtd.npy')
             self.sig_save_path=os.path.join(os.getcwd(), 'sigs/mimo_trx.npz')
+            self.channel_save_path=os.path.join(os.getcwd(), 'channels/channel_response.npz')
             self.wb_null_sc=10
             self.tcp_localIP = "0.0.0.0"
             self.tcp_bufferSize=2**10
@@ -77,11 +79,10 @@ class Params_Class(object):
             self.TCP_port_Data=8081
             self.lmk_freq_mhz=122.88
             self.lmx_freq_mhz=3932.16
-            self.filter_bw=900e6
+            self.filter_bw_range=[-450e6,450e6]
             self.seed=100
             self.mixer_mode='analog'
             self.RFFE='piradio'
-            self.filter_signal=False
 
             self.mix_freq=1000e6
             self.do_mixer_settings=False
@@ -91,14 +92,15 @@ class Params_Class(object):
             self.run_tcp_server=True
             self.send_signal=True
             self.recv_signal=True
-            self.server_ip='192.168.3.1'
+            self.rfsoc_server_ip='192.168.3.1'
+            self.lintrack_server_ip='10.18.239.141'
             self.ant_dim = 1
             self.ant_dx = 0.5             # Antenna spacing in wavelengths (lambda)
             self.ant_dy = 0.5
-            self.save_signal=False
+            self.save_list=[]           # signal or channel
             self.sig_modulation='4qam'
 
-            self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-57_20240927-003516.bit')
+            self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-58_20241001-150336.bit')
             self.project='sounder_if_ddr4'
             self.board='rfsoc_4x2'
             self.mode='client_rx'
@@ -106,22 +108,24 @@ class Params_Class(object):
             self.sig_gen_mode = 'fft'
             self.sig_gain_db=-2
             self.wb_bw_mode='sc'    # sc or freq
-            self.wb_sc_range=[-250,250]
-            self.wb_bw=500e6
+            self.wb_sc_range=[75,125]
+            self.wb_bw_range=[-250e6,250e6]
             self.tone_f_mode='sc'    # sc or freq
             self.sc_tone=10
             self.f_tone=10.0 * self.fs_tx / self.nfft
             self.n_tx_ant=2
             self.n_rx_ant=2
-            self.animate_plot_mode=['H_phase', 'H', "IQ"]
+            self.filter_signal=True
+            self.animate_plot_mode=['rxfd', 'H', "IQ"]
             self.beamforming=False
             self.steer_phi_deg = 30        # Desired steering azimuth in degrees
             self.steer_theta_deg = 0        # Desired steering elevation in degrees
+            self.use_linear_track=True
             self.plot_level=0
             self.verbose_level=0
             
 
-
+        self.server_ip = None
         self.steer_phi_rad = np.deg2rad(self.steer_phi_deg)
         self.steer_theta_rad = np.deg2rad(self.steer_theta_deg)
         self.n_samples_tx = self.n_frame_wr*self.n_samples
@@ -143,12 +147,7 @@ class Params_Class(object):
         else:
             self.mix_freq_dac = 0
             self.mix_freq_adc = 0
-
-        if self.sig_mode=='wideband' or self.sig_mode=='wideband_null':
-            self.filter_bw = min(self.wb_bw + 100e6, self.fs_rx-50e6)
-        else:
-            self.filter_bw = min(2*np.abs(self.f_tone) + 60e6, self.fs_rx-50e6)
-
+            
         if 'sounder_bbf' in self.project:
             self.do_mixer_settings=False
             self.do_pll_settings=False
@@ -164,18 +163,39 @@ class Params_Class(object):
             self.adc_bits = 14
             self.dac_bits = 14
 
+        if self.tone_f_mode=='sc':
+            self.f_tone = self.sc_tone * self.fs_tx/self.nfft_tx
+        elif self.tone_f_mode=='freq':
+            self.sc_tone = int(np.round((self.f_tone)*self.nfft_tx/self.fs_tx))
+        else:
+            raise ValueError('Invalid tone_f_mode mode: ' + self.tone_f_mode)
+        
+        if self.wb_bw_mode=='sc':
+            self.wb_bw_range = [self.wb_sc_range[0]*self.fs_tx/self.nfft_tx, self.wb_sc_range[1]*self.fs_tx/self.nfft_tx]
+        elif self.wb_bw_mode=='freq':
+            self.wb_sc_range = [int(np.round(self.wb_bw_range[0]*self.nfft_tx/self.fs_tx)), int(np.round(self.wb_bw_range[1]*self.nfft_tx/self.fs_tx))]
+        else:
+            raise ValueError('Invalid wb_bw_mode mode: ' + self.tone_f_mode)
+
         if 'tone' in self.sig_mode:
             self.f_max = abs(self.f_tone)
             self.sc_range = [self.sc_tone, self.sc_tone]
+            if self.sig_mode == 'tone_1':
+                # self.filter_bw_range = min(2*np.abs(self.f_tone) + 60e6, self.fs_rx-50e6)
+                self.filter_bw_range = [self.f_tone-50e6, self.f_tone+50e6]
+            elif self.sig_mode == 'tone_2':
+                self.filter_bw_range = [-1*self.f_tone-50e6, self.f_tone+50e6]
         elif 'wideband' in self.sig_mode:
-            self.f_max = abs(self.wb_bw/2)
+            self.f_max = max(abs(self.wb_bw_range[0]), abs(self.wb_bw_range[1]))
             self.sc_range = self.wb_sc_range
+            self.filter_bw_range = [self.wb_bw_range[0]-50e6, self.wb_bw_range[1]+50e6]
         elif self.sig_mode == 'load':
-            self.f_max = abs(self.wb_bw/2)
+            self.f_max = max(abs(self.wb_bw_range[0]), abs(self.wb_bw_range[1]))
             self.sc_range = self.wb_sc_range
+            self.filter_bw_range = [self.wb_bw_range[0]-50e6, self.wb_bw_range[1]+50e6]
         else:
             raise ValueError('Unsupported signal mode: ' + self.sig_mode)
-        
+                        
         if self.n_tx_ant==1 and self.n_rx_ant==1:
             self.ant_dim = 1
             self.beamforming = False
@@ -189,6 +209,13 @@ def rfsoc_run(params):
     signals_inst = Signal_Utils_Rfsoc(params)
     (txtd_base, txtd) = signals_inst.gen_tx_signal()
 
+    if params.use_linear_track:
+        client_lintrack_inst = Tcp_Comm_LinTrack(params)
+        client_lintrack_inst.init_tcp_client()
+        client_lintrack_inst.move_forward(100)
+        client_lintrack_inst.move_backward(100)
+    else:
+        client_lintrack_inst = None
 
     if params.mode=='server':
         rfsoc_inst = RFSoC(params)
@@ -199,11 +226,11 @@ def rfsoc_run(params):
             rfsoc_inst.recv_frame_one(n_frame=params.n_frame_rd)
             signals_inst.rx_operations(txtd_base, rfsoc_inst.rxtd)
         if params.run_tcp_server:
-            rfsoc_inst.run()
+            rfsoc_inst.run_tcp()
 
 
     elif params.mode=='client_tx':
-        client_inst=Tcp_Comm(params)
+        client_inst=Tcp_Comm_RFSoC(params)
         client_inst.init_tcp_client()
         client_inst.transmit_data()
         if params.RFFE=='sivers':
@@ -213,14 +240,14 @@ def rfsoc_run(params):
 
 
     elif params.mode=='client_rx':
-        client_inst=Tcp_Comm(params)
+        client_inst=Tcp_Comm_RFSoC(params)
         client_inst.init_tcp_client()
         if params.RFFE=='sivers':
             client_inst.set_mode('RXen1_TXen0')
             client_inst.set_frequency(params.fc)
             client_inst.set_rx_gain()
 
-        signals_inst.animate_plot(client_inst, txtd_base, plot_mode=params.animate_plot_mode, save_signal=params.save_signal, plot_level=0)
+        signals_inst.animate_plot(client_inst, client_lintrack_inst, txtd_base, plot_mode=params.animate_plot_mode, save_list=params.save_list, plot_level=0)
         
         
 
