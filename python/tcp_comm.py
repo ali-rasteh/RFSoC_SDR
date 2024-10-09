@@ -197,15 +197,22 @@ class Tcp_Comm_LinTrack(Tcp_Comm):
 
         self.print("Tcp_Comm_LinTrack object init done", thr=1)
 
-    def move_forward(self, distance=0.0):
-        self.radio_control.sendall(b"MoveForward "+str.encode(str(distance)))
+    def move(self, distance=0.0):
+        self.radio_control.sendall(b"Move "+str.encode(str(distance)))
         data = self.radio_control.recv(1024)
-        self.print("Result of move_forward: {}".format(data),thr=1)
+        self.print("Result of move_forward: {}".format(data), thr=1)
         return data
     
-    def move_backward(self, distance=0.0):
-        self.radio_control.sendall(b"MoveBackward "+str.encode(str(distance)))
+    def return2home(self):
+        self.radio_control.sendall(b"Return2home")
         data = self.radio_control.recv(1024)
-        self.print("Result of move_forward: {}".format(data),thr=1)
+        self.print("Result of Return2home: {}".format(data), thr=1)
         return data
+    
+    def go2end(self):
+        self.radio_control.sendall(b"Go2end")
+        data = self.radio_control.recv(1024)
+        self.print("Result of Go2end: {}".format(data), thr=1)
+        return data
+
     

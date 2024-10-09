@@ -24,6 +24,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.sig_gen_mode = params.sig_gen_mode
         self.sig_path = params.sig_path
         self.sig_save_path = params.sig_save_path
+        self.channel_save_path = params.channel_save_path
+        self.n_save = params.n_save
         self.mixer_mode = params.mixer_mode
         self.mix_freq = params.mix_freq
         self.filter_bw_range = params.filter_bw_range
@@ -100,9 +102,35 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             txtd = self.beam_form(txtd)
 
         return (txtd_base, txtd)
+    
+
+    def save_signal_channel(self, client_tcp, txtd_base, save_list=[]):
+        # test = np.load(self.sig_save_path)
+        txtd_save=[]
+        rxtd_save=[]
+        h_est_full_save=[]
+        H_est_save=[]
+        H_est_max_save=[]
+        for i in range(self.n_save):
+            time.sleep(0.01)
+            print("Save Iteration: ", i+1)
+            rxtd = client_tcp.receive_data(mode='once')
+            rxtd = rxtd.squeeze(axis=0)
+            (rxtd_base, h_est_full, H_est, H_est_max) = self.rx_operations(txtd_base, rxtd)
+            txtd_save.append(txtd_base)
+            rxtd_save.append(rxtd_base)
+            h_est_full_save.append(h_est_full)
+            H_est_save.append(H_est)
+            H_est_max_save.append(H_est_max)
+
+        if 'signal' in save_list:
+            np.savez(self.sig_save_path, txtd=np.array(txtd_save), rxtd=np.array(rxtd_save))
+        if 'channel' in save_list:                    
+            np.savez(self.channel_save_path, h_est_full=np.array(h_est_full_save), H_est=np.array(H_est_save), H_est_max=np.array(H_est_max_save))
 
 
-    def animate_plot(self, client_tcp, client_tcp_lintrack, txtd_base, plot_mode=['h', 'rxtd', 'rxfd'], save_list=False, plot_level=0):
+
+    def animate_plot(self, client_tcp, client_tcp_lintrack, txtd_base, plot_mode=['h', 'rxtd', 'rxfd'], plot_level=0):
         if self.plot_level<plot_level:
             return
         self.anim_paused = False
@@ -110,57 +138,10 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         tx_ant_id = 0
         rx_ant_id = 0
 
-        if 'signal' in save_list:
-            # test = np.load("./mimo_1.npz")
-            n_save = 1000
-            txtd_save=[]
-            rxtd_save=[]
-            for i in range(n_save):
-                time.sleep(0.01)
-                print("Signal Save Iteration: ", i+1)
-                rxtd = client_tcp.receive_data(mode='once')
-                rxtd = rxtd.squeeze(axis=0)
-                rxtd_base = self.rx_operations(txtd_base, rxtd)
-                rxtd_base = rxtd_base[:self.n_samples]
-                txtd_save.append(txtd_base)
-                rxtd_save.append(rxtd_base)
-            np.savez(self.sig_save_path, txtd=np.array(txtd_save), rxtd=np.array(rxtd_save))
-
-        if 'channel' in save_list:
-            n_save = 1000
-            channel_save=[]
-            for i in range(n_save):
-                time.sleep(0.01)
-                print("Channel Save Iteration: ", i+1)
-                rxtd = client_tcp.receive_data(mode='once')
-                rxtd = rxtd.squeeze(axis=0)
-                rxtd_base = self.rx_operations(txtd_base, rxtd)
-                rxtd_base = rxtd_base[:self.n_samples]
-                txtd_save.append(txtd_base)
-                rxtd_save.append(rxtd_base)
-            np.savez(self.sig_save_path, txtd=np.array(txtd_save), rxtd=np.array(rxtd_save))
-
-        
         def receive_data(txtd_base):
             rxtd = client_tcp.receive_data(mode='once')
             rxtd = rxtd.squeeze(axis=0)
-            rxtd_base = self.rx_operations(txtd_base, rxtd)
-
-            txtd_base = txtd_base.copy()[:,:self.n_samples]
-            rxtd_base = rxtd_base.copy()[:,:self.n_samples]
-
-            rxtd_base = self.sync_time(rxtd_base, txtd_base, sc_range=self.sc_range)
-
-            # cfo_coarse = self.estimate_cfo(txtd_base, rxtd_base, mode='coarse', sc_range=self.sc_range)
-            # rxtd_base_t = self.sync_frequency(rxtd_base, cfo_coarse, mode='time')
-            # cfo_fine = self.estimate_cfo(txtd_base, rxtd_base_t, mode='fine', sc_range=self.sc_range)
-            # cfo = cfo_coarse + cfo_fine
-            # rxtd_base = self.sync_frequency(rxtd_base, cfo, mode='time')
-
-            h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_base)
-            # tx_phase, rx_phase = self.estimate_mimo_params(H_est_max)
-            rxtd_base = self.channel_equalize(txtd_base, rxtd_base, H_est_max, sc_range=self.sc_range)
-
+            (rxtd_base, h_est_full, H_est, H_est_max) = self.rx_operations(txtd_base, rxtd)
             H_est_full = fft(h_est_full, axis=-1)
 
             sigs=[]
@@ -233,6 +214,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             if self.anim_paused:
                 return line
             sigs = receive_data(txtd_base)
+            # client_tcp_lintrack.move(distance=-10)
+            # time.sleep(1.0)
+
             line_id = 0
             for i in range(n_plots):
                 if plot_mode[i]=='rxtd':
@@ -461,5 +445,20 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             self.print("txfd_base max freq for antenna {}: {} MHz".format(ant_id, self.freq[(self.nfft>>1)+np.argmax(txfd_base[self.nfft>>1:])]), thr=4)
             self.print("rxfd_base max freq for antenna {}: {} MHz".format(ant_id, self.freq[(self.nfft>>1)+np.argmax(rxfd_base[self.nfft>>1:])]), thr=4)
 
-        return (rxtd_base)
 
+        txtd_base = txtd_base[:,:self.n_samples]
+        rxtd_base = rxtd_base[:,:self.n_samples]
+        rxtd_base = self.sync_time(rxtd_base, txtd_base, sc_range=self.sc_range)
+
+        # cfo_coarse = self.estimate_cfo(txtd_base, rxtd_base, mode='coarse', sc_range=self.sc_range)
+        # rxtd_base_t = self.sync_frequency(rxtd_base, cfo_coarse, mode='time')
+        # cfo_fine = self.estimate_cfo(txtd_base, rxtd_base_t, mode='fine', sc_range=self.sc_range)
+        # cfo = cfo_coarse + cfo_fine
+        # rxtd_base = self.sync_frequency(rxtd_base, cfo, mode='time')
+
+        h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_base)
+        # tx_phase, rx_phase = self.estimate_mimo_params(H_est_max)
+        rxtd_base = self.channel_equalize(txtd_base, rxtd_base, H_est_max, sc_range=self.sc_range)
+
+        return (rxtd_base, h_est_full, H_est, H_est_max)
+    

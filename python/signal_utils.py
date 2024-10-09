@@ -915,7 +915,7 @@ class Signal_Utils(General):
         rxfd_eq = np.zeros_like(rxfd)
         nfft = txfd.shape[-1]
 
-        print('H_det: {}'.format(np.abs(np.linalg.det(H))))
+        # print('H_det: {}'.format(np.abs(np.linalg.det(H))))
         
         if np.linalg.matrix_rank(H) == min(H.shape) and np.abs(np.linalg.det(H)) > 1e-3:
             H_inv = np.linalg.pinv(H)

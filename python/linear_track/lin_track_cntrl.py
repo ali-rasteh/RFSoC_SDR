@@ -26,15 +26,15 @@ class Params_Class(object):
             self.TCP_port_Cmd=8080
             self.TCP_port_Data=8081
             self.seed=100
-            self.run_tcp_server=False
+            self.run_tcp_server=True
             self.position_file_path = os.path.join(os.getcwd(), 'position.txt')
+            self.dis_coeff = 0.972
+            self.overhead_time = 0.0018+0.0061+0.0001
+            self.lintrack_server_ip = '0.0.0.0'
             
             self.dis_per_rev = 8
             self.pulse_per_rev = 400
             self.pulse_freq = 1600
-            self.dis_coeff = 0.972
-            self.overhead_time = 0.0018+0.0061+0.0001
-            self.lintrack_server_ip = '0.0.0.0'
             self.verbose_level = 5
             self.plot_level = 5
 
@@ -54,7 +54,9 @@ class LinearTrack(General):
         self.overhead_time = params.overhead_time
         self.position_file_path = params.position_file_path
         self.total_length = 1500      # length of the linear track in mm
-        self.travel_length = 1375
+        self.plate_length = 125
+        self.travel_length = self.total_length - self.plate_length
+        self.margin2edge = 5
 
         if self.output_mode == 'stepper':
             self.kit = stepper.StepperMotor(microsteps=2)
@@ -86,23 +88,31 @@ class LinearTrack(General):
         droppedMessage = "Connection dropped?"
         clientMsgParsed = clientMsg.split()
 
-        if clientMsgParsed[0] == "MoveForward":
+        if clientMsgParsed[0] == "Move":
             if len(clientMsgParsed) == 2:
                 self.print(clientMsgParsed[1], thr=2)
                 distance = float(clientMsgParsed[1])
-                success, status = self.displace(distance,'forward')
+                success, status = self.displace(distance)
                 if success == True:
                     responseToCMD = successMessage 
                 else:
                     responseToCMD = status 
             else:
                 responseToCMD = invalidNumberOfArgumentsMessage
-                
-        if clientMsgParsed[0] == "MoveBackward":
-            if len(clientMsgParsed) == 2:
-                self.print(clientMsgParsed[1], thr=2)
-                distance = float(clientMsgParsed[1])
-                success, status = self.displace(distance,'backward')
+
+        elif clientMsgParsed[0] == "Return2home":
+            if len(clientMsgParsed) == 1:
+                success, status = self.return2home()
+                if success == True:
+                    responseToCMD = successMessage 
+                else:
+                    responseToCMD = status 
+            else:
+                responseToCMD = invalidNumberOfArgumentsMessage
+
+        elif clientMsgParsed[0] == "Go2end":
+            if len(clientMsgParsed) == 1:
+                success, status = self.go2end()
                 if success == True:
                     responseToCMD = successMessage 
                 else:
@@ -125,8 +135,15 @@ class LinearTrack(General):
                 self.position = 0.0
                 self.write_position(self.position)
                 break
-            self.displace(dis)
+            self.displace(dis, pos_check=False)
         self.print("Calibration complete", thr=1)
+
+    
+    def interactive_move(self):
+        self.print("Starting interactive move", thr=1)
+        while True:
+            dis = float(input("Enter the distance to move in mm: "))
+            self.displace(dis)
 
 
     def read_position(self):
@@ -189,9 +206,14 @@ class LinearTrack(General):
         return success, position
         
 
-    def displace(self, dis=0.0):
+    def displace(self, dis=0.0, pos_check=True):
         self.print(f"Displacing by {dis}mm", thr=1)
-        result, position = self.position_check(dis)
+        if pos_check:
+            result, position = self.position_check(dis)
+        else:
+            result = True
+            position = 0.0
+
         if result:
             direction = 'forward' if dis>=0 else 'backward'
             self.set_direction(direction)
@@ -212,13 +234,34 @@ class LinearTrack(General):
     def return2home(self):
         self.print("Returning to home position", thr=1)
         dis_from_home = self.position
+
+        success = True
+        status = None
         if dis_from_home > 0:
-            self.displace(-1 * dis_from_home)
+            success, status = self.displace(-1 * dis_from_home)
         elif dis_from_home == 0:
             print("Gantry plate already at home")
         else:
             raise Exception("The position status variable is negative. Please check the position file")
 
+        return success, status
+    
+
+    def go2end(self):
+        self.print("Going to the end of the linear track", thr=1)
+        dis_from_end = self.travel_length - self.position - 2*self.margin2edge
+
+        success = True
+        status = None
+        if dis_from_end > 0:
+            success, status = self.displace(dis_from_end)
+        elif dis_from_end == 0:
+            print("Gantry plate already at the end")
+        else:
+            raise Exception("The position status variable is negative for gotoend. Please check the position file")
+
+        return success, status
+    
 
     def stop(self):
         self.pulse_pwm.throttle = 0.0
@@ -234,13 +277,13 @@ class LinearTrack(General):
 
 
 
-def on_program_exit():
-    kit = MotorKit(i2c=board.I2C())
-    kit.motor1.throttle = 0.0
-    kit.motor2.throttle = 0.0
-    kit.motor3.throttle = 0.0
-    kit.motor4.throttle = 0.0
-    print("Exiting the program")
+# def on_program_exit():
+#     kit = MotorKit(i2c=board.I2C())
+#     kit.motor1.throttle = 0.0
+#     kit.motor2.throttle = 0.0
+#     kit.motor3.throttle = 0.0
+#     kit.motor4.throttle = 0.0
+#     print("Exiting the program")
 
 
 
@@ -251,13 +294,13 @@ def lintrack_run(params):
     atexit.register(lt.reset)
     # atexit.register(on_program_exit)
 
-    lt.calibrate()
-    # lt.return2home()
+    # lt.calibrate()
+    # lt.interactive_move()
+    lt.return2home()
 
     if params.run_tcp_server:
         lt.run_tcp()
 
-    lt.reset()
 
 
 

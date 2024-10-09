@@ -72,6 +72,7 @@ class Params_Class(object):
             self.sig_path=os.path.join(os.getcwd(), 'sigs/txtd.npy')
             self.sig_save_path=os.path.join(os.getcwd(), 'sigs/mimo_trx.npz')
             self.channel_save_path=os.path.join(os.getcwd(), 'channels/channel_response.npz')
+            self.sys_response_path=self.channel_save_path
             self.wb_null_sc=10
             self.tcp_localIP = "0.0.0.0"
             self.tcp_bufferSize=2**10
@@ -97,8 +98,9 @@ class Params_Class(object):
             self.ant_dim = 1
             self.ant_dx = 0.5             # Antenna spacing in wavelengths (lambda)
             self.ant_dy = 0.5
-            self.save_list=[]           # signal or channel
-            self.sig_modulation='4qam'
+            self.save_list = []           # signal or channel
+            self.n_save = 100
+            self.sig_modulation = '4qam'
 
             self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-58_20241001-150336.bit')
             self.project='sounder_if_ddr4'
@@ -108,21 +110,21 @@ class Params_Class(object):
             self.sig_gen_mode = 'fft'
             self.sig_gain_db=-2
             self.wb_bw_mode='sc'    # sc or freq
-            self.wb_sc_range=[75,125]
+            self.wb_sc_range=[-250,250]
             self.wb_bw_range=[-250e6,250e6]
             self.tone_f_mode='sc'    # sc or freq
             self.sc_tone=10
             self.f_tone=10.0 * self.fs_tx / self.nfft
             self.n_tx_ant=2
             self.n_rx_ant=2
-            self.filter_signal=True
-            self.animate_plot_mode=['rxfd', 'H', "IQ"]
+            self.filter_signal=False
+            self.animate_plot_mode=['rxfd', 'h', "IQ"]
             self.beamforming=False
             self.steer_phi_deg = 30        # Desired steering azimuth in degrees
             self.steer_theta_deg = 0        # Desired steering elevation in degrees
             self.use_linear_track=True
             self.plot_level=0
-            self.verbose_level=0
+            self.verbose_level=1
             
 
         self.server_ip = None
@@ -212,8 +214,8 @@ def rfsoc_run(params):
     if params.use_linear_track:
         client_lintrack_inst = Tcp_Comm_LinTrack(params)
         client_lintrack_inst.init_tcp_client()
-        client_lintrack_inst.move_forward(100)
-        client_lintrack_inst.move_backward(100)
+        # client_lintrack_inst.return2home()
+        client_lintrack_inst.go2end()
     else:
         client_lintrack_inst = None
 
@@ -247,7 +249,9 @@ def rfsoc_run(params):
             client_inst.set_frequency(params.fc)
             client_inst.set_rx_gain()
 
-        signals_inst.animate_plot(client_inst, client_lintrack_inst, txtd_base, plot_mode=params.animate_plot_mode, save_list=params.save_list, plot_level=0)
+        if len(params.save_list)>0:
+            signals_inst.save_signal_channel(client_inst, txtd_base, save_list=params.save_list)
+        signals_inst.animate_plot(client_inst, client_lintrack_inst, txtd_base, plot_mode=params.animate_plot_mode, plot_level=0)
         
         
 
