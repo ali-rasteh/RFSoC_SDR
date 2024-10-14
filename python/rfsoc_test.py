@@ -46,7 +46,7 @@ class Params_Class(object):
         # parser.add_argument("--run_tcp_server", action="store_true", default=False, help="If true, runs the TCP server")
         # parser.add_argument("--plot_level", type=int, default=0, help="level of plotting outputs")
         # parser.add_argument("--verbose_level", type=int, default=0, help="level of printing output")
-        # parser.add_argument("--mode", type=str, default='server', help="mode of operation, server or client_tx or client_rx")
+        # parser.add_argument("--mode", type=str, default='server', help="mode of operation, server or client")
         # parser.add_argument("--rfsoc_server_ip", type=str, default='192.168.1.3', help="RFSoC board IP as the server")
         # parser.add_argument("--lintrack_server_ip", type=str, default='0.0.0.0', help="Linear track controller board IP as the server")
         # parser.add_argument("--n_frame_wr", type=int, default=1, help="Number of frames to write")
@@ -89,7 +89,6 @@ class Params_Class(object):
             self.do_mixer_settings=False
             self.do_pll_settings=False
             self.n_frame_wr=1
-            self.n_frame_rd=1
             self.run_tcp_server=True
             self.send_signal=True
             self.recv_signal=True
@@ -98,35 +97,43 @@ class Params_Class(object):
             self.ant_dim = 1
             self.ant_dx = 0.5             # Antenna spacing in wavelengths (lambda)
             self.ant_dy = 0.5
-            self.save_list = []           # signal or channel
-            self.n_save = 100
             self.sig_modulation = '4qam'
-
             self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-58_20241001-150336.bit')
             self.project='sounder_if_ddr4'
             self.board='rfsoc_4x2'
-            self.mode='client_rx'
-            self.sig_mode='wideband'
-            self.sig_gen_mode = 'fft'
-            self.sig_gain_db=-2
-            self.wb_bw_mode='sc'    # sc or freq
-            self.wb_sc_range=[-250,250]
-            self.wb_bw_range=[-250e6,250e6]
-            self.tone_f_mode='sc'    # sc or freq
-            self.sc_tone=10
-            self.f_tone=10.0 * self.fs_tx / self.nfft
             self.n_tx_ant=2
             self.n_rx_ant=2
-            self.filter_signal=False
+            self.sig_gen_mode = 'fft'
+            self.wb_bw_mode='sc'    # sc or freq
+            self.wb_bw_range=[-250e6,250e6]
+            self.tone_f_mode='sc'    # sc or freq
+            self.f_tone=10.0 * self.fs_tx / self.nfft
+            self.mode='server'
+
+            self.n_frame_rd=1
+            self.use_linear_track=False
             self.animate_plot_mode=['rxfd', 'h', "IQ"]
+            self.plot_level=0
+            self.verbose_level=1
+            self.sig_mode='wideband'
+            self.sig_gain_db=0
+            self.wb_sc_range=[-250,250]
+            self.sc_tone=10
+            self.filter_signal=False
             self.beamforming=False
             self.steer_phi_deg = 30        # Desired steering azimuth in degrees
             self.steer_theta_deg = 0        # Desired steering elevation in degrees
-            self.use_linear_track=True
-            self.plot_level=0
-            self.verbose_level=1
+            self.save_list = []           # signal or channel
+            self.deconv_sys_response = False
+            self.n_save = 1000
             
 
+
+        system_info = platform.uname()
+        if "pynq" in system_info.node.lower():
+            self.mode = 'server'
+        else:
+            self.mode = 'client'
         self.server_ip = None
         self.steer_phi_rad = np.deg2rad(self.steer_phi_deg)
         self.steer_theta_rad = np.deg2rad(self.steer_theta_deg)
@@ -209,13 +216,14 @@ class Params_Class(object):
 
 def rfsoc_run(params):
     signals_inst = Signal_Utils_Rfsoc(params)
+    signals_inst.print("Running the code in mode {}".format(params.mode), thr=1)
     (txtd_base, txtd) = signals_inst.gen_tx_signal()
 
     if params.use_linear_track:
         client_lintrack_inst = Tcp_Comm_LinTrack(params)
         client_lintrack_inst.init_tcp_client()
         # client_lintrack_inst.return2home()
-        client_lintrack_inst.go2end()
+        # client_lintrack_inst.go2end()
     else:
         client_lintrack_inst = None
 
@@ -231,23 +239,22 @@ def rfsoc_run(params):
             rfsoc_inst.run_tcp()
 
 
-    elif params.mode=='client_tx':
+    elif params.mode=='client':
         client_inst=Tcp_Comm_RFSoC(params)
         client_inst.init_tcp_client()
-        client_inst.transmit_data()
-        if params.RFFE=='sivers':
-            client_inst.set_mode('RXen0_TXen1')
-            client_inst.set_frequency(params.fc)
-            client_inst.set_tx_gain()
 
+        if params.send_signal:
+            client_inst.transmit_data()
 
-    elif params.mode=='client_rx':
-        client_inst=Tcp_Comm_RFSoC(params)
-        client_inst.init_tcp_client()
         if params.RFFE=='sivers':
-            client_inst.set_mode('RXen1_TXen0')
             client_inst.set_frequency(params.fc)
-            client_inst.set_rx_gain()
+            if params.send_signal:
+                client_inst.set_mode('RXen0_TXen1')
+                client_inst.set_tx_gain()
+            elif params.recv_signal:
+                client_inst.set_mode('RXen1_TXen0')
+                client_inst.set_rx_gain()
+
 
         if len(params.save_list)>0:
             signals_inst.save_signal_channel(client_inst, txtd_base, save_list=params.save_list)

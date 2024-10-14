@@ -36,6 +36,7 @@ class RFSoC(Signal_Utils_Rfsoc):
         self.n_frame_wr=params.n_frame_wr
         self.n_frame_rd=params.n_frame_rd
         self.n_tx_ant = params.n_tx_ant
+        self.n_rx_ant = params.n_rx_ant
         
         if self.board=='rfsoc_2x2':
             self.adc_bits = 12

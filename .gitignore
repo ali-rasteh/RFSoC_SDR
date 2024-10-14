@@ -166,3 +166,6 @@ desktop.ini
 
 # Other files and folders
 # other/
+python/channels
+python/sigs
+

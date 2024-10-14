@@ -18,6 +18,7 @@ be_scp = None
 if import_general:
     import importlib
     import os
+    import platform
     import argparse
     import time
     import datetime
@@ -86,6 +87,7 @@ if import_scipy or import_cupyx:
     welch = be_scp_sig.welch
     upfirdn = be_scp_sig.upfirdn
     convolve = be_scp_sig.convolve
+    resample = be_scp_sig.resample
 
 if import_sklearn:
     from sklearn.linear_model import Ridge

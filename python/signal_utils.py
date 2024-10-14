@@ -13,12 +13,15 @@ class Signal_Utils(General):
         self.fs=getattr(params, 'fs', None)
         self.fs_tx=getattr(params, 'fs_tx', self.fs)
         self.fs_rx=getattr(params, 'fs_rx', self.fs)
+        self.fs_trx=getattr(params, 'fs_trx', min(self.fs_tx, self.fs_rx))
         self.n_samples=getattr(params, 'n_samples', None)
         self.n_samples_tx=getattr(params, 'n_samples_tx', self.n_samples)
         self.n_samples_rx=getattr(params, 'n_samples_rx', self.n_samples)
+        self.n_samples_trx=getattr(params, 'n_samples_trx', min(self.n_samples_tx, self.n_samples_rx))
         self.nfft = getattr(params, 'nfft', 2 ** np.ceil(np.log2(self.n_samples)).astype(int))
         self.nfft_tx = getattr(params, 'nfft_tx', self.nfft)
         self.nfft_rx = getattr(params, 'nfft_rx', self.nfft)
+        self.nfft_trx = getattr(params, 'nfft_trx', min(self.nfft_tx, self.nfft_rx))
         self.snr=getattr(params, 'snr', None)
         self.sig_noise=getattr(params, 'sig_noise', None)
         self.sig_sel_id=getattr(params, 'sig_sel_id', None)
@@ -51,12 +54,15 @@ class Signal_Utils(General):
         self.t = getattr(params, 't', np.arange(0, self.n_samples) / self.fs)
         self.t_tx = getattr(params, 't_tx', np.arange(0, self.n_samples_tx) / self.fs_tx)
         self.t_rx = getattr(params, 't_rx', np.arange(0, self.n_samples_rx) / self.fs_rx)
+        self.t_trx = getattr(params, 't_trx', np.arange(0, self.n_samples_trx) / self.fs_trx)
         self.freq = getattr(params, 'freq', ((np.arange(0, self.nfft) / self.nfft) - 0.5) * self.fs)
         self.freq_tx = getattr(params, 'freq_tx', ((np.arange(0, self.nfft_tx) / self.nfft_tx) - 0.5) * self.fs_tx)
         self.freq_rx = getattr(params, 'freq_rx', ((np.arange(0, self.nfft_rx) / self.nfft_rx) - 0.5) * self.fs_rx)
+        self.freq_trx = getattr(params, 'freq_trx', ((np.arange(0, self.nfft_trx) / self.nfft_trx) - 0.5) * self.fs_trx)
         self.om = getattr(params, 'om', np.linspace(-np.pi, np.pi, self.nfft))
         self.om_tx = getattr(params, 'om_tx', np.linspace(-np.pi, np.pi, self.nfft_tx))
         self.om_rx = getattr(params, 'om_rx', np.linspace(-np.pi, np.pi, self.nfft_rx))
+        self.om_trx = getattr(params, 'om_trx', np.linspace(-np.pi, np.pi, self.nfft_trx))
 
 
     def lin_to_db(self, x, mode='pow'):
@@ -101,6 +107,14 @@ class Signal_Utils(General):
         return cros_corr
     
 
+    def integrate_signal(self, signal, n_samples=1024):
+        n_ant = signal.shape[0]
+        signal = signal.reshape(n_ant, -1, n_samples)
+        signal = np.mean(signal, axis=1)
+
+        return signal
+
+
     def extract_delay(self, sig_1, sig_2, plot_corr=False):
         """
         Calculate the delay of signal 1 with respect to signal 2 (signal 1 is ahead of signal 2)
@@ -142,7 +156,20 @@ class Signal_Utils(General):
         # y2 = np.abs(corr[max_corr_index + 1])
         
         # frac_delay = 0.5 * (y0 - y2) / (y0 - 2*y1 + y2)
-        # # total_delay = delay_samples + frac_delay
+
+
+
+        # # Upsample the transmitted and compensated signals to estimate fractional delay
+        # us_rate = 100
+        # sig_1_us = resample(sig_1, len(sig_1) * us_rate)
+        # sig_2_us = resample(sig_2, len(sig_2) * us_rate)
+
+        # # Perform cross-correlation again on the upsampled signals
+        # frac_delay_us = self.extract_delay(sig_1_us, sig_2_us)
+
+        # # Convert the upsampled delay to a fractional delay
+        # frac_delay = frac_delay_us / us_rate
+
 
         sig_1_f = fftshift(fft(sig_1, axis=-1))
         sig_2_f = fftshift(fft(sig_2, axis=-1))
@@ -215,13 +242,30 @@ class Signal_Utils(General):
 
 
     def adjust_frac_delay(self, sig_1, sig_2, frac_delay):
+        n_samples = np.shape(sig_1)[0]
+
         sig_1_f = fftshift(fft(sig_1, axis=-1))
         sig_2_f = fftshift(fft(sig_2, axis=-1))
-        
-        omega = self.om_rx
+        omega = self.om_trx
         sig_1_f = np.exp(1j * omega * frac_delay) * sig_1_f
         sig_1_adj = ifft(ifftshift(sig_1_f), axis=-1)
         sig_2_adj = sig_2.copy()
+
+
+        # sig_2_adj = resample(sig_2, int(n_samples * (1 + abs(frac_delay))))
+        # sig_2_adj =  sig_2_adj[:n_samples]  # Return signal with original length
+        # sig_1_adj = sig_1.copy()
+
+
+        # # Design FIR filter for fractional delay
+        # num_taps = 64
+        # h = firwin(num_taps, 0.5, window="hamming", scale=False)
+        # h = np.sinc(np.arange(-num_taps // 2, num_taps // 2) - frac_delay)
+        # h *= np.hamming(num_taps)  # Apply a window to the filter coefficients
+        # # Apply the filter to the signal
+        # sig_2_adj = lfilter(h, 1.0, sig_2)
+        # sig_1_adj = sig_1.copy()
+
 
         return sig_1_adj, sig_2_adj
     
@@ -712,15 +756,16 @@ class Signal_Utils(General):
 
     
     def estimate_cfo(self, txtd, rxtd, mode='fine', sc_range=[0,0]):
-        txtd = txtd.copy()
-        rxtd = rxtd.copy()
+        n_samples = min(txtd.shape[1], rxtd.shape[1])
+        txtd = txtd.copy()[:,:n_samples]
+        rxtd = rxtd.copy()[:,:n_samples]
+
         # h_est_full = h_est_full.copy()
         txfd = fft(txtd, axis=-1)
         rxfd = fft(rxtd, axis=-1)
 
         n_rx_ant = rxtd.shape[0]
         n_tx_ant = txtd.shape[0]
-        n_samples = min(txtd.shape[1], rxtd.shape[1])
 
         cfo_est = np.zeros((n_rx_ant))
 
@@ -778,9 +823,9 @@ class Signal_Utils(General):
     
 
     def sync_time(self, rxtd, txtd, sc_range=[0,0]):
-        rxtd = rxtd.copy()
-        txtd = txtd.copy()
         n_samples = min(txtd.shape[1], rxtd.shape[1])
+        txtd = txtd.copy()[:,:n_samples]
+        rxtd = rxtd.copy()[:,:n_samples]
         n_rx_ant = rxtd.shape[0]
         n_tx_ant = txtd.shape[0]
 
@@ -790,35 +835,45 @@ class Signal_Utils(General):
 
             frac_delay = self.extract_frac_delay(rxtd[rx_ant_id], txtd[0], sc_range=sc_range)
             rxtd[rx_ant_id], _ = self.adjust_frac_delay(rxtd[rx_ant_id], txtd[0], frac_delay)
+            frac_delay = self.extract_frac_delay(rxtd[rx_ant_id], txtd[0], sc_range=sc_range)
 
         return rxtd
 
 
-    def channel_estimate(self, txtd, rxtd):
-        n_tx_ant = txtd.shape[0]
-        n_rx_ant = rxtd.shape[0]
+    def channel_estimate(self, txtd, rxtd, sys_response=None):
+        deconv_sys_response = (sys_response is not None)
+
         n_samples = min(txtd.shape[1], rxtd.shape[1])
         txtd=txtd.copy()[:,:n_samples]
         rxtd=rxtd.copy()[:,:n_samples]
+        if deconv_sys_response:
+            g = sys_response.copy()[:,:n_samples]
+            G = fft(g, axis=-1)
+        n_tx_ant = txtd.shape[0]
+        n_rx_ant = rxtd.shape[0]
 
-        t = self.t_rx if self.n_samples_rx<self.n_samples_tx else self.t_tx
-        freq = self.freq_rx if self.nfft_rx<self.nfft_tx else self.freq_tx
+        t = self.t_trx
+        freq = self.freq_trx
 
         H_est_full = np.zeros((n_rx_ant, n_tx_ant, n_samples), dtype='complex')
         h_est_full = np.zeros((n_rx_ant, n_tx_ant, n_samples), dtype='complex')
         
-        txfd = np.array([fft(txtd[ant_id, :]) for ant_id in range(n_tx_ant)])
-        rxfd = np.array([fft(rxtd[ant_id, :]) for ant_id in range(n_rx_ant)])
+        txfd = fft(txtd, axis=-1)
+        rxfd = fft(rxtd, axis=-1)
         # rxfd = np.roll(rxfd, 1, axis=1)
         # txfd = np.roll(txfd, 1, axis=1)
 
         tol = 1e-8
         for tx_ant_id in range(n_tx_ant):
             for rx_ant_id in range(n_rx_ant):
-                txmean = np.mean(np.abs(txfd[tx_ant_id])**2)
-                H_est_full_ = rxfd[rx_ant_id] * np.conj(txfd[tx_ant_id]) / ((np.abs(txfd[tx_ant_id])**2) + tol*txmean)
-                # H_est_full_ = rxfd[rx_ant_id] * np.conj(txfd[tx_ant_id])
-                # H_est_full_ = rxfd[rx_ant_id] / txfd[tx_ant_id]
+                if deconv_sys_response:
+                    txfd_ = txfd[tx_ant_id] * G[rx_ant_id, tx_ant_id]
+                else:
+                    txfd_ = txfd[tx_ant_id]
+                txmean = np.mean(np.abs(txfd_)**2)
+                H_est_full_ = rxfd[rx_ant_id] * np.conj(txfd_) / ((np.abs(txfd_)**2) + tol*txmean)
+                # H_est_full_ = rxfd[rx_ant_id] * np.conj(txfd_)
+                # H_est_full_ = rxfd[rx_ant_id] / txfd_
 
                 h_est_full_ = ifft(H_est_full_)
                 H_est_full[rx_ant_id, tx_ant_id, :] = H_est_full_.copy()
@@ -906,8 +961,9 @@ class Signal_Utils(General):
 
 
     def channel_equalize(self, txtd, rxtd, H, sc_range=[0,0]):
-        txtd = txtd.copy()
-        rxtd = rxtd.copy()
+        n_samples = min(txtd.shape[1], rxtd.shape[1])
+        txtd=txtd.copy()[:,:n_samples]
+        rxtd=rxtd.copy()[:,:n_samples]
 
         txfd = fft(txtd, axis=-1)
         rxfd = fft(rxtd, axis=-1)

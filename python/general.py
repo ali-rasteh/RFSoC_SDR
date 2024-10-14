@@ -30,7 +30,7 @@ class General(object):
     def gen_random_str(self, length=6):
         letters = string.ascii_letters + string.digits
         self.random_str = ''.join(random.choice(letters) for i in range(length))
-        print("Random string for this run: {}".format(self.random_str))
+        self.print("Random string for this run: {}".format(self.random_str),thr=0)
         return self.random_str
 
 
@@ -46,25 +46,24 @@ class General(object):
             latest_commit_id = "No Git repository found or Git command failed."
 
         # Print the formatted date, time, and latest commit ID
-        print(f"Current Date and Time: {current_datetime}")
-        print(f"Latest Git Commit ID: {latest_commit_id}")
+        self.print(f"Current Date and Time: {current_datetime}",thr=0)
+        self.print(f"Latest Git Commit ID: {latest_commit_id}",thr=0)
 
 
     def print_params(self, params):
-        print("Run parameters:")
+        self.print("Run parameters:",thr=0)
         for attr in dir(params):
             if not callable(getattr(params, attr)) and not attr.startswith("__"):
-                print(f"{attr} = {getattr(params, attr)}")
-        print('\n')
+                self.print(f"{attr} = {getattr(params, attr)}",thr=0)
+        self.print('\n',thr=0)
 
 
     def init_device_torch(self):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        print('Torch device: {}'.format(self.device))
+        self.print('Torch device: {}'.format(self.device),thr=0)
 
 
     def cupy_plt_plot(self, *args, **kwargs):
-
         args = list(args)
 
         # Apply np.sqrt to the first two arguments
@@ -91,21 +90,21 @@ class General(object):
         try:
             import cupy as cp
             # Check if CuPy is installed
-            print("CuPy version: {}".format(cp.__version__))
+            self.print("CuPy version: {}".format(cp.__version__),thr=0)
 
             num_gpus = cp.cuda.runtime.getDeviceCount()
-            print(f"Number of GPUs available: {num_gpus}")
+            self.print(f"Number of GPUs available: {num_gpus}",thr=0)
 
             # Check if the GPU is available
             cp.cuda.Device(gpu_id).compute_capability
-            print("GPU {} is available".format(gpu_id))
+            self.print("GPU {} is available".format(gpu_id),thr=0)
 
-            print('GPU {} properties: {}'.format(gpu_id, cp.cuda.runtime.getDeviceProperties(gpu_id)))
+            self.print('GPU {} properties: {}'.format(gpu_id, cp.cuda.runtime.getDeviceProperties(gpu_id)),thr=0)
             return True
         except ImportError:
-            print("CuPy is not installed.")
+            self.print("CuPy is not installed.",thr=0)
         except:
-            print("GPU is not available or CUDA is not installed correctly.")
+            self.print("GPU is not available or CUDA is not installed correctly.",thr=0)
         return False
 
 
@@ -127,13 +126,13 @@ class General(object):
         import cupy as cp
         with cp.cuda.Device(self.gpu_id):
             mempool = cp.get_default_memory_pool()
-            self.print("Used GPU memory: {} bytes".format(mempool.used_bytes()),0)
-            self.print("Total GPU memory: {} bytes".format(mempool.total_bytes()),0)
+            self.print("Used GPU memory: {} bytes".format(mempool.used_bytes()),thr=0)
+            self.print("Total GPU memory: {} bytes".format(mempool.total_bytes()),thr=0)
 
 
     # Initialize and warm-up
     def warm_up_gpu(self):
-        self.print('Starting GPU warmup.', 0)
+        self.print('Starting GPU warmup.', thr=0)
         import cupy as cp
         with cp.cuda.Device(self.gpu_id):
             start = time.time()
@@ -144,12 +143,12 @@ class General(object):
             _ = cp.dot(a, a)
             cp.cuda.Stream.null.synchronize()
             end = time.time()
-        self.print("GPU warmup time: {}".format(end-start),0)
+        self.print("GPU warmup time: {}".format(end-start),thr=0)
 
 
     # Perform computation
     def gpu_cpu_compare(self, size=20000):
-        self.print('Starting CPU and GPU times compare.', 0)
+        self.print('Starting CPU and GPU times compare.', thr=0)
         import cupy as cp
         # Generate data
         a_cpu = numpy.random.rand(size, size).astype(float)
@@ -160,7 +159,7 @@ class General(object):
         result_cpu = numpy.dot(a_cpu, b_cpu)
         end = time.time()
         cpu_time = end - start
-        self.print("CPU time: {}".format(cpu_time),0)
+        self.print("CPU time: {}".format(cpu_time),thr=0)
 
         with cp.cuda.Device(self.gpu_id):
             # Transfer data to GPU
@@ -173,7 +172,7 @@ class General(object):
             cp.cuda.Stream.null.synchronize()  # Ensure all computations are finished
             end = time.time()
             gpu_time = end - start
-            self.print("GPU time: {}".format(gpu_time), 0)
+            self.print("GPU time: {}".format(gpu_time), thr=0)
 
         return gpu_time, cpu_time
 
@@ -198,4 +197,8 @@ class General(object):
         return out
 
 
+    def unique_list(self, input_list):
+        seen = set()
+        input_list = [x for x in input_list if not (x in seen or seen.add(x))]
+        return input_list
 
