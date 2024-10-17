@@ -176,7 +176,7 @@ class Signal_Utils(General):
         nfft = len(sig_1_f)
 
         phi = np.angle(sig_1_f * np.conj(sig_2_f))
-        phi = phi[(sc_range[0]+nfft//2):(sc_range[1]+nfft//2)]
+        phi = phi[(sc_range[0]+nfft//2):(sc_range[1]+nfft//2+1)]
 
         # Unwrap the phase to prevent discontinuities
         phi = np.unwrap(phi)
@@ -242,6 +242,8 @@ class Signal_Utils(General):
 
 
     def adjust_frac_delay(self, sig_1, sig_2, frac_delay):
+        sig_1 = sig_1.copy()
+        sig_2 = sig_2.copy()
         n_samples = np.shape(sig_1)[0]
 
         sig_1_f = fftshift(fft(sig_1, axis=-1))
@@ -249,13 +251,13 @@ class Signal_Utils(General):
         omega = self.om_trx
         sig_1_f = np.exp(1j * omega * frac_delay) * sig_1_f
         sig_1_adj = ifft(ifftshift(sig_1_f), axis=-1)
-        sig_2_adj = sig_2.copy()
 
 
-        # sig_2_adj = resample(sig_2, int(n_samples * (1 + abs(frac_delay))))
-        # sig_2_adj =  sig_2_adj[:n_samples]  # Return signal with original length
-        # sig_1_adj = sig_1.copy()
+        # sig_1 = np.roll(sig_1, 1)
+        # frac_delay = 1-frac_delay
 
+        # sig_1_adj = resample(sig_1, int(n_samples * (1 + abs(frac_delay))))
+        # sig_1_adj =  sig_1_adj[:n_samples]  # Return signal with original length
 
         # # Design FIR filter for fractional delay
         # num_taps = 64
@@ -263,9 +265,11 @@ class Signal_Utils(General):
         # h = np.sinc(np.arange(-num_taps // 2, num_taps // 2) - frac_delay)
         # h *= np.hamming(num_taps)  # Apply a window to the filter coefficients
         # # Apply the filter to the signal
-        # sig_2_adj = lfilter(h, 1.0, sig_2)
-        # sig_1_adj = sig_1.copy()
+        # sig_1_adj = lfilter(h, 1.0, sig_1)
 
+
+        # sig_1_adj = sig_1.copy()
+        sig_2_adj = sig_2.copy()
 
         return sig_1_adj, sig_2_adj
     
@@ -659,9 +663,9 @@ class Signal_Utils(General):
             # Create the wideband sequence in frequency-domain
             wb_fd = np.zeros((self.nfft_tx,), dtype='complex')
             if len(sym)>0:
-                wb_fd[((self.nfft_tx >> 1) + sc_range[0]):((self.nfft_tx >> 1) + sc_range[1])] = np.random.choice(sym, len(range(sc_range[0], sc_range[1])))
+                wb_fd[((self.nfft_tx >> 1) + sc_range[0]):((self.nfft_tx >> 1) + sc_range[1] + 1)] = np.random.choice(sym, len(range(sc_range[0], sc_range[1]+1)))
             else:
-                wb_fd[((self.nfft_tx >> 1) + sc_range[0]):((self.nfft_tx >> 1) + sc_range[1])] = 1
+                wb_fd[((self.nfft_tx >> 1) + sc_range[0]):((self.nfft_tx >> 1) + sc_range[1] + 1)] = 1
             if sig_mode=='wideband_null':
                 wb_fd[((self.nfft_tx >> 1) - wb_null_sc):((self.nfft_tx >> 1) + wb_null_sc)] = 0
 
@@ -787,7 +791,7 @@ class Signal_Utils(General):
 
                     # phi = np.angle(rxtd[rx_ant_id] * np.conj(txtd[tx_ant_id]))
                     phi = np.angle(rxfd[rx_ant_id] * np.conj(txfd[tx_ant_id]))
-                    phi = phi[(sc_range[0]+n_samples//2):(sc_range[1]+n_samples//2)]
+                    phi = phi[(sc_range[0]+n_samples//2):(sc_range[1]+n_samples//2+1)]
 
                     # Unwrap the phase to prevent discontinuities
                     phi = np.unwrap(phi)
@@ -834,34 +838,38 @@ class Signal_Utils(General):
             rxtd[rx_ant_id], _, _, _ = self.time_adjust(rxtd[rx_ant_id], txtd[0], delay)
 
             frac_delay = self.extract_frac_delay(rxtd[rx_ant_id], txtd[0], sc_range=sc_range)
+            # print(f"Fractional delay: {frac_delay}")
             rxtd[rx_ant_id], _ = self.adjust_frac_delay(rxtd[rx_ant_id], txtd[0], frac_delay)
-            frac_delay = self.extract_frac_delay(rxtd[rx_ant_id], txtd[0], sc_range=sc_range)
 
         return rxtd
 
 
-    def channel_estimate(self, txtd, rxtd, sys_response=None):
+    def channel_estimate(self, txtd, rxtd, sys_response=None, sc_range_ch=[0,0]):
         deconv_sys_response = (sys_response is not None)
 
         n_samples = min(txtd.shape[1], rxtd.shape[1])
+        n_samples_ch = sc_range_ch[1] - sc_range_ch[0] + 1
+        # n_samples_ch = n_samples
+
         txtd=txtd.copy()[:,:n_samples]
         rxtd=rxtd.copy()[:,:n_samples]
-        if deconv_sys_response:
-            g = sys_response.copy()[:,:n_samples]
-            G = fft(g, axis=-1)
         n_tx_ant = txtd.shape[0]
         n_rx_ant = rxtd.shape[0]
 
-        t = self.t_trx
-        freq = self.freq_trx
+        t_ch = self.t_trx[:n_samples_ch]
+        freq_ch = self.freq_trx[(sc_range_ch[0]+n_samples//2):(sc_range_ch[1]+n_samples//2+1)]
 
-        H_est_full = np.zeros((n_rx_ant, n_tx_ant, n_samples), dtype='complex')
-        h_est_full = np.zeros((n_rx_ant, n_tx_ant, n_samples), dtype='complex')
+        H_est_full = np.zeros((n_rx_ant, n_tx_ant, n_samples_ch), dtype='complex')
+        h_est_full = np.zeros((n_rx_ant, n_tx_ant, n_samples_ch), dtype='complex')
         
         txfd = fft(txtd, axis=-1)
         rxfd = fft(rxtd, axis=-1)
         # rxfd = np.roll(rxfd, 1, axis=1)
         # txfd = np.roll(txfd, 1, axis=1)
+
+        if deconv_sys_response:
+            g = sys_response.copy()[:,:n_samples]
+            G = fft(g, axis=-1)
 
         tol = 1e-8
         for tx_ant_id in range(n_tx_ant):
@@ -871,9 +879,12 @@ class Signal_Utils(General):
                 else:
                     txfd_ = txfd[tx_ant_id]
                 txmean = np.mean(np.abs(txfd_)**2)
+                # txmean = 0
                 H_est_full_ = rxfd[rx_ant_id] * np.conj(txfd_) / ((np.abs(txfd_)**2) + tol*txmean)
                 # H_est_full_ = rxfd[rx_ant_id] * np.conj(txfd_)
                 # H_est_full_ = rxfd[rx_ant_id] / txfd_
+
+                H_est_full_ = ifftshift(fftshift(H_est_full_)[(sc_range_ch[0]+n_samples//2):(sc_range_ch[1]+n_samples//2+1)])
 
                 h_est_full_ = ifft(H_est_full_)
                 H_est_full[rx_ant_id, tx_ant_id, :] = H_est_full_.copy()
@@ -887,13 +898,13 @@ class Signal_Utils(General):
                 title = 'Channel response in the time domain \n between TX antenna {} and RX antenna {}'.format(tx_ant_id, rx_ant_id)
                 xlabel = 'Time (s)'
                 ylabel = 'Normalized Magnitude (dB)'
-                self.plot_signal(t, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)
+                self.plot_signal(t_ch, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)
 
                 sig = np.abs(fftshift(H_est_full_))
                 title = 'Channel response in the frequency domain \n between TX antenna {} and RX antenna {}'.format(tx_ant_id, rx_ant_id)
                 xlabel = 'Frequency (MHz)'
                 ylabel = 'Magnitude (dB)'
-                self.plot_signal(freq, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)
+                self.plot_signal(freq_ch, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)
 
         # H_est = np.linalg.pinv(txfd.T) @ rxfd.T
         # H_est = H_est.T

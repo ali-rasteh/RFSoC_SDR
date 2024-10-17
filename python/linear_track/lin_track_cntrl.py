@@ -127,15 +127,19 @@ class LinearTrack(General):
         return responseToCMDInBytes
 
 
-    def calibrate(self):
-        self.print("Calibrating the linear track", thr=1)
+    def calibrate(self, mode='start'):
+        self.print("Calibrating the linear track with mode {}".format(mode), thr=1)
         while True:
             dis = float(input("Enter the distance to move in mm: "))
             if dis == 0:
-                self.position = 0.0
+                if mode == 'start':
+                    self.position = 0.0
+                elif mode == 'end':
+                    self.position = self.travel_length
                 self.write_position(self.position)
                 break
             self.displace(dis, pos_check=False)
+
         self.print("Calibration complete", thr=1)
 
     

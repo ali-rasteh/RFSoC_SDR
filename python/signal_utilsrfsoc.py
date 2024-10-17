@@ -17,6 +17,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.wb_bw_range = params.wb_bw_range
         self.wb_sc_range = params.wb_sc_range
         self.sc_range = params.sc_range
+        self.sc_range_ch = params.sc_range_ch
         self.tone_f_mode = params.tone_f_mode
         self.f_tone = params.f_tone
         self.sc_tone = params.sc_tone
@@ -37,6 +38,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.ant_dx = params.ant_dx
         self.ant_dy = params.ant_dy
         self.use_linear_track = params.use_linear_track
+        self.n_samples_ch = params.n_samples_ch
+        self.nfft_ch = params.nfft_ch
 
         self.print("signals object initialization done", thr=1)
         
@@ -152,10 +155,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.anim_paused = False
         n_plots = len(plot_mode)
         tx_ant_id = 0
-        rx_ant_id = 0
+        rx_ant_id = 1
         # n_samples_rx = self.n_samples_rx
         n_samples_rx = self.n_samples_trx
+        n_samples_trx = self.n_samples_trx
         n_samples_rx01 = 100
+        n_samples_ch = self.n_samples_ch
 
         def receive_data(txtd_base):
             rxtd = client_tcp.receive_data(mode='once')
@@ -166,7 +171,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             sigs=[]
             for item in plot_mode:
                 if item=='h':
-                    h_est_full_ = h_est_full[rx_ant_id, tx_ant_id]
+                    h_est_full_ = h_est_full[rx_ant_id, tx_ant_id].copy()
                     im = np.argmax(h_est_full_)
                     h_est_full_ = np.roll(h_est_full_, -im + len(h_est_full_)//10)
                     sigs.append(self.lin_to_db(np.abs(h_est_full_) / np.max(np.abs(h_est_full_)), mode='mag'))
@@ -283,7 +288,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         for i in range(n_plots):
             ax[i].set_autoscale_on(True)
             if plot_mode[i]=='h':
-                line[line_id], = ax[i].plot(self.t_trx, sigs[i])
+                line[line_id], = ax[i].plot(self.t_trx[:n_samples_ch], sigs[i])
                 line_id+=1
                 ax[i].set_title("Channel response mag in the time domain between TX antenna {} and RX antenna {}".format(tx_ant_id, rx_ant_id))
                 ax[i].set_xlabel("Time (s)")
@@ -292,13 +297,13 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 # ax[i].set_ylim(np.min(sigs[0]), 1.5*np.max(sigs[0]))
                 # ax[i].grid(0.2)
             elif plot_mode[i]=='H':
-                line[line_id], = ax[i].plot(self.freq_trx, sigs[i])
+                line[line_id], = ax[i].plot(self.freq_trx[(self.sc_range_ch[0]+n_samples_trx//2):(self.sc_range_ch[1]+n_samples_trx//2+1)], sigs[i])
                 line_id+=1
                 ax[i].set_title("Channel response mag in the frequency domain between TX antenna {} and RX antenna {}".format(tx_ant_id, rx_ant_id))
                 ax[i].set_xlabel("Frequency (MHz)")
                 ax[i].set_ylabel("Magnitude (dB)")
             elif plot_mode[i]=='H_phase':
-                line[line_id], = ax[i].plot(self.freq_trx, sigs[i])
+                line[line_id], = ax[i].plot(self.freq_trx[(self.sc_range_ch[0]+n_samples_trx//2):(self.sc_range_ch[1]+n_samples_trx//2+1)], sigs[i])
                 line_id+=1
                 ax[i].set_title("Channel response phase in the frequency domain between TX antenna {} and RX antenna {}".format(tx_ant_id, rx_ant_id))
                 ax[i].set_xlabel("Frequency (MHz)")
@@ -482,7 +487,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             sys_response = np.load(self.sys_response_path)['h_est_full_avg']
         else:
             sys_response = None
-        h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_base, sys_response=sys_response)
+        h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_base, sys_response=sys_response, sc_range_ch=self.sc_range_ch)
         # tx_phase, rx_phase = self.estimate_mimo_params(H_est_max)
         rxtd_base = self.channel_equalize(txtd_base, rxtd_base, H_est_max, sc_range=self.sc_range)
 

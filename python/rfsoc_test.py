@@ -66,6 +66,7 @@ class Params_Class(object):
             self.wl = constants.c / self.fc
             self.fs_tx=self.fs
             self.fs_rx=self.fs
+            self.fs_trx=self.fs
             self.n_samples=1024
             self.nfft=self.n_samples
             self.mix_phase_off=0.0
@@ -107,43 +108,54 @@ class Params_Class(object):
             self.wb_bw_mode='sc'    # sc or freq
             self.wb_bw_range=[-250e6,250e6]
             self.tone_f_mode='sc'    # sc or freq
+            self.sc_tone=10
             self.f_tone=10.0 * self.fs_tx / self.nfft
             self.mode='server'
+            self.overwrite_level=True
+            self.plot_level=0
+            self.verbose_level=0
+            self.sig_mode='wideband'
+            self.steer_theta_deg = 0        # Desired steering elevation in degrees
+            self.n_save = 100
+            self.sig_gain_db=0
+            self.filter_signal=False
 
             self.n_frame_rd=1
             self.use_linear_track=False
-            self.animate_plot_mode=['rxfd', 'h', "IQ"]
-            self.plot_level=0
-            self.verbose_level=1
-            self.sig_mode='wideband'
-            self.sig_gain_db=0
+            self.animate_plot_mode=['rxfd', 'h', "H"]
             self.wb_sc_range=[-250,250]
-            self.sc_tone=10
-            self.filter_signal=False
             self.beamforming=False
             self.steer_phi_deg = 30        # Desired steering azimuth in degrees
-            self.steer_theta_deg = 0        # Desired steering elevation in degrees
             self.save_list = []           # signal or channel
-            self.deconv_sys_response = False
-            self.n_save = 1000
+            self.deconv_sys_response = True
             
 
 
         system_info = platform.uname()
         if "pynq" in system_info.node.lower():
             self.mode = 'server'
+            if self.overwrite_level:
+                self.plot_level=5
+                self.verbose_level=4
+                self.use_linear_track=False
         else:
             self.mode = 'client'
+            if self.overwrite_level:
+                self.plot_level=0
+                self.verbose_level=1
         self.server_ip = None
         self.steer_phi_rad = np.deg2rad(self.steer_phi_deg)
         self.steer_theta_rad = np.deg2rad(self.steer_theta_deg)
         self.n_samples_tx = self.n_frame_wr*self.n_samples
         self.n_samples_rx = self.n_frame_rd*self.n_samples
+        self.n_samples_trx = min(self.n_samples_tx, self.n_samples_rx)
         self.nfft_tx = self.n_frame_wr*self.nfft
         self.nfft_rx = self.n_frame_rd*self.nfft
+        self.nfft_trx = min(self.nfft_tx, self.nfft_rx)
         self.freq = ((np.arange(0, self.nfft) / self.nfft) - 0.5) * self.fs / 1e6
         self.freq_tx = ((np.arange(0, self.nfft_tx) / self.nfft_tx) - 0.5) * self.fs_tx / 1e6
         self.freq_rx = ((np.arange(0, self.nfft_rx) / self.nfft_rx) - 0.5) * self.fs_rx / 1e6
+        self.freq_trx = ((np.arange(0, self.nfft_trx) / self.nfft_trx) - 0.5) * self.fs_trx / 1e6
         self.beam_test = np.array([1, 5, 9, 13, 17, 21, 25, 29, 32, 35, 39, 43, 47, 51, 55, 59, 63])
         self.DynamicPLLConfig = (0, self.lmk_freq_mhz, self.lmx_freq_mhz)
 
@@ -188,11 +200,12 @@ class Params_Class(object):
 
         if 'tone' in self.sig_mode:
             self.f_max = abs(self.f_tone)
-            self.sc_range = [self.sc_tone, self.sc_tone]
             if self.sig_mode == 'tone_1':
+                self.sc_range = [self.sc_tone, self.sc_tone]
                 # self.filter_bw_range = min(2*np.abs(self.f_tone) + 60e6, self.fs_rx-50e6)
                 self.filter_bw_range = [self.f_tone-50e6, self.f_tone+50e6]
             elif self.sig_mode == 'tone_2':
+                self.sc_range = [-1*self.sc_tone, self.sc_tone]
                 self.filter_bw_range = [-1*self.f_tone-50e6, self.f_tone+50e6]
         elif 'wideband' in self.sig_mode:
             self.f_max = max(abs(self.wb_bw_range[0]), abs(self.wb_bw_range[1]))
@@ -204,7 +217,15 @@ class Params_Class(object):
             self.filter_bw_range = [self.wb_bw_range[0]-50e6, self.wb_bw_range[1]+50e6]
         else:
             raise ValueError('Unsupported signal mode: ' + self.sig_mode)
-                        
+
+
+        self.sc_range_ch = self.sc_range
+        # self.sc_range_ch = [-1*self.n_samples_trx//2, self.n_samples_trx//2-1]
+        self.n_samples_ch = self.sc_range_ch[1] - self.sc_range_ch[0] + 1
+        # self.n_samples_ch = self.n_samples_trx
+        self.nfft_ch = self.n_samples_ch
+        # self.nfft_ch = self.nfft_trx
+
         if self.n_tx_ant==1 and self.n_rx_ant==1:
             self.ant_dim = 1
             self.beamforming = False
