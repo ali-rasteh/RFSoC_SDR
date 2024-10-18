@@ -62,8 +62,6 @@ class Params_Class(object):
 
         if params.overwrite_configs:
             self.fs=245.76e6 * 4
-            self.fc = 57.51e9
-            self.wl = constants.c / self.fc
             self.fs_tx=self.fs
             self.fs_rx=self.fs
             self.fs_trx=self.fs
@@ -74,7 +72,7 @@ class Params_Class(object):
             self.sig_save_path=os.path.join(os.getcwd(), 'sigs/mimo_trx.npz')
             self.channel_save_path=os.path.join(os.getcwd(), 'channels/channel_response.npz')
             self.sys_response_path=self.channel_save_path
-            self.wb_null_sc=10
+            self.wb_null_sc=0
             self.tcp_localIP = "0.0.0.0"
             self.tcp_bufferSize=2**10
             self.TCP_port_Cmd=8080
@@ -98,39 +96,42 @@ class Params_Class(object):
             self.ant_dim = 1
             self.ant_dx = 0.5             # Antenna spacing in wavelengths (lambda)
             self.ant_dy = 0.5
-            self.sig_modulation = '4qam'
             self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-58_20241001-150336.bit')
             self.project='sounder_if_ddr4'
             self.board='rfsoc_4x2'
             self.n_tx_ant=2
             self.n_rx_ant=2
-            self.sig_gen_mode = 'fft'
             self.wb_bw_mode='sc'    # sc or freq
             self.wb_bw_range=[-250e6,250e6]
             self.tone_f_mode='sc'    # sc or freq
             self.sc_tone=10
             self.f_tone=10.0 * self.fs_tx / self.nfft
             self.mode='server'
-            self.overwrite_level=True
-            self.plot_level=0
-            self.verbose_level=0
-            self.sig_mode='wideband'
+            self.sig_mode='wideband_null'
             self.steer_theta_deg = 0        # Desired steering elevation in degrees
             self.n_save = 100
             self.sig_gain_db=0
             self.filter_signal=False
 
+            self.overwrite_level=True
+            self.plot_level=0
+            self.verbose_level=0
+            self.sig_gen_mode = 'ZadoffChu'
+            self.sig_modulation = '4qam'
+            self.fc = 12.0e9
             self.n_frame_rd=1
             self.use_linear_track=False
-            self.animate_plot_mode=['rxfd', 'h', "H"]
+            self.animate_plot_mode=['rxfd', 'h', "IQ"]
             self.wb_sc_range=[-250,250]
             self.beamforming=False
             self.steer_phi_deg = 30        # Desired steering azimuth in degrees
             self.save_list = []           # signal or channel
-            self.deconv_sys_response = True
+            self.deconv_sys_response = False
             
 
 
+
+        self.wl = constants.c / self.fc
         system_info = platform.uname()
         if "pynq" in system_info.node.lower():
             self.mode = 'server'
@@ -217,6 +218,8 @@ class Params_Class(object):
             self.filter_bw_range = [self.wb_bw_range[0]-50e6, self.wb_bw_range[1]+50e6]
         else:
             raise ValueError('Unsupported signal mode: ' + self.sig_mode)
+        
+        self.seed = [self.seed*i+i for i in range(self.n_tx_ant)]
 
 
         self.sc_range_ch = self.sc_range
@@ -231,6 +234,47 @@ class Params_Class(object):
             self.beamforming = False
 
 
+        self.rx_ant_loc_sep = 1.5 # Separation of the two locations
+        self.rx_ant_dsep = np.array([0.5, 1, 2, 4, 8, 16])   # Array spacings at each location
+
+        # True location of the target
+        self.tx_loc_gt = np.array([6,8])
+        self.loc_lim = np.array([20,10])
+        p = len(self.tx_loc_gt)
+
+        # At each location, we measure the signal with different array spacings
+        # arrconfig[i,j,:] is the location of j-th element with spacing self.rx_ant_dsep[i]
+        n_rx_config = len(self.rx_ant_dsep)
+        elem = np.zeros((self.n_rx_ant, p))
+        arrconfig = np.zeros((n_rx_config, self.n_rx_ant,p))
+        for i in range(n_rx_config):
+            arrconfig[i,:,0] = np.arange(self.n_rx_ant) * self.rx_ant_dsep[i] * self.wl
+        print("arrconfig: ", arrconfig)
+
+
+        # Randomly generate the locations of the arrays
+        rand_arr = False
+        if rand_arr:
+            nloc = 5
+            xlim = np.array([20,30])  # Width of the area
+            arrloc = np.random.uniform(0,1,(nloc, p)) * xlim[None,:]
+        else:
+            x0 = np.array([5,5])
+            asep = np.array([self.rx_ant_loc_sep, 0])
+            usep = np.array([1, 0])
+            arrloc = x0[None,:] + asep[:,None] * usep[None,:]
+            nloc = arrloc.shape[0]
+        print("arrloc (location of separate antenna arrays): ", arrloc)
+        print("nloc: ", nloc)
+
+        # Compute the arrays across all configurations and locations
+        arr = np.zeros((nloc*n_rx_config, self.n_rx_ant, p))
+        for i in range(nloc):
+            arr[i * n_rx_config:(i+1) * n_rx_config, :, :] = arrloc[i, None, :] + arrconfig 
+        narr = nloc * n_rx_config
+        print("arr: ", arr)
+
+
 
 
 
@@ -239,6 +283,8 @@ def rfsoc_run(params):
     signals_inst = Signal_Utils_Rfsoc(params)
     signals_inst.print("Running the code in mode {}".format(params.mode), thr=1)
     (txtd_base, txtd) = signals_inst.gen_tx_signal()
+    # print the dot product of two transmitted signals
+    print("Dot product of two transmitted signals: ", np.dot(txtd_base[0], txtd_base[1]))
 
     if params.use_linear_track:
         client_lintrack_inst = Tcp_Comm_LinTrack(params)

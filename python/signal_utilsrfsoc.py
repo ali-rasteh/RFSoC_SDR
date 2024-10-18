@@ -56,7 +56,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 txtd_base_s = self.generate_tone(freq_mode=self.tone_f_mode, sc=self.sc_tone, f=self.f_tone, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode)
             elif 'wideband' in self.sig_mode:
                 nsc = self.wb_sc_range[1] - self.wb_sc_range[0] + 1
-                txtd_base_s = self.generate_wideband(bw_mode=self.wb_bw_mode, sc_range=self.wb_sc_range, bw_range=self.wb_bw_range, modulation=self.sig_modulation, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode)
+                txtd_base_s = self.generate_wideband(bw_mode=self.wb_bw_mode, sc_range=self.wb_sc_range, bw_range=self.wb_bw_range, modulation=self.sig_modulation, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode, seed=self.seed[ant_id])
             elif self.sig_mode == 'load':
                 txtd_base_s = np.load(self.sig_path)
             else:
@@ -155,7 +155,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.anim_paused = False
         n_plots = len(plot_mode)
         tx_ant_id = 0
-        rx_ant_id = 1
+        rx_ant_id = 0
         # n_samples_rx = self.n_samples_rx
         n_samples_rx = self.n_samples_trx
         n_samples_trx = self.n_samples_trx
@@ -167,14 +167,17 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             rxtd = rxtd.squeeze(axis=0)
             (rxtd_base, h_est_full, H_est, H_est_max) = self.rx_operations(txtd_base, rxtd)
             H_est_full = fft(h_est_full, axis=-1)
-
             sigs=[]
             for item in plot_mode:
                 if item=='h':
                     h_est_full_ = h_est_full[rx_ant_id, tx_ant_id].copy()
                     im = np.argmax(h_est_full_)
                     h_est_full_ = np.roll(h_est_full_, -im + len(h_est_full_)//10)
-                    sigs.append(self.lin_to_db(np.abs(h_est_full_) / np.max(np.abs(h_est_full_)), mode='mag'))
+                    h_est_full_ = self.lin_to_db(np.abs(h_est_full_), mode='mag')
+                    # h_est_full_ = self.lin_to_db(np.abs(h_est_full_) / np.max(np.abs(h_est_full_)), mode='mag')
+                    p = np.percentile(h_est_full_, 25)
+                    h_est_full_ = h_est_full_ - p
+                    sigs.append(h_est_full_)
                 elif item=='H':
                     H_est_full_ = H_est_full[rx_ant_id, tx_ant_id]
                     sigs.append(self.lin_to_db(np.abs(fftshift(H_est_full_)), mode='mag'))
@@ -200,7 +203,10 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     rxfd_base_1 = self.lin_to_db(np.abs(fftshift(fft(rxtd_base[1, :n_samples_rx]))), mode='mag')
                     sigs.append([rxfd_base_0, rxfd_base_1])
                 elif item=='IQ':
-                    sigs.append(fft(rxtd_base[rx_ant_id], axis=-1))
+                    rxfd_base = fftshift(fft(rxtd_base[rx_ant_id], axis=-1))
+                    rxfd_base = rxfd_base[self.sc_range[0]+n_samples_rx//2:self.sc_range[1]+n_samples_rx//2+1]
+                    # rxfd_base = rxfd_base[np.abs(rxfd_base)>1e-1]
+                    sigs.append(rxfd_base)
                 elif item=='rxtd_phase':
                     phi = np.angle(rxtd_base[rx_ant_id, :n_samples_rx])
                     # phi = np.unwrap(phi)
@@ -270,6 +276,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     line_id+=1
                 if plot_mode[i]!='IQ':
                     ax[i].relim()
+                if plot_mode[i]=='h':
+                    ax[i].set_ylim(np.min(sigs[i]), 1.1*np.max(sigs[i]))
                 ax[i].autoscale_view()
 
             return line
@@ -475,7 +483,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         txtd_base = txtd_base[:,:self.n_samples_trx]
         # rxtd_base = self.integrate_signal(rxtd_base, n_samples=self.n_samples_trx)
         rxtd_base = rxtd_base[:,:self.n_samples_trx]
-        rxtd_base = self.sync_time(rxtd_base, txtd_base, sc_range=self.sc_range)
+        # rxtd_base = self.sync_time(rxtd_base, txtd_base, sc_range=self.sc_range)
 
         # cfo_coarse = self.estimate_cfo(txtd_base, rxtd_base, mode='coarse', sc_range=self.sc_range)
         # rxtd_base_t = self.sync_frequency(rxtd_base, cfo_coarse, mode='time')
@@ -489,7 +497,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             sys_response = None
         h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_base, sys_response=sys_response, sc_range_ch=self.sc_range_ch)
         # tx_phase, rx_phase = self.estimate_mimo_params(H_est_max)
-        rxtd_base = self.channel_equalize(txtd_base, rxtd_base, H_est_max, sc_range=self.sc_range)
+        # rxtd_base = self.channel_equalize(txtd_base, rxtd_base, h_est_full, H_est, sc_range=self.sc_range, sc_range_ch=self.sc_range_ch)
 
         return (rxtd_base, h_est_full, H_est, H_est_max)
     

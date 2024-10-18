@@ -640,14 +640,14 @@ class Signal_Utils(General):
         return tone_td
 
 
-    def generate_wideband(self, bw_mode='sc', sc_range=None, bw_range=None, wb_null_sc=10, modulation='4qam', sig_mode='wideband', gen_mode='fft'):
+    def generate_wideband(self, bw_mode='sc', sc_range=None, bw_range=None, wb_null_sc=0, modulation='4qam', sig_mode='wideband', gen_mode='fft', seed=100):
         if bw_mode=='sc':
             bw_range = [sc_range[0]*self.fs_tx/self.nfft_tx, sc_range[1]*self.fs_tx/self.nfft_tx]
         elif bw_mode=='freq':
             sc_range = [int(np.round(bw_range[0]*self.nfft_tx/self.fs_tx)), int(np.round(bw_range[1]*self.nfft_tx/self.fs_tx))]
 
+        np.random.seed(seed)
         if gen_mode == 'fft':
-            np.random.seed(self.seed)
             if modulation=='psk':
                 sym = [1, -1]
             elif modulation=='4qam':
@@ -667,16 +667,19 @@ class Signal_Utils(General):
             else:
                 wb_fd[((self.nfft_tx >> 1) + sc_range[0]):((self.nfft_tx >> 1) + sc_range[1] + 1)] = 1
             if sig_mode=='wideband_null':
-                wb_fd[((self.nfft_tx >> 1) - wb_null_sc):((self.nfft_tx >> 1) + wb_null_sc)] = 0
+                wb_fd[((self.nfft_tx >> 1) - wb_null_sc):((self.nfft_tx >> 1) + wb_null_sc + 1)] = 0
 
             wb_fd = fftshift(wb_fd, axes=0)
             # Convert the waveform to time-domain
             wb_td = ifft(wb_fd, axis=0)
 
         elif gen_mode == 'ZadoffChu':
+            prime_nums = [3, 5, 7, 11, 13, 17]
             cf = self.nfft_tx % 2
             q = 0.5
-            u = 3
+            # u = 3
+            u = np.random.choice(prime_nums)
+            print(f"u={u}")
             wb_fd = np.exp(-1j * np.pi * u * np.arange(self.nfft_tx) * (np.arange(self.nfft_tx) + cf + 2*q) / self.nfft_tx)
             # cf = 0
             # q = 0
@@ -702,6 +705,99 @@ class Signal_Utils(General):
 
         return wb_td
     
+
+    def create_mesh_grid(self, npoints = 1000, xlim = [1,1]):
+        # Create a set of points x uniformly distributed in the area using meshgrid
+        x1 = np.linspace(0, xlim[0], npoints)
+        x2 = np.linspace(0, xlim[1], npoints)
+        X1, X2 = np.meshgrid(x1, x2)
+        X = np.zeros((npoints**2,2))
+        X[:,0] = X1.flatten()
+        X[:,1] = X2.flatten()
+
+
+    def multi_arr_corr(x, arr, r, lam):
+        """
+        Computes the correlation between the received signal and the expected signal
+        for a batch of candidate target locations at a set of arrays
+
+        Parameters
+        ----------
+        x : np.array of shape (npoints,p)
+            Location of the candidate targets 
+            where nx is the number of candidate targets and p is the 
+            dimension of the space
+        arr : np.array  of shape (m,nrx,p)
+            Array locations where arr[i,j,:] is the location
+            of element j in the measurement i where m is the number of 
+            measurements
+        r : complex np.array of size (m, nrx)
+            measured values where r[i,j] is the complex measured 
+            value in measurement i on element j
+        lam : float
+            Wavelength of the signal
+            
+        Returns
+        -------
+        rho : np.array of shape (m)
+            The real values of the summed correlation at each of the measurements
+        """
+        
+        # Compute the distances from the arrays to the target
+        # (:,m,nrx,p) * (npoints,:,:,p)
+        d = np.sqrt(np.sum((arr[None,:,:,:] - x[:,None,None,:])**2, axis=3))
+
+        # Compute the phase difference
+        dexp = np.exp(-2*np.pi*1j/lam*d)
+
+        #(npoints, m, nrx)
+        # Compute the correlation
+        # (npoints, m)
+        # (npoints)
+        rho = np.sum( np.abs(np.sum(r[None,:,:]*dexp, axis=2))**2, axis=1 )
+
+        return rho
+
+
+    def feval_torch(x, arr, r, lam):
+        """
+        Torch version of the above function.
+        Computes the correlation between the received signal and the expected signal
+        for a batch of candidate target locations
+
+        Parameters
+        ----------
+        x : torch.Tensor of shape (p)
+            Location of the candidate targets 
+            where nx is the number of candidate targets and p is the 
+            dimension of the space
+        arr : torch.Tensor of shape (m, nrx, p)
+            Array locations where arr[i, j, :] is the location
+            of element j in the measurement i where m is the number of 
+            measurements
+        r : torch.Tensor of size (m, nrx)
+            measured values where r[i, j] is the complex measured 
+            value in measurement i on element j
+        lam : float
+            Wavelength of the signal
+            
+        Returns
+        -------
+        rho : scalar
+            The real values of the summed correlation at each of the measurements
+        """
+
+        # Compute the distances from the arrays to the target
+        d = torch.sqrt(torch.sum((arr[:, :, :] - x[None, None, :]) ** 2, dim=2))
+
+        # Compute the phase difference
+        dexp = torch.exp(-2 * np.pi * 1j / lam * d)
+
+        # Compute the correlation
+        rho = torch.sum(torch.abs(torch.sum(r * dexp, dim=1)) ** 2, dim=0)
+
+        return rho
+
 
     def beam_form(self, sigs):
         sigs_bf = sigs.copy()
@@ -971,37 +1067,52 @@ class Signal_Utils(General):
     #     plt.show()
 
 
-    def channel_equalize(self, txtd, rxtd, H, sc_range=[0,0]):
+    def channel_equalize(self, txtd, rxtd, h_full, H, sc_range=[0,0], sc_range_ch=[0,0]):
         n_samples = min(txtd.shape[1], rxtd.shape[1])
         txtd=txtd.copy()[:,:n_samples]
         rxtd=rxtd.copy()[:,:n_samples]
 
         txfd = fft(txtd, axis=-1)
         rxfd = fft(rxtd, axis=-1)
+        H_full = fft(h_full, axis=-1)
+
         rxtd_eq = np.zeros_like(rxtd)
         rxfd_eq = np.zeros_like(rxfd)
         nfft = txfd.shape[-1]
 
         # print('H_det: {}'.format(np.abs(np.linalg.det(H))))
         
-        if np.linalg.matrix_rank(H) == min(H.shape) and np.abs(np.linalg.det(H)) > 1e-3:
-            H_inv = np.linalg.pinv(H)
-        else:
-            epsilon = 1e-6
-            H = H + epsilon * np.eye(H.shape[0])
-            H_inv = np.linalg.pinv(H)
+        # if np.linalg.matrix_rank(H) == min(H.shape) and np.abs(np.linalg.det(H)) > 1e-3:
+        #     H_inv = np.linalg.pinv(H)
+        # else:
+        #     epsilon = 1e-6
+        #     H = H + epsilon * np.eye(H.shape[0])
+        #     H_inv = np.linalg.pinv(H)
 
-        if np.abs(np.linalg.det(H)) > 1e-3:
-            rxfd_eq = H_inv @ rxfd
-            rxtd_eq = ifft(rxfd_eq, axis=-1)
-        else:
-            for rx_ant_id in range(rxtd_eq.shape[0]):
-                phase_offset = self.calc_phase_offset(rxfd[rx_ant_id], txfd[0])
-                rxfd_eq[rx_ant_id], _ = self.adjust_phase(rxfd[rx_ant_id], txfd[0], phase_offset)
-            rxtd_eq = ifft(rxfd_eq, axis=-1)
+        # if np.abs(np.linalg.det(H)) > 1e-3:
+        #     rxfd_eq = H_inv @ rxfd
+        # else:
+        #     for rx_ant_id in range(rxtd_eq.shape[0]):
+        #         phase_offset = self.calc_phase_offset(rxfd[rx_ant_id], txfd[0])
+        #         rxfd_eq[rx_ant_id], _ = self.adjust_phase(rxfd[rx_ant_id], txfd[0], phase_offset)
+
+
+        # Write the channel equalization code for the MIMO for each subcarrier
+        tol = 1e-6
+        rxfd = fftshift(rxfd, axes=-1)
+        for sc in range(sc_range[0], sc_range[1]+1):
+            H_sc = H_full[:,:,sc]
+            # H_sc += tol*np.eye(H_sc.shape[0])
+            # H_sc_inv = np.linalg.pinv(H_sc)
+            H_sc_inv = (np.conj(H_sc.T) * H + tol*np.eye(H_sc.shape[0])) * np.conj(H_sc.T)
+            rxfd_eq[:,sc+self.nfft_trx//2] = H_sc_inv @ rxfd[:,sc+self.nfft_trx//2]
+
+        rxfd_eq = ifftshift(rxfd_eq, axes=-1)
+        rxtd_eq = ifft(rxfd_eq, axis=-1)
+        # rxtd_eq = rxtd
 
         return rxtd_eq
-    
+
 
     def estimate_mimo_params(self, H):
         U, S, Vh = np.linalg.svd(H)
@@ -1012,9 +1123,9 @@ class Signal_Utils(General):
             rx_phase = 0
         elif H.shape[0] == 2:
             # print("H_est_max: ", np.abs(H))
-            rx_phase = np.angle(U[0,0]*np.conj(U[1,0]))
+            rx_phase = np.mean(np.angle(U[0,:]*np.conj(U[1,:])))
             # print("rx_phase: {:0.4f}".format(rx_phase*180/np.pi))
-            tx_phase = np.angle(Vh[0,0]*np.conj(Vh[0,1]))
+            tx_phase = np.mean(np.angle(Vh[:,0]*np.conj(Vh[:,1])))
             # print("tx_phase: {:0.4f}".format(tx_phase*180/np.pi))
 
         return tx_phase, rx_phase
