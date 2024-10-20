@@ -928,29 +928,31 @@ class Signal_Utils(General):
         rxtd = rxtd.copy()[:,:n_samples]
         n_rx_ant = rxtd.shape[0]
         n_tx_ant = txtd.shape[0]
+        rxtd_sync = np.zeros((n_rx_ant, n_tx_ant, n_samples), dtype='complex')
 
-        for rx_ant_id in range(n_rx_ant):
-            delay = self.extract_delay(rxtd[rx_ant_id], txtd[0])
-            rxtd[rx_ant_id], _, _, _ = self.time_adjust(rxtd[rx_ant_id], txtd[0], delay)
+        for tx_ant_id in range(n_tx_ant):
+            for rx_ant_id in range(n_rx_ant):
+                delay = self.extract_delay(rxtd[rx_ant_id], txtd[tx_ant_id])
+                rxtd_sync[rx_ant_id][tx_ant_id], _, _, _ = self.time_adjust(rxtd[rx_ant_id], txtd[tx_ant_id], delay)
 
-            frac_delay = self.extract_frac_delay(rxtd[rx_ant_id], txtd[0], sc_range=sc_range)
-            # print(f"Fractional delay: {frac_delay}")
-            rxtd[rx_ant_id], _ = self.adjust_frac_delay(rxtd[rx_ant_id], txtd[0], frac_delay)
+                frac_delay = self.extract_frac_delay(rxtd_sync[rx_ant_id][tx_ant_id], txtd[tx_ant_id], sc_range=sc_range)
+                # print(f"Fractional delay: {frac_delay}")
+                rxtd_sync[rx_ant_id][tx_ant_id], _ = self.adjust_frac_delay(rxtd_sync[rx_ant_id][tx_ant_id], txtd[tx_ant_id], frac_delay)
 
-        return rxtd
+        return rxtd_sync
 
 
-    def channel_estimate(self, txtd, rxtd, sys_response=None, sc_range_ch=[0,0]):
+    def channel_estimate(self, txtd, rxtd_s, sys_response=None, sc_range_ch=[0,0], snr_est=100):
         deconv_sys_response = (sys_response is not None)
 
-        n_samples = min(txtd.shape[1], rxtd.shape[1])
+        n_samples = min(txtd.shape[-1], rxtd_s.shape[-1])
         n_samples_ch = sc_range_ch[1] - sc_range_ch[0] + 1
         # n_samples_ch = n_samples
 
         txtd=txtd.copy()[:,:n_samples]
-        rxtd=rxtd.copy()[:,:n_samples]
+        rxtd_s=rxtd_s.copy()[:,:,:n_samples]
+        n_rx_ant = rxtd_s.shape[0]
         n_tx_ant = txtd.shape[0]
-        n_rx_ant = rxtd.shape[0]
 
         t_ch = self.t_trx[:n_samples_ch]
         freq_ch = self.freq_trx[(sc_range_ch[0]+n_samples//2):(sc_range_ch[1]+n_samples//2+1)]
@@ -959,24 +961,23 @@ class Signal_Utils(General):
         h_est_full = np.zeros((n_rx_ant, n_tx_ant, n_samples_ch), dtype='complex')
         
         txfd = fft(txtd, axis=-1)
-        rxfd = fft(rxtd, axis=-1)
-        # rxfd = np.roll(rxfd, 1, axis=1)
+        rxfd_s = fft(rxtd_s, axis=-1)
+        # rxfd_s = np.roll(rxfd_s, 1, axis=1)
         # txfd = np.roll(txfd, 1, axis=1)
 
         if deconv_sys_response:
             g = sys_response.copy()[:,:n_samples]
             G = fft(g, axis=-1)
 
-        tol = 1e-8
         for tx_ant_id in range(n_tx_ant):
             for rx_ant_id in range(n_rx_ant):
                 if deconv_sys_response:
                     txfd_ = txfd[tx_ant_id] * G[rx_ant_id, tx_ant_id]
                 else:
                     txfd_ = txfd[tx_ant_id]
-                txmean = np.mean(np.abs(txfd_)**2)
-                # txmean = 0
-                H_est_full_ = rxfd[rx_ant_id] * np.conj(txfd_) / ((np.abs(txfd_)**2) + tol*txmean)
+                tx_pow = np.mean(np.abs(txfd_)**2)
+                noise_pow = tx_pow / snr_est
+                H_est_full_ = rxfd_s[rx_ant_id, tx_ant_id] * np.conj(txfd_) / ((np.abs(txfd_)**2) + noise_pow)
                 # H_est_full_ = rxfd[rx_ant_id] * np.conj(txfd_)
                 # H_est_full_ = rxfd[rx_ant_id] / txfd_
 
@@ -1004,7 +1005,8 @@ class Signal_Utils(General):
 
         # H_est = np.linalg.pinv(txfd.T) @ rxfd.T
         # H_est = H_est.T
-        H_est = rxfd @ np.linalg.pinv(txfd)
+        # H_est = rxfd @ np.linalg.pinv(txfd)
+        H_est = np.mean(H_est_full, axis=-1)
 
         time_pow = np.sum(np.abs(H_est_full)**2, axis=(0,1))
         idx_max  = np.argmax(time_pow)
@@ -1067,8 +1069,9 @@ class Signal_Utils(General):
     #     plt.show()
 
 
-    def channel_equalize(self, txtd, rxtd, h_full, H, sc_range=[0,0], sc_range_ch=[0,0]):
-        n_samples = min(txtd.shape[1], rxtd.shape[1])
+    def channel_equalize(self, txtd, rxtd, h_full, H, sc_range=[0,0], sc_range_ch=[0,0], null_sc_range=[0,0], n_rx_ch_eq=1):
+        n_samples = min(txtd.shape[-1], rxtd.shape[-1])
+        n_samples_ch = sc_range_ch[1] - sc_range_ch[0] + 1
         txtd=txtd.copy()[:,:n_samples]
         rxtd=rxtd.copy()[:,:n_samples]
 
@@ -1076,9 +1079,8 @@ class Signal_Utils(General):
         rxfd = fft(rxtd, axis=-1)
         H_full = fft(h_full, axis=-1)
 
-        rxtd_eq = np.zeros_like(rxtd)
-        rxfd_eq = np.zeros_like(rxfd)
-        nfft = txfd.shape[-1]
+        rxtd_eq = rxtd.copy()
+        rxfd_eq = rxfd.copy()
 
         # print('H_det: {}'.format(np.abs(np.linalg.det(H))))
         
@@ -1097,24 +1099,47 @@ class Signal_Utils(General):
         #         rxfd_eq[rx_ant_id], _ = self.adjust_phase(rxfd[rx_ant_id], txfd[0], phase_offset)
 
 
-        # Write the channel equalization code for the MIMO for each subcarrier
-        tol = 1e-6
-        rxfd = fftshift(rxfd, axes=-1)
-        for sc in range(sc_range[0], sc_range[1]+1):
-            H_sc = H_full[:,:,sc]
-            # H_sc += tol*np.eye(H_sc.shape[0])
-            # H_sc_inv = np.linalg.pinv(H_sc)
-            H_sc_inv = (np.conj(H_sc.T) * H + tol*np.eye(H_sc.shape[0])) * np.conj(H_sc.T)
-            rxfd_eq[:,sc+self.nfft_trx//2] = H_sc_inv @ rxfd[:,sc+self.nfft_trx//2]
+        if n_rx_ch_eq == 1:
+            for rx_ant_id in range(rxtd_eq.shape[0]):
+                # rxfd_eq[rx_ant_id] = rxfd[rx_ant_id] / H[rx_ant_id, rx_ant_id]
 
-        rxfd_eq = ifftshift(rxfd_eq, axes=-1)
+                H_full_ = fftshift(H_full[rx_ant_id, rx_ant_id], axes=-1)
+                rxfd_ = fftshift(rxfd[rx_ant_id], axes=-1)
+                rxfd_eq_ = fftshift(rxfd_eq[rx_ant_id], axes=-1)
+                for i, sc in enumerate(range(sc_range[0], sc_range[1]+1)):
+                    if not sc in range(null_sc_range[0], null_sc_range[1]+1):
+                        rxfd_eq_[sc+n_samples//2] = rxfd_[sc+n_samples//2] / H_full_[i]
+                rxfd_eq[rx_ant_id] = ifftshift(rxfd_eq_)
+        else:
+            tol = 1e-6
+            rxfd_ = fftshift(rxfd, axes=-1)
+            rxfd_eq_ = fftshift(rxfd_eq, axes=-1)
+            H_full_ = fftshift(H_full, axes=-1)
+            for i, sc in enumerate(range(sc_range[0], sc_range[1]+1)):
+                H_sc = H_full_[:,:,i]
+                # H_sc += tol*np.eye(H_sc.shape[0])
+                # H_sc_inv = np.linalg.pinv(H_sc)
+                H_sc_inv = (np.conj(H_sc.T) * H_sc + tol*np.eye(H_sc.shape[0])) * np.conj(H_sc.T)
+                rxfd_eq_[:,sc+n_samples//2] = H_sc_inv @ rxfd_[:,sc+n_samples//2]
+
+            rxfd_eq = ifftshift(rxfd_eq_, axes=-1)
+
         rxtd_eq = ifft(rxfd_eq, axis=-1)
-        # rxtd_eq = rxtd
 
         return rxtd_eq
 
 
-    def estimate_mimo_params(self, H):
+    def angle_of_arrival(self, txtd, rxtd, rx_phase_offset=0):
+        phase_diff = self.calc_phase_offset(rxtd[0,:], rxtd[1,:])
+        print("phase_diff: ", phase_diff)
+        rx_phase = phase_diff - rx_phase_offset
+        print("rx_phase: ", rx_phase)
+        angle = np.arcsin(rx_phase/(2*np.pi*self.ant_dx))
+
+        return angle
+    
+
+    def estimate_mimo_params(self, txtd, rxtd, H):
         U, S, Vh = np.linalg.svd(H)
         # W_tx = Vh.conj().T
         # W_rx = U
@@ -1122,13 +1147,12 @@ class Signal_Utils(General):
             tx_phase = 0
             rx_phase = 0
         elif H.shape[0] == 2:
-            # print("H_est_max: ", np.abs(H))
             rx_phase = np.mean(np.angle(U[0,:]*np.conj(U[1,:])))
-            # print("rx_phase: {:0.4f}".format(rx_phase*180/np.pi))
             tx_phase = np.mean(np.angle(Vh[:,0]*np.conj(Vh[:,1])))
-            # print("tx_phase: {:0.4f}".format(tx_phase*180/np.pi))
+        aoa = self.angle_of_arrival(txtd=txtd, rxtd=rxtd, rx_phase_offset=self.rx_phase_offset)
+        print("AoA: {} deg".format(np.rad2deg(aoa)))
 
-        return tx_phase, rx_phase
+        return aoa
 
 
     # plot_signal(self, x, sig, mode='time_IQ', scale='linear', title='Custom Title', xlabel='Time', ylabel='Amplitude', plot_args={'color': 'red', 'linestyle': '--'}, xlim=(0, 10), ylim=(-1, 1), legend=True)
@@ -1200,5 +1224,40 @@ class Signal_Utils(General):
         plt.show()
 
 
+    def draw_half_gauge(self, ax, min_val=-90, max_val=90):
+        ax.add_patch(Wedge((0.5, 0.5), 0.4, 90, -90, color='#f0f0f0', zorder=1))
+        ax.add_patch(Wedge((0.5, 0.5), 0.35, 90, -90, color='#e0e0e0', zorder=2))
 
+        num_ticks = 18
+        for i in range(num_ticks + 1):
+            angle = i * (180 / num_ticks)
+            tick_length = 0.05 if i % 2 == 0 else 0.03
+            ax.plot([0.5 + 0.35 * np.cos(np.radians(angle)), 0.5 + (0.35 - tick_length) * np.cos(np.radians(angle))],
+                    [0.5 + 0.35 * np.sin(np.radians(angle)), 0.5 + (0.35 - tick_length) * np.sin(np.radians(angle))],
+                    color='black', lw=1, zorder=3)
+
+        for i in range(num_ticks + 1):
+            angle = i * (180 / num_ticks)
+            value = -1 * (min_val + (max_val - min_val) * (i / num_ticks))
+            x = 0.5 + 0.28 * np.cos(np.radians(angle))
+            y = 0.5 + 0.28 * np.sin(np.radians(angle))
+            ax.text(x, y, f'{int(value)}', fontsize=10, ha='center', va='center')
+
+        ax.add_patch(Circle((0.5, 0.5), 0.05, color='black', zorder=5))
+        ax.text(0.5, 0.95, "Angle of Arrival", fontsize=14, fontweight='bold', horizontalalignment='center')
+        ax.set_aspect('equal')
+
+
+    def gauge_update_needle(self, ax, value, min_val=90, max_val=-90):
+        angle = (value - min_val) * 180 / (max_val - min_val)
+        x = 0.5 + 0.35 * np.cos(np.radians(angle))
+        y = 0.5 + 0.35 * np.sin(np.radians(angle))
+
+        arrow = FancyArrow(0.5, 0.5, x-0.5, y-0.5, width=0.02, head_width=0.05, head_length=0.08, color='darkblue', zorder=6)
+
+        old_arrows = [p for p in ax.patches if isinstance(p, FancyArrow)]
+        for old_arrow in old_arrows:
+            old_arrow.remove()
+
+        ax.add_patch(arrow)
 

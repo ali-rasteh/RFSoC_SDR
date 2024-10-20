@@ -26,6 +26,7 @@ if import_general:
     import random
     import string
     import socket
+    import paramiko
     from types import SimpleNamespace
     import itertools
     import heapq
@@ -36,6 +37,7 @@ if import_matplotlib:
     import matplotlib.pyplot as plt
     import matplotlib.animation as animation
     from matplotlib.colors import LogNorm
+    from matplotlib.patches import Wedge, Circle, FancyArrow
     # matplotlib.use('TkAgg')
     # matplotlib.use('WebAgg')
     # matplotlib.use('Agg')

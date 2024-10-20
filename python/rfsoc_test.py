@@ -6,7 +6,7 @@ except:
     pass
 from signal_utilsrfsoc import Signal_Utils_Rfsoc
 from signal_utils import Signal_Utils
-from tcp_comm import Tcp_Comm_RFSoC, Tcp_Comm_LinTrack
+from tcp_comm import Tcp_Comm_RFSoC, Tcp_Comm_LinTrack, ssh_Com_Piradio
 
 
 
@@ -61,6 +61,7 @@ class Params_Class(object):
         params.overwrite_configs=True
 
         if params.overwrite_configs:
+            self.counter=0
             self.fs=245.76e6 * 4
             self.fs_tx=self.fs
             self.fs_rx=self.fs
@@ -68,7 +69,8 @@ class Params_Class(object):
             self.n_samples=1024
             self.nfft=self.n_samples
             self.mix_phase_off=0.0
-            self.sig_path=os.path.join(os.getcwd(), 'sigs/txtd.npy')
+            self.calib_params_path=os.path.join(os.getcwd(), 'calib/calib_params.npz')
+            self.sig_path=os.path.join(os.getcwd(), 'sigs/txtd.npz')
             self.sig_save_path=os.path.join(os.getcwd(), 'sigs/mimo_trx.npz')
             self.channel_save_path=os.path.join(os.getcwd(), 'channels/channel_response.npz')
             self.sys_response_path=self.channel_save_path
@@ -94,44 +96,59 @@ class Params_Class(object):
             self.rfsoc_server_ip='192.168.3.1'
             self.lintrack_server_ip='10.18.239.141'
             self.ant_dim = 1
-            self.ant_dx = 0.5             # Antenna spacing in wavelengths (lambda)
-            self.ant_dy = 0.5
-            self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-58_20241001-150336.bit')
+            self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-58_20241001-150336.bit')       # Without DAC MTS
+            # self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-62_20241019-173825.bit')         # With DAC MTS
             self.project='sounder_if_ddr4'
             self.board='rfsoc_4x2'
             self.n_tx_ant=2
             self.n_rx_ant=2
+            self.ant_dy = 0.5
             self.wb_bw_mode='sc'    # sc or freq
             self.wb_bw_range=[-250e6,250e6]
             self.tone_f_mode='sc'    # sc or freq
             self.sc_tone=10
             self.f_tone=10.0 * self.fs_tx / self.nfft
             self.mode='server'
-            self.sig_mode='wideband_null'
             self.steer_theta_deg = 0        # Desired steering elevation in degrees
             self.n_save = 100
             self.sig_gain_db=0
-            self.filter_signal=False
+            self.beamforming=False
+            self.steer_phi_deg = 30        # Desired steering azimuth in degrees
+            self.anim_interval=500
+            self.piradio_host = '10.18.239.141'
+            self.piradio_port = '22'
+            self.piradio_username = 'wirelesslab914'
+            self.piradio_password = 'nyu@1234'
+            self.sig_modulation = '4qam'
 
+            self.sig_mode='wideband_null'
+            self.rx_chain=['channel_est']        # filter, integrate, sync_time, sync_freq, channel_est, channel_eq
+            self.ant_dx = 2             # Antenna spacing in wavelengths (lambda)
+            self.calib_iter = 100
+            self.n_rx_ch_eq=1
+            self.snr_est_db=40
             self.overwrite_level=True
             self.plot_level=0
             self.verbose_level=0
-            self.sig_gen_mode = 'ZadoffChu'
-            self.sig_modulation = '4qam'
-            self.fc = 12.0e9
+            self.sig_gen_mode = 'fft'
+            # self.fc = 12.0e9
+            self.fc = 1.0e9
+            # self.freq_hop_list = [6.0e9, 8.0e9, 10.0e9, 12.0e9]
+            self.freq_hop_list = [1.0e9]
             self.n_frame_rd=1
             self.use_linear_track=False
-            self.animate_plot_mode=['rxfd', 'h', "IQ"]
+            self.control_piradio=False
+            self.animate_plot_mode=['rxfd', 'rxtd01', 'aoa_gauge']
             self.wb_sc_range=[-250,250]
-            self.beamforming=False
-            self.steer_phi_deg = 30        # Desired steering azimuth in degrees
             self.save_list = []           # signal or channel
             self.deconv_sys_response = False
-            
+
+
 
 
 
         self.wl = constants.c / self.fc
+
         system_info = platform.uname()
         if "pynq" in system_info.node.lower():
             self.mode = 'server'
@@ -139,11 +156,13 @@ class Params_Class(object):
                 self.plot_level=5
                 self.verbose_level=4
                 self.use_linear_track=False
+                self.control_piradio=False
         else:
             self.mode = 'client'
             if self.overwrite_level:
                 self.plot_level=0
                 self.verbose_level=1
+
         self.server_ip = None
         self.steer_phi_rad = np.deg2rad(self.steer_phi_deg)
         self.steer_theta_rad = np.deg2rad(self.steer_theta_deg)
@@ -208,18 +227,17 @@ class Params_Class(object):
             elif self.sig_mode == 'tone_2':
                 self.sc_range = [-1*self.sc_tone, self.sc_tone]
                 self.filter_bw_range = [-1*self.f_tone-50e6, self.f_tone+50e6]
-        elif 'wideband' in self.sig_mode:
+            self.null_sc_range = [0, 0]
+        elif 'wideband' in self.sig_mode or self.sig_mode == 'load':
             self.f_max = max(abs(self.wb_bw_range[0]), abs(self.wb_bw_range[1]))
             self.sc_range = self.wb_sc_range
             self.filter_bw_range = [self.wb_bw_range[0]-50e6, self.wb_bw_range[1]+50e6]
-        elif self.sig_mode == 'load':
-            self.f_max = max(abs(self.wb_bw_range[0]), abs(self.wb_bw_range[1]))
-            self.sc_range = self.wb_sc_range
-            self.filter_bw_range = [self.wb_bw_range[0]-50e6, self.wb_bw_range[1]+50e6]
+            self.null_sc_range = [-1*self.wb_null_sc, self.wb_null_sc]
         else:
             raise ValueError('Unsupported signal mode: ' + self.sig_mode)
         
-        self.seed = [self.seed*i+i for i in range(self.n_tx_ant)]
+        # self.seed = [self.seed*i+i for i in range(self.n_tx_ant)]
+        self.seed = [self.seed for i in range(self.n_tx_ant)]
 
 
         self.sc_range_ch = self.sc_range
@@ -232,49 +250,7 @@ class Params_Class(object):
         if self.n_tx_ant==1 and self.n_rx_ant==1:
             self.ant_dim = 1
             self.beamforming = False
-
-
-        self.rx_ant_loc_sep = 1.5 # Separation of the two locations
-        self.rx_ant_dsep = np.array([0.5, 1, 2, 4, 8, 16])   # Array spacings at each location
-
-        # True location of the target
-        self.tx_loc_gt = np.array([6,8])
-        self.loc_lim = np.array([20,10])
-        p = len(self.tx_loc_gt)
-
-        # At each location, we measure the signal with different array spacings
-        # arrconfig[i,j,:] is the location of j-th element with spacing self.rx_ant_dsep[i]
-        n_rx_config = len(self.rx_ant_dsep)
-        elem = np.zeros((self.n_rx_ant, p))
-        arrconfig = np.zeros((n_rx_config, self.n_rx_ant,p))
-        for i in range(n_rx_config):
-            arrconfig[i,:,0] = np.arange(self.n_rx_ant) * self.rx_ant_dsep[i] * self.wl
-        print("arrconfig: ", arrconfig)
-
-
-        # Randomly generate the locations of the arrays
-        rand_arr = False
-        if rand_arr:
-            nloc = 5
-            xlim = np.array([20,30])  # Width of the area
-            arrloc = np.random.uniform(0,1,(nloc, p)) * xlim[None,:]
-        else:
-            x0 = np.array([5,5])
-            asep = np.array([self.rx_ant_loc_sep, 0])
-            usep = np.array([1, 0])
-            arrloc = x0[None,:] + asep[:,None] * usep[None,:]
-            nloc = arrloc.shape[0]
-        print("arrloc (location of separate antenna arrays): ", arrloc)
-        print("nloc: ", nloc)
-
-        # Compute the arrays across all configurations and locations
-        arr = np.zeros((nloc*n_rx_config, self.n_rx_ant, p))
-        for i in range(nloc):
-            arr[i * n_rx_config:(i+1) * n_rx_config, :, :] = arrloc[i, None, :] + arrconfig 
-        narr = nloc * n_rx_config
-        print("arr: ", arr)
-
-
+        
 
 
 
@@ -283,16 +259,21 @@ def rfsoc_run(params):
     signals_inst = Signal_Utils_Rfsoc(params)
     signals_inst.print("Running the code in mode {}".format(params.mode), thr=1)
     (txtd_base, txtd) = signals_inst.gen_tx_signal()
-    # print the dot product of two transmitted signals
-    print("Dot product of two transmitted signals: ", np.dot(txtd_base[0], txtd_base[1]))
 
     if params.use_linear_track:
-        client_lintrack_inst = Tcp_Comm_LinTrack(params)
-        client_lintrack_inst.init_tcp_client()
-        # client_lintrack_inst.return2home()
-        # client_lintrack_inst.go2end()
+        client_lintrack = Tcp_Comm_LinTrack(params)
+        client_lintrack.init_tcp_client()
+        # client_lintrack.return2home()
+        # client_lintrack.go2end()
     else:
-        client_lintrack_inst = None
+        client_lintrack = None
+
+    if params.control_piradio:
+        client_piradio = ssh_Com_Piradio(params)
+        client_piradio.init_ssh_client()
+        # client_piradio.set_frequency(verif_keyword='')
+    else:
+        client_piradio = None
 
     if params.mode=='server':
         rfsoc_inst = RFSoC(params)
@@ -307,27 +288,28 @@ def rfsoc_run(params):
 
 
     elif params.mode=='client':
-        client_inst=Tcp_Comm_RFSoC(params)
-        client_inst.init_tcp_client()
+        client_rfsoc=Tcp_Comm_RFSoC(params)
+        client_rfsoc.init_tcp_client()
 
         if params.send_signal:
-            client_inst.transmit_data()
+            client_rfsoc.transmit_data()
 
         if params.RFFE=='sivers':
-            client_inst.set_frequency(params.fc)
+            client_rfsoc.set_frequency(params.fc)
             if params.send_signal:
-                client_inst.set_mode('RXen0_TXen1')
-                client_inst.set_tx_gain()
+                client_rfsoc.set_mode('RXen0_TXen1')
+                client_rfsoc.set_tx_gain()
             elif params.recv_signal:
-                client_inst.set_mode('RXen1_TXen0')
-                client_inst.set_rx_gain()
+                client_rfsoc.set_mode('RXen1_TXen0')
+                client_rfsoc.set_rx_gain()
 
+        if params.mode != 'server':
+            signals_inst.calibrate_rx_phase_offset(client_rfsoc)
 
         if len(params.save_list)>0:
-            signals_inst.save_signal_channel(client_inst, txtd_base, save_list=params.save_list)
-        signals_inst.animate_plot(client_inst, client_lintrack_inst, txtd_base, plot_mode=params.animate_plot_mode, plot_level=0)
-        
-        
+            signals_inst.save_signal_channel(client_rfsoc, txtd_base, save_list=params.save_list)
+        signals_inst.animate_plot(client_rfsoc, client_lintrack, client_piradio, txtd_base, plot_mode=params.animate_plot_mode, plot_level=0)
+       
 
 
 if __name__ == '__main__':

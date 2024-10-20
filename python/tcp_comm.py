@@ -216,3 +216,89 @@ class Tcp_Comm_LinTrack(Tcp_Comm):
         return data
 
     
+
+class ssh_Com(General):
+    def __init__(self, params):
+        super().__init__(params)
+
+        self.host = getattr(params, 'host', '0.0.0.0')
+        self.port = getattr(params, 'port', 22)
+        self.username = getattr(params, 'username', 'root')
+        self.password = getattr(params, 'password', ' root')
+
+        self.print("ssh_Com object init done", thr=1)
+
+
+    def init_ssh_client(self):
+        try:
+            # Initialize SSH client
+            self.client = paramiko.SSHClient()
+            self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+            # Connect to the remote server
+            self.client.connect(hostname=self.host, port=self.port, username=self.username, password=self.password)
+
+        except paramiko.AuthenticationException:
+            print("Authentication failed. Please check your credentials.")
+        except paramiko.SSHException as e:
+            print(f"SSH Error: {e}")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+
+        self.print("ssh_Com client init done", thr=1)
+
+
+    def close(self):
+        self.client.close()
+        self.print("SSH Client object closed", thr=1)
+
+
+    def __del__(self):
+        self.close()
+        self.print("SSH Client object deleted", thr=1)
+
+
+    def exec_command(self, command, verif_keyword='done'):
+        # Execute the command
+        stdin, stdout, stderr = self.client.exec_command(command)
+
+        # Capture command output and errors
+        output = stdout.read().decode()
+        errors = stderr.read().decode()
+
+        if errors:
+            self.print(f"Error: {errors}", thr=3)
+        else:
+            self.print(f"Command Output:\n{output}", thr=3)
+
+        # Search for the keyword in the output
+        if verif_keyword in output:
+            self.print(f"Keyword '{verif_keyword}' found in the output.", thr=3)
+            result = True
+        else:
+            self.print(f"Keyword '{verif_keyword}' not found in the output.", thr=3)
+            result = False
+
+        return result
+    
+
+
+class ssh_Com_Piradio(ssh_Com):
+    def __init__(self, params):
+        params.host = params.piradio_host
+        params.port = params.piradio_port
+        params.username = params.piradio_username
+        params.password = params.piradio_password
+        super().__init__(params)
+
+        self.print("ssh_Com_Piradio object init done", thr=1)
+
+
+    def set_frequency(self, fc=6.0e9, verif_keyword='done'):
+        # command = f"piradio_cli set_frequency {fc}"        
+        command = f"ls"
+        result = self.exec_command(command, verif_keyword=verif_keyword)
+        if result:
+            self.print(f"Frequency set to {fc/1e9} GHz", thr=3)
+        else:
+            self.print(f"Failed to set frequency to {fc/1e9} GHz", thr=0)
