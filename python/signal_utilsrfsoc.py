@@ -29,7 +29,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.calib_params_path = params.calib_params_path
         self.channel_save_path = params.channel_save_path
         self.sys_response_path = params.sys_response_path
-        self.deconv_sys_response = params.deconv_sys_response
         self.n_save = params.n_save
         self.mixer_mode = params.mixer_mode
         self.mix_freq = params.mix_freq
@@ -38,6 +37,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.n_rx_ant = params.n_rx_ant
         self.n_rx_ch_eq = params.n_rx_ch_eq
         self.beamforming = params.beamforming
+        self.ant_dx_m = params.ant_dx_m
+        self.ant_dy_m = params.ant_dy_m
         self.ant_dx = params.ant_dx
         self.ant_dy = params.ant_dy
         self.use_linear_track = params.use_linear_track
@@ -146,8 +147,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
     def save_signal_channel(self, client_tcp, txtd_base, save_list=[]):
-        deconv_sys_response_main = self.deconv_sys_response
-        self.deconv_sys_response = False
+        rx_chain_main = self.rx_chain
+        if 'sys_res_deconv' in self.rx_chain:
+            self.rx_chain.remove('sys_res_deconv')
 
         # test = np.load(self.sig_save_path)
         txtd_save=[]
@@ -180,7 +182,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         if 'channel' in save_list:
             np.savez(self.channel_save_path, h_est_full=h_est_full_save, h_est_full_avg=h_est_full_avg, H_est=H_est_save, H_est_max=H_est_max_save)
 
-        self.deconv_sys_response = deconv_sys_response_main
+        self.rx_chain = rx_chain_main
     
 
     def animate_plot(self, client_rfsoc, client_lintrack, client_piradio, txtd_base, plot_mode=['h', 'rxtd', 'rxfd'], plot_level=0):
@@ -191,7 +193,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         n_plots_row = len(plot_mode)
         n_plots_col = len(self.freq_hop_list)
         tx_ant_id = 0
-        rx_ant_id = 1
+        rx_ant_id = 0
         # n_samples_rx = self.n_samples_rx
         n_samples_rx = self.n_samples_trx
         n_samples_trx = self.n_samples_trx
@@ -243,7 +245,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 elif item=='IQ':
                     rxfd_base = fftshift(fft(rxtd_base[rx_ant_id], axis=-1))
                     rxfd_base = rxfd_base[self.sc_range[0]+n_samples_rx//2:self.sc_range[1]+n_samples_rx//2+1]
-                    # rxfd_base = rxfd_base[np.abs(rxfd_base)>1e-1]
                     sigs.append(rxfd_base)
                 elif item=='rxtd_phase':
                     phi = np.angle(rxtd_base[rx_ant_id, :n_samples_rx])
@@ -289,9 +290,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             if self.use_linear_track:
                 client_lintrack.move(distance=-10)
                 # time.sleep(0.1)
+
             if self.control_piradio:
-                fc = self.freq_hop_list[int(self.fc_id)]
-                # client_piradio.set_frequency(fc=fc)
+                self.fc = self.freq_hop_list[int(self.fc_id)]
+                self.wl = constants.c / self.fc
+                self.ant_dx = self.ant_dx_m/self.wl             # Antenna spacing in wavelengths (lambda)
+                self.ant_dy = self.ant_dy_m/self.wl
+
+                # client_piradio.set_frequency(fc=self.fc)
                 self.fc_id = (self.fc_id + 1) % len(self.freq_hop_list)
                 # time.sleep(0.1)
             else:
@@ -318,8 +324,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 elif plot_mode[i]=='IQ':
                     line[line_id][j].set_offsets(np.column_stack((sigs[i].real, sigs[i].imag)))
                     line_id+=1
-                    ax[i][j].set_xlim(min(sigs[i].real) - 0, max(sigs[i].real) + 0)
-                    ax[i][j].set_ylim(min(sigs[i].imag) - 0, max(sigs[i].imag) + 0)
+                    margin = max(np.abs(sigs[i])) * 0.1
+                    ax[i][j].set_xlim(min(sigs[i].real) - margin, max(sigs[i].real) + margin)
+                    ax[i][j].set_ylim(min(sigs[i].imag) - margin, max(sigs[i].imag) + margin)
                 elif plot_mode[i]=='aoa_gauge':
                     self.gauge_update_needle(ax[i][j], np.rad2deg(sigs[i]))
                     ax[i][j].set_xlim(0, 1)
@@ -347,7 +354,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         if len(ax.shape)<2:
             ax = ax.reshape(-1, 1)
         fig.canvas.mpl_connect('key_press_event', toggle_pause)
-        # fig, ax = plt.subplots(1, n_plots)
 
         for j in range(n_plots_col):
             line_id = 0
@@ -359,9 +365,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ax[i][j].set_title("Channel-Mag-TD, Freq {}, TX ant {}, RX ant {}".format(self.freq_hop_list[j]/1e9, tx_ant_id, rx_ant_id))
                     ax[i][j].set_xlabel("Time (s)")
                     ax[i][j].set_ylabel("Normalized Magnitude (dB)")
-                    # ax[i][j].set_xlim(np.min(self.t), np.max(self.t))
-                    # ax[i][j].set_ylim(np.min(sigs[0]), 1.5*np.max(sigs[0]))
-                    # ax[i][j].grid(0.2)
                 elif plot_mode[i]=='H':
                     line[line_id][j], = ax[i][j].plot(self.freq_trx[(self.sc_range_ch[0]+n_samples_trx//2):(self.sc_range_ch[1]+n_samples_trx//2+1)], sigs[i])
                     line_id+=1
@@ -419,18 +422,17 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ax[i][j].set_xlabel("Freq (MHz)")
                     ax[i][j].set_ylabel("Magnitude (dB)")
                 elif plot_mode[i]=='IQ':
-                    line[line_id][j] = ax[i][j].scatter(sigs[i].real, sigs[i].imag, facecolors='none', edgecolors='b', s=100)
+                    line[line_id][j] = ax[i][j].scatter(sigs[i].real, sigs[i].imag, facecolors='none', edgecolors='b', s=10)
                     line_id+=1
-                    # ax[i][j].set_xlim([-3, 3])
-                    # ax[i][j].set_ylim([-3, 3])
                     ax[i][j].set_title("RX Constellation, Freq {}GHz, RX ant {}".format(self.freq_hop_list[j]/1e9, rx_ant_id))
                     ax[i][j].set_xlabel("In-phase (I)")
                     ax[i][j].set_ylabel("Quadrature (Q)")
                     ax[i][j].axhline(0, color='black',linewidth=0.5)
                     ax[i][j].axvline(0, color='black',linewidth=0.5)
                     ax[i][j].set_aspect('equal')
-                    ax[i][j].set_xlim(min(sigs[i].real)-0, max(sigs[i].real-0))
-                    ax[i][j].set_ylim(min(sigs[i].imag)-0, max(sigs[i].imag-0))
+                    margin = max(np.abs(sigs[i])) * 0.1
+                    ax[i][j].set_xlim(min(sigs[i].real)-margin, max(sigs[i].real+margin))
+                    ax[i][j].set_ylim(min(sigs[i].imag)-margin, max(sigs[i].imag+margin))
                 elif plot_mode[i]=='rxtd_phase':
                     line[line_id][j], = ax[i][j].plot(self.t_rx[:n_samples_rx], sigs[i])
                     line_id+=1
@@ -543,16 +545,20 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             self.print("rxfd_base max freq for antenna {}: {} MHz".format(ant_id, self.freq[(self.nfft>>1)+np.argmax(rxfd_base[self.nfft>>1:])]), thr=4)
 
 
+        if 'pilot_separate' in self.rx_chain:
+            n_samples_rx = self.n_samples_trx * 2
+        else:
+            n_samples_rx = self.n_samples_trx
+
         txtd_base = txtd_base[:,:self.n_samples_trx]
         if 'integrate' in self.rx_chain:
-            rxtd_base = self.integrate_signal(rxtd_base, n_samples=self.n_samples_trx)
-        rxtd_base = rxtd_base[:,:self.n_samples_trx]
+            rxtd_base = self.integrate_signal(rxtd_base, n_samples=n_samples_rx)
 
         if 'sync_time' in self.rx_chain:
             rxtd_base_s = self.sync_time(rxtd_base, txtd_base, sc_range=self.sc_range)
         else:
             rxtd_base_s = rxtd_base.copy()
-            rxtd_base_s = np.stack((rxtd_base_s, rxtd_base_s), axis=0)
+            rxtd_base_s = np.stack((rxtd_base_s, rxtd_base_s), axis=1)
         
         if 'sync_freq' in self.rx_chain:
             cfo_coarse = self.estimate_cfo(txtd_base, rxtd_base_s, mode='coarse', sc_range=self.sc_range)
@@ -561,19 +567,27 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             cfo = cfo_coarse + cfo_fine
             rxtd_base_s = self.sync_frequency(rxtd_base_s, cfo, mode='time')
 
+        if 'pilot_separate' in self.rx_chain:
+            rxtd_pilot_s = rxtd_base_s[:,:,:n_samples_rx//2]
+            rxtd_base_s = rxtd_base_s[:,:,n_samples_rx//2:]
+        else:
+            rxtd_pilot_s = rxtd_base_s.copy()
+        
         rxtd_base = np.stack((rxtd_base_s[0,0,:self.n_samples_trx], rxtd_base_s[1,1,:self.n_samples_trx]), axis=0)
+        rxtd_pilot = np.stack((rxtd_pilot_s[0,0,:self.n_samples_trx], rxtd_pilot_s[1,1,:self.n_samples_trx]), axis=0)
 
         if 'channel_est' in self.rx_chain:
-            if self.deconv_sys_response:
+            if 'sys_res_deconv' in self.rx_chain:
                 sys_response = np.load(self.sys_response_path)['h_est_full_avg']
             else:
                 sys_response = None
             snr_est = self.db_to_lin(self.snr_est_db, mode='pow')
-            h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_base_s, sys_response=sys_response, sc_range_ch=self.sc_range_ch, snr_est=snr_est)
-            self.estimate_mimo_params(txtd_base, rxtd_base, H_est_max)
+            h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_pilot_s, sys_response=sys_response, sc_range_ch=self.sc_range_ch, snr_est=snr_est)
+            self.estimate_mimo_params(txtd_base, rxtd_pilot, H_est_max)
         else:
-            h_est_full, H_est, H_est_max = (None, None, None)
-
+            h_est_full = np.ones((self.n_rx_ant, self.n_tx_ant, self.n_samples_ch), dtype=complex)
+            H_est = np.ones((self.n_rx_ant, self.n_tx_ant), dtype=complex)
+            H_est_max = H_est.copy()
         if 'channel_eq' in self.rx_chain and 'channel_est' in self.rx_chain:
             rxtd_base = self.channel_equalize(txtd_base, rxtd_base, h_est_full, H_est, sc_range=self.sc_range, sc_range_ch=self.sc_range_ch, null_sc_range=self.null_sc_range, n_rx_ch_eq=self.n_rx_ch_eq)
         

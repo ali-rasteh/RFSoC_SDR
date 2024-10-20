@@ -222,7 +222,7 @@ class Signal_Utils(General):
             mse (float): Mean squared error between adjusted signals.
             err2sig_ratio (float): Ratio of MSE to mean squared value of sig_2.
         """
-        n_points = np.shape(sig_1)[0]
+        n_points = min(sig_1.shape[0], sig_2.shape[0])
         delay = int(delay)
 
         # if delay >= 0:
@@ -235,7 +235,8 @@ class Signal_Utils(General):
         sig_1_adj = np.roll(sig_1, -1*delay)
         sig_2_adj = sig_2.copy()
 
-        mse = float(np.mean(np.abs(sig_1_adj[max(-1*delay,0):n_points+min(-1*delay,0)] - sig_2_adj[max(-1*delay,0):n_points+min(-1*delay,0)]) ** 2))
+        # mse = float(np.mean(np.abs(sig_1_adj[max(-1*delay,0):n_points+min(-1*delay,0)] - sig_2_adj[max(-1*delay,0):n_points+min(-1*delay,0)]) ** 2))
+        mse = float(np.mean(np.abs(sig_1_adj[:n_points] - sig_2_adj[:n_points]) ** 2))
         err2sig_ratio = float(mse / np.mean(np.abs(sig_2) ** 2))
 
         return sig_1_adj, sig_2_adj, mse, err2sig_ratio
@@ -244,11 +245,11 @@ class Signal_Utils(General):
     def adjust_frac_delay(self, sig_1, sig_2, frac_delay):
         sig_1 = sig_1.copy()
         sig_2 = sig_2.copy()
-        n_samples = np.shape(sig_1)[0]
+        n_samples = sig_1.shape[0]
 
         sig_1_f = fftshift(fft(sig_1, axis=-1))
         sig_2_f = fftshift(fft(sig_2, axis=-1))
-        omega = self.om_trx
+        omega = np.linspace(-np.pi, np.pi, n_samples)
         sig_1_f = np.exp(1j * omega * frac_delay) * sig_1_f
         sig_1_adj = ifft(ifftshift(sig_1_f), axis=-1)
 
@@ -923,21 +924,22 @@ class Signal_Utils(General):
     
 
     def sync_time(self, rxtd, txtd, sc_range=[0,0]):
+        n_samples_rx = rxtd.shape[-1]
         n_samples = min(txtd.shape[1], rxtd.shape[1])
-        txtd = txtd.copy()[:,:n_samples]
-        rxtd = rxtd.copy()[:,:n_samples]
+        txtd_ = txtd.copy()[:,:n_samples]
+        rxtd_ = rxtd.copy()[:,:n_samples]
         n_rx_ant = rxtd.shape[0]
         n_tx_ant = txtd.shape[0]
-        rxtd_sync = np.zeros((n_rx_ant, n_tx_ant, n_samples), dtype='complex')
+        rxtd_sync = np.zeros((n_rx_ant, n_tx_ant, n_samples_rx), dtype='complex')
 
         for tx_ant_id in range(n_tx_ant):
             for rx_ant_id in range(n_rx_ant):
-                delay = self.extract_delay(rxtd[rx_ant_id], txtd[tx_ant_id])
-                rxtd_sync[rx_ant_id][tx_ant_id], _, _, _ = self.time_adjust(rxtd[rx_ant_id], txtd[tx_ant_id], delay)
+                delay = self.extract_delay(rxtd_[rx_ant_id], txtd_[tx_ant_id])
+                rxtd_sync[rx_ant_id,tx_ant_id], _, _, _ = self.time_adjust(rxtd[rx_ant_id], txtd_[tx_ant_id], delay)
 
-                frac_delay = self.extract_frac_delay(rxtd_sync[rx_ant_id][tx_ant_id], txtd[tx_ant_id], sc_range=sc_range)
+                frac_delay = self.extract_frac_delay(rxtd_sync[rx_ant_id,tx_ant_id,:n_samples], txtd_[tx_ant_id], sc_range=sc_range)
                 # print(f"Fractional delay: {frac_delay}")
-                rxtd_sync[rx_ant_id][tx_ant_id], _ = self.adjust_frac_delay(rxtd_sync[rx_ant_id][tx_ant_id], txtd[tx_ant_id], frac_delay)
+                rxtd_sync[rx_ant_id,tx_ant_id], _ = self.adjust_frac_delay(rxtd_sync[rx_ant_id,tx_ant_id], txtd_[tx_ant_id], frac_delay)
 
         return rxtd_sync
 

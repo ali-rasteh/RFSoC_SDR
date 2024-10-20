@@ -102,7 +102,7 @@ class Params_Class(object):
             self.board='rfsoc_4x2'
             self.n_tx_ant=2
             self.n_rx_ant=2
-            self.ant_dy = 0.5
+            self.ant_dy_m = 0.025
             self.wb_bw_mode='sc'    # sc or freq
             self.wb_bw_range=[-250e6,250e6]
             self.tone_f_mode='sc'    # sc or freq
@@ -120,34 +120,43 @@ class Params_Class(object):
             self.piradio_username = 'wirelesslab914'
             self.piradio_password = 'nyu@1234'
             self.sig_modulation = '4qam'
-
             self.sig_mode='wideband_null'
-            self.rx_chain=['channel_est']        # filter, integrate, sync_time, sync_freq, channel_est, channel_eq
-            self.ant_dx = 2             # Antenna spacing in wavelengths (lambda)
             self.calib_iter = 100
-            self.n_rx_ch_eq=1
-            self.snr_est_db=40
             self.overwrite_level=True
             self.plot_level=0
             self.verbose_level=0
-            self.sig_gen_mode = 'fft'
-            # self.fc = 12.0e9
-            self.fc = 1.0e9
+            self.snr_est_db=40
             # self.freq_hop_list = [6.0e9, 8.0e9, 10.0e9, 12.0e9]
             self.freq_hop_list = [1.0e9]
-            self.n_frame_rd=1
+            self.fc = self.freq_hop_list[0]
+            self.rx_chain=[]        # filter, integrate, sync_time, sync_freq, pilot_separate, channel_est, channel_eq
+
+            self.channel_limit = True
+            self.ant_dx_m = 0.3               # Antenna spacing in meters
+            self.n_rx_ch_eq=1
+            self.sig_gen_mode = 'fft'
+            self.n_frame_rd=2
             self.use_linear_track=False
             self.control_piradio=False
-            self.animate_plot_mode=['rxfd', 'rxtd01', 'aoa_gauge']
+            self.animate_plot_mode=['rxfd', 'rxtd01', 'IQ']
             self.wb_sc_range=[-250,250]
             self.save_list = []           # signal or channel
-            self.deconv_sys_response = False
 
+            # self.rx_chain.append('filter')
+            # self.rx_chain.append('integrate')
+            self.rx_chain.append('sync_time')
+            # self.rx_chain.append('sync_freq')
+            self.rx_chain.append('pilot_separate')
+            # self.rx_chain.append('sys_res_deconv')
+            self.rx_chain.append('channel_est')
+            self.rx_chain.append('channel_eq')
 
 
 
 
         self.wl = constants.c / self.fc
+        self.ant_dx = self.ant_dx_m/self.wl             # Antenna spacing in wavelengths (lambda)
+        self.ant_dy = self.ant_dy_m/self.wl
 
         system_info = platform.uname()
         if "pynq" in system_info.node.lower():
@@ -222,7 +231,6 @@ class Params_Class(object):
             self.f_max = abs(self.f_tone)
             if self.sig_mode == 'tone_1':
                 self.sc_range = [self.sc_tone, self.sc_tone]
-                # self.filter_bw_range = min(2*np.abs(self.f_tone) + 60e6, self.fs_rx-50e6)
                 self.filter_bw_range = [self.f_tone-50e6, self.f_tone+50e6]
             elif self.sig_mode == 'tone_2':
                 self.sc_range = [-1*self.sc_tone, self.sc_tone]
@@ -240,12 +248,14 @@ class Params_Class(object):
         self.seed = [self.seed for i in range(self.n_tx_ant)]
 
 
-        self.sc_range_ch = self.sc_range
-        # self.sc_range_ch = [-1*self.n_samples_trx//2, self.n_samples_trx//2-1]
-        self.n_samples_ch = self.sc_range_ch[1] - self.sc_range_ch[0] + 1
-        # self.n_samples_ch = self.n_samples_trx
-        self.nfft_ch = self.n_samples_ch
-        # self.nfft_ch = self.nfft_trx
+        if self.channel_limit:
+            self.sc_range_ch = self.sc_range
+            self.n_samples_ch = self.sc_range_ch[1] - self.sc_range_ch[0] + 1
+            self.nfft_ch = self.n_samples_ch
+        else:
+            self.sc_range_ch = [-1*self.n_samples_trx//2, self.n_samples_trx//2-1]
+            self.n_samples_ch = self.n_samples_trx
+            self.nfft_ch = self.nfft_trx
 
         if self.n_tx_ant==1 and self.n_rx_ant==1:
             self.ant_dim = 1
