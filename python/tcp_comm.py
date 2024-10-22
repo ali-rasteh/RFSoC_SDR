@@ -295,7 +295,6 @@ class ssh_Com_Piradio(ssh_Com):
 
 
     def set_frequency(self, fc=6.0e9, verif_keyword='done'):
-        # command = f"piradio_cli set_frequency {fc}"        
         command = f"ls"
         result = self.exec_command(command, verif_keyword=verif_keyword)
         if result:

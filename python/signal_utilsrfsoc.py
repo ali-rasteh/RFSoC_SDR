@@ -1,6 +1,7 @@
 from backend import *
 from backend import be_np as np, be_scp as scipy
 from signal_utils import Signal_Utils
+from near_field import Sim as Near_Field_Model, RoomModel
 
 
 
@@ -9,6 +10,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
     def __init__(self, params):
         super().__init__(params)
 
+        self.fc = params.fc
         self.f_max = params.f_max
         self.rx_chain = params.rx_chain
         self.sig_mode = params.sig_mode
@@ -33,6 +35,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.mixer_mode = params.mixer_mode
         self.mix_freq = params.mix_freq
         self.filter_bw_range = params.filter_bw_range
+        self.plt_tx_ant_id = params.plt_tx_ant_id
+        self.plt_rx_ant_id = params.plt_rx_ant_id
+        self.plt_frame_id = params.plt_frame_id
         self.n_tx_ant = params.n_tx_ant
         self.n_rx_ant = params.n_rx_ant
         self.n_rx_ch_eq = params.n_rx_ch_eq
@@ -41,16 +46,24 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.ant_dy_m = params.ant_dy_m
         self.ant_dx = params.ant_dx
         self.ant_dy = params.ant_dy
+        self.nf_param_estimate = params.nf_param_estimate
         self.use_linear_track = params.use_linear_track
         self.control_piradio = params.control_piradio
         self.anim_interval = params.anim_interval
         self.freq_hop_list = params.freq_hop_list
-        self.n_samples_ch = params.n_samples_ch
-        self.nfft_ch = params.nfft_ch
         self.snr_est_db = params.snr_est_db
         self.calib_iter = params.calib_iter
+        self.rx_loc_sep = params.rx_loc_sep
+        self.ant_sep = params.ant_sep
+        self.npath_max = params.npath_max
+        self.nf_walls = params.nf_walls
+        self.rx_sep_dir = params.rx_sep_dir
+        self.nf_stop_thr = params.nf_stop_thr
+        self.n_rd_rep = params.n_rd_rep
+
 
         self.rx_phase_offset = 0
+        self.nf_loc_idx = -1
 
         self.print("signals object initialization done", thr=1)
         
@@ -123,6 +136,54 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         return (txtd_base, txtd)
 
 
+    def create_near_field_model(self):
+        self.RoomModel = RoomModel(xlim=self.nf_walls[0], ylim=self.nf_walls[1])
+        # # Place a source
+        # xsrc = np.array([2,4])
+        # # Find the reflections
+        # xref = self.RoomModel.find_reflection(xsrc)
+        # # Create all the transmitters
+        # xtx =  np.vstack((xsrc, xref))
+
+        room_width = self.nf_walls[0,1] - self.nf_walls[0,0]
+        room_length = self.nf_walls[1,1] - self.nf_walls[1,0]
+        nf_region = self.nf_walls.copy()
+        nf_region[0,0] -= room_width
+        nf_region[0,1] += room_width
+        # nf_region[1,0] -= room_length
+        nf_region[1,1] += room_length
+        self.nf_model = Near_Field_Model(fc=self.fc, fsamp=self.fs_rx, nfft=self.nfft_ch, nantrx=self.n_rx_ant,
+                        rxlocsep=self.rx_loc_sep, sepdir=self.rx_sep_dir, antsep=self.ant_sep, npath_est=self.npath_max, 
+                        stop_thresh=self.nf_stop_thr, region=nf_region, tx=None)
+        
+        self.nf_model.gen_tx_pos()
+        self.nf_model.compute_rx_pos()
+        self.nf_model.compute_freq_resp()
+        self.nf_model.create_tx_test_points()
+        self.nf_model.path_est_init()
+        self.nf_model.locate_tx()
+        # self.nf_model.plot_results(RoomModel=self.RoomModel, plot_type='init_est')
+
+        self.nf_rx_loc = self.nf_model.rxloc
+        self.nf_rx_ant_pos = self.nf_model.rxantpos
+
+        self.print("Near field model created", thr=1)
+    
+
+    def nf_locate_tx(self, h):
+        """
+        Parameters
+        -------
+        h : np.array of shape (nfft,n_rx,n_meas)
+            The channel frequency response.
+        """
+        self.nf_model.chan_td = h
+        self.nf_model.chan_fd = fft(h, axis=-1)
+
+        self.nf_model.path_est_init()
+        self.nf_model.locate_tx()
+
+
     def calibrate_rx_phase_offset(self, client_rfsoc):
         '''
         This function calibrates the phase offset between the receivers ports in RFSoCs
@@ -146,10 +207,13 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             self.print("Calibrated phase offset between RX ports: {:0.3f} Rad".format(self.rx_phase_offset), thr=1)
 
 
-    def save_signal_channel(self, client_tcp, txtd_base, save_list=[]):
-        rx_chain_main = self.rx_chain
+    def save_signal_channel(self, client_rfsoc, txtd_base, save_list=[]):
+        rx_chain_main = self.rx_chain.copy()
         if 'sys_res_deconv' in self.rx_chain:
             self.rx_chain.remove('sys_res_deconv')
+        if 'sparse_est' in self.rx_chain:
+            self.rx_chain.remove('sparse_est')
+        n_rd_rep = 1
 
         # test = np.load(self.sig_save_path)
         txtd_save=[]
@@ -160,8 +224,13 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         for i in range(self.n_save):
             time.sleep(0.01)
             print("Save Iteration: ", i+1)
-            rxtd = client_tcp.receive_data(mode='once')
-            rxtd = rxtd.squeeze(axis=0)
+            rxtd = []
+            for i in range(n_rd_rep):
+                rxtd_ = client_rfsoc.receive_data(mode='once')
+                rxtd_ = rxtd_.squeeze(axis=0)
+                rxtd.append(rxtd_)
+            rxtd = np.array(rxtd)
+            # to handle the dimenstion needed for read repeat
             (rxtd_base, h_est_full, H_est, H_est_max) = self.rx_operations(txtd_base, rxtd)
             txtd_save.append(txtd_base)
             rxtd_save.append(rxtd_base)
@@ -175,14 +244,17 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         H_est_save = np.array(H_est_save)
         H_est_max_save = np.array(H_est_max_save)
 
-        h_est_full_avg = np.mean(h_est_full_save, axis=0)
+        # h_est_full_avg = np.mean(h_est_full_save, axis=0)
+        rxtd_avg = np.mean(rxtd_save, axis=0)
+        self.rx_chain = ['channel_est']
+        (rxtd_avg, h_est_full_avg, H_est_avg, H_est_max_avg) = self.rx_operations(txtd_base, rxtd_avg)
 
         if 'signal' in save_list:
             np.savez(self.sig_save_path, txtd=txtd_save, rxtd=rxtd_save)
         if 'channel' in save_list:
             np.savez(self.channel_save_path, h_est_full=h_est_full_save, h_est_full_avg=h_est_full_avg, H_est=H_est_save, H_est_max=H_est_max_save)
 
-        self.rx_chain = rx_chain_main
+        self.rx_chain = rx_chain_main.copy()
     
 
     def animate_plot(self, client_rfsoc, client_lintrack, client_piradio, txtd_base, plot_mode=['h', 'rxtd', 'rxfd'], plot_level=0):
@@ -192,8 +264,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.fc_id = 0
         n_plots_row = len(plot_mode)
         n_plots_col = len(self.freq_hop_list)
-        tx_ant_id = 0
-        rx_ant_id = 0
+        tx_ant_id = self.plt_tx_ant_id
+        rx_ant_id = self.plt_rx_ant_id
         # n_samples_rx = self.n_samples_rx
         n_samples_rx = self.n_samples_trx
         n_samples_trx = self.n_samples_trx
@@ -201,8 +273,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         n_samples_ch = self.n_samples_ch
 
         def receive_data(txtd_base):
-            rxtd = client_rfsoc.receive_data(mode='once')
-            rxtd = rxtd.squeeze(axis=0)
+            rxtd=[]
+            for i in range(self.n_rd_rep):
+                rxtd_ = client_rfsoc.receive_data(mode='once')
+                rxtd_ = rxtd_.squeeze(axis=0)
+                rxtd.append(rxtd_)
+            rxtd = np.array(rxtd)
             (rxtd_base, h_est_full, H_est, H_est_max) = self.rx_operations(txtd_base, rxtd)
             H_est_full = fft(h_est_full, axis=-1)
             sigs=[]
@@ -273,10 +349,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 elif item=='aoa_gauge':
                     aoa = self.estimate_mimo_params(txtd_base, rxtd_base, H_est_max)
                     sigs.append(aoa)
+                elif item=='nf_loc':
+                    pass
                 else:
                     raise ValueError('Unsupported plot mode: ' + item)
 
-            return (sigs)
+            return (sigs, h_est_full)
 
         def toggle_pause(event):
             if event.key == 'p':  # Press 'p' to pause/resume
@@ -285,11 +363,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         def update(frame):
             if self.anim_paused:
                 return line
-            sigs = receive_data(txtd_base)
-            
-            if self.use_linear_track:
-                client_lintrack.move(distance=-10)
-                # time.sleep(0.1)
+            sigs, h_est_full = receive_data(txtd_base)
 
             if self.control_piradio:
                 self.fc = self.freq_hop_list[int(self.fc_id)]
@@ -302,6 +376,32 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 # time.sleep(0.1)
             else:
                 self.fc_id = 0
+
+            if self.nf_param_estimate:
+                h_index = plot_mode.index('h')
+
+                if self.nf_loc_idx==-1:
+                    # client_lintrack.return2home()
+                    # client_lintrack.go2end()
+                    self.h_nf = []
+                    self.nf_loc_idx+=1
+
+                elif self.nf_loc_idx==len(self.nf_rx_loc):
+                    self.h_nf = np.array(self.h_nf)
+                    self.h_nf = np.transpose(self.h_nf, (2,1,0))
+                    self.nf_locate_tx(self.h_nf)
+                    self.nf_model.plot_results(RoomModel=self.RoomModel, plot_type='init_est')
+
+                    self.nf_loc_idx = -1
+                else:
+                    self.h_nf.append(h_est_full[:,0])
+                    # Just move in the x direction
+                    distance = 1000*(self.nf_rx_loc[self.nf_loc_idx, 0] - self.nf_rx_loc[self.nf_loc_idx-1, 0])
+                    # client_lintrack.move(distance=distance)
+                    # client_lintrack.move(distance=-10)
+                
+                    self.nf_loc_idx+=1
+
 
             line_id = 0
             for i in range(n_plots_row):
@@ -332,6 +432,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ax[i][j].set_xlim(0, 1)
                     ax[i][j].set_ylim(0.5, 1)
                     ax[i][j].axis('off')
+                elif plot_mode[i]=='nf_loc':
+                    pass
                 else:
                     line[line_id][j].set_ydata(sigs[i])
                     line_id+=1
@@ -339,14 +441,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ax[i][j].relim()
                 if plot_mode[i]=='h':
                     ax[i][j].set_ylim(np.min(sigs[i]), 1.1*np.max(sigs[i]))
-                if plot_mode[i]!='aoa_gauge':
+                if plot_mode[i]!='aoa_gauge' and plot_mode[i]!='nf_loc':
                     ax[i][j].autoscale_view()
 
             return line
 
 
         # Set up the figure and plot
-        sigs = receive_data(txtd_base)
+        sigs, _ = receive_data(txtd_base)
         line = [[None for j in range(n_plots_col)] for i in range(2*n_plots_row)]
         fig, ax = plt.subplots(n_plots_row, n_plots_col)
         if type(ax) is not np.ndarray:
@@ -475,6 +577,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ax[i][j].set_xlim(0, 1)
                     ax[i][j].set_ylim(0.5, 1)
                     ax[i][j].axis('off')
+                # elif plot_mode[i]=='nf_loc':
+                #     self.nf_model.plot_results(RoomModel=self.RoomModel, plot_type='init_est')
                 # ax[i].autoscale()
                 ax[i][j].grid(True)
                 if plot_mode[i]!='IQ':
@@ -491,45 +595,53 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
     def rx_operations(self, txtd_base, rxtd):
+        # Expand the dimension for 1 frame received signals
+        if len(rxtd.shape)<3:
+            rxtd = np.expand_dims(rxtd, axis=0)
+        plt_frm_id = self.plt_frame_id
+        n_rd_rep = rxtd.shape[0]
+
         for ant_id in range(self.n_rx_ant):
             title = 'RX signal spectrum for antenna {}'.format(ant_id)
             xlabel = 'Frequency (MHz)'
             ylabel = 'Magnitude (dB)'
-            self.plot_signal(x=self.freq_rx, sigs=rxtd[ant_id], mode='fft', scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=5)
+            self.plot_signal(x=self.freq_rx, sigs=rxtd[plt_frm_id, ant_id], mode='fft', scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=4)
 
             title = 'RX signal in time domain (zoomed) for antenna {}'.format(ant_id)
             xlabel = 'Time (s)'
             ylabel = 'Magnitude'
             n = 4*int(np.round(self.fs_rx/self.f_max))
-            self.plot_signal(x=self.t_rx[:n], sigs=rxtd[ant_id,:n], mode='time_IQ', scale='linear', title=title, xlabel=xlabel, ylabel=ylabel, legend=True, plot_level=5)
+            self.plot_signal(x=self.t_rx[:n], sigs=rxtd[plt_frm_id, ant_id,:n], mode='time_IQ', scale='linear', title=title, xlabel=xlabel, ylabel=ylabel, legend=True, plot_level=4)
 
         if self.mixer_mode == 'digital' and self.mix_freq!=0:
             rxtd_base = np.zeros_like(rxtd)
             for ant_id in range(self.n_rx_ant):
-                rxtd_base[ant_id,:] = self.freq_shift(rxtd[ant_id], shift=-1*self.mix_freq, fs=self.fs_rx)
+                for frm_id in range(n_rd_rep):
+                    rxtd_base[frm_id, ant_id,:] = self.freq_shift(rxtd[frm_id, ant_id], shift=-1*self.mix_freq, fs=self.fs_rx)
 
                 title = 'RX signal spectrum after downconversion for antenna {}'.format(ant_id)
                 xlabel = 'Frequency (MHz)'
                 ylabel = 'Magnitude (dB)'
-                self.plot_signal(x=self.freq_rx, sigs=rxtd_base[ant_id], mode='fft', scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=5)
+                self.plot_signal(x=self.freq_rx, sigs=rxtd_base[plt_frm_id, ant_id], mode='fft', scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=4)
         else:
             rxtd_base = rxtd.copy()
 
         if 'filter' in self.rx_chain:
             for ant_id in range(self.n_rx_ant):
-                cf = (self.filter_bw_range[0]+self.filter_bw_range[1])/2
-                cutoff = self.filter_bw_range[1] - self.filter_bw_range[0]
-                rxtd_base[ant_id,:] = self.filter(rxtd_base[ant_id,:], center_freq=cf, cutoff=cutoff, fil_order=64, plot=False)
+                for frm_id in range(n_rd_rep):
+                    cf = (self.filter_bw_range[0]+self.filter_bw_range[1])/2
+                    cutoff = self.filter_bw_range[1] - self.filter_bw_range[0]
+                    rxtd_base[frm_id, ant_id,:] = self.filter(rxtd_base[frm_id, ant_id,:], center_freq=cf, cutoff=cutoff, fil_order=64, plot=False)
 
                 title = 'RX signal spectrum after filtering in base-band for antenna {}'.format(ant_id)
                 xlabel = 'Frequency (MHz)'
                 ylabel = 'Magnitude (dB)'
-                self.plot_signal(x=self.freq_rx, sigs=rxtd_base[ant_id], mode='fft', scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=5)
+                self.plot_signal(x=self.freq_rx, sigs=rxtd_base[0, ant_id], mode='fft', scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=4)
 
         for ant_id in range(self.n_rx_ant):
             # n_samples = min(len(txtd_base), len(rxtd_base))
             txfd_base = np.abs(fftshift(fft(txtd_base[ant_id,:self.n_samples])))
-            rxfd_base = np.abs(fftshift(fft(rxtd_base[ant_id,:self.n_samples])))
+            rxfd_base = np.abs(fftshift(fft(rxtd_base[plt_frm_id, ant_id,:self.n_samples])))
 
             title = 'TX and RX signals spectrum in base-band for antenna {}'.format(ant_id)
             xlabel = 'Frequency (MHz)'
@@ -555,7 +667,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             rxtd_base = self.integrate_signal(rxtd_base, n_samples=n_samples_rx)
 
         if 'sync_time' in self.rx_chain:
-            rxtd_base_s = self.sync_time(rxtd_base, txtd_base, sc_range=self.sc_range)
+            rxtd_base_s = []
+            for frm_id in range(n_rd_rep):
+                rxtd_base_s_ = self.sync_time(rxtd_base[frm_id], txtd_base, sc_range=self.sc_range)
+                rxtd_base_s.append(rxtd_base_s_)
+            rxtd_base_s = np.array(rxtd_base_s)
         else:
             rxtd_base_s = rxtd_base.copy()
             rxtd_base_s = np.stack((rxtd_base_s, rxtd_base_s), axis=1)
@@ -568,30 +684,46 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             rxtd_base_s = self.sync_frequency(rxtd_base_s, cfo, mode='time')
 
         if 'pilot_separate' in self.rx_chain:
-            rxtd_pilot_s = rxtd_base_s[:,:,:n_samples_rx//2]
-            rxtd_base_s = rxtd_base_s[:,:,n_samples_rx//2:]
+            rxtd_pilot_s = rxtd_base_s[:,:,:,:n_samples_rx//2]
+            rxtd_base_s = rxtd_base_s[:,:,:,n_samples_rx//2:]
         else:
             rxtd_pilot_s = rxtd_base_s.copy()
         
-        rxtd_base = np.stack((rxtd_base_s[0,0,:self.n_samples_trx], rxtd_base_s[1,1,:self.n_samples_trx]), axis=0)
-        rxtd_pilot = np.stack((rxtd_pilot_s[0,0,:self.n_samples_trx], rxtd_pilot_s[1,1,:self.n_samples_trx]), axis=0)
 
+        rxtd_base = np.stack((rxtd_base_s[:,0,0,:self.n_samples_trx], rxtd_base_s[:,1,1,:self.n_samples_trx]), axis=1)
+        rxtd_pilot = np.stack((rxtd_pilot_s[:,0,0,:self.n_samples_trx], rxtd_pilot_s[:,1,1,:self.n_samples_trx]), axis=1)
+        
         if 'channel_est' in self.rx_chain:
             if 'sys_res_deconv' in self.rx_chain:
                 sys_response = np.load(self.sys_response_path)['h_est_full_avg']
+                g = sys_response.transpose(2,0,1)
             else:
                 sys_response = None
+                g = None
             snr_est = self.db_to_lin(self.snr_est_db, mode='pow')
-            h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_pilot_s, sys_response=sys_response, sc_range_ch=self.sc_range_ch, snr_est=snr_est)
-            self.estimate_mimo_params(txtd_base, rxtd_pilot, H_est_max)
+
+            if 'sparse_est' in self.rx_chain:
+                h = []
+                for frm_id in range(n_rd_rep):
+                    h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_pilot_s[frm_id], sys_response=sys_response, sc_range_ch=self.sc_range_ch, snr_est=snr_est)
+                    h.append(h_est_full)
+                h = np.array(h)
+                h = h.transpose(3,1,2,0)
+                (h_tr, dly_est, coeffs_est) = self.sparse_est(h=h, g=g, sc_range_ch=self.sc_range_ch, npaths=1, nframe_avg=1, ndly=5000, drange=[-6,20], cv=True)
+            else:
+                h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_pilot_s[plt_frm_id], sys_response=sys_response, sc_range_ch=self.sc_range_ch, snr_est=snr_est)
+            self.estimate_mimo_params(txtd_base, rxtd_pilot[plt_frm_id], H_est_max)
         else:
             h_est_full = np.ones((self.n_rx_ant, self.n_tx_ant, self.n_samples_ch), dtype=complex)
             H_est = np.ones((self.n_rx_ant, self.n_tx_ant), dtype=complex)
             H_est_max = H_est.copy()
         if 'channel_eq' in self.rx_chain and 'channel_est' in self.rx_chain:
-            rxtd_base = self.channel_equalize(txtd_base, rxtd_base, h_est_full, H_est, sc_range=self.sc_range, sc_range_ch=self.sc_range_ch, null_sc_range=self.null_sc_range, n_rx_ch_eq=self.n_rx_ch_eq)
-        
+            rxtd_base = self.channel_equalize(txtd_base, rxtd_base[plt_frm_id], h_est_full, H_est, sc_range=self.sc_range, sc_range_ch=self.sc_range_ch, null_sc_range=self.null_sc_range, n_rx_ch_eq=self.n_rx_ch_eq)
+            
+
+        if len(rxtd_base.shape)==3:
+            rxtd_base = rxtd_base[plt_frm_id]
+
         return (rxtd_base, h_est_full, H_est, H_est_max)
     
-
 

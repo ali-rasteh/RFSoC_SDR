@@ -10,6 +10,7 @@ class Signal_Utils(General):
     def __init__(self, params):
         super().__init__(params)
         
+        self.fc=getattr(params, 'fc', None)
         self.fs=getattr(params, 'fs', None)
         self.fs_tx=getattr(params, 'fs_tx', self.fs)
         self.fs_rx=getattr(params, 'fs_rx', self.fs)
@@ -18,10 +19,12 @@ class Signal_Utils(General):
         self.n_samples_tx=getattr(params, 'n_samples_tx', self.n_samples)
         self.n_samples_rx=getattr(params, 'n_samples_rx', self.n_samples)
         self.n_samples_trx=getattr(params, 'n_samples_trx', min(self.n_samples_tx, self.n_samples_rx))
+        self.n_samples_ch=getattr(params, 'n_samples_ch', self.n_samples_trx)
         self.nfft = getattr(params, 'nfft', 2 ** np.ceil(np.log2(self.n_samples)).astype(int))
         self.nfft_tx = getattr(params, 'nfft_tx', self.nfft)
         self.nfft_rx = getattr(params, 'nfft_rx', self.nfft)
         self.nfft_trx = getattr(params, 'nfft_trx', min(self.nfft_tx, self.nfft_rx))
+        self.nfft_ch = getattr(params, 'nfft_ch', self.nfft_trx)
         self.snr=getattr(params, 'snr', None)
         self.sig_noise=getattr(params, 'sig_noise', None)
         self.sig_sel_id=getattr(params, 'sig_sel_id', None)
@@ -944,6 +947,171 @@ class Signal_Utils(General):
         return rxtd_sync
 
 
+    def sparse_est(self, h, g=None, sc_range_ch=[0,0], npaths=1, nframe_avg=1, ndly=10000, drange=[-6,20], cv=False):
+        """
+        Estimates the sparse channel using Orthogonal Matching Pursuit (OMP).
+        Parameters:
+        -----------
+        h : np.array of shape (nfft, nrx, ntx, nframe)
+            The time-domain channel estimate.
+        g : np.array of shape (nfft, nrx, ntx)
+            The system response in the time-domain.
+        npaths : int, optional
+            Maximum number of paths to estimate. Default is 1.
+        nframe_avg : int, optional
+            Number of frames to average for channel estimation. Default is 1.
+        ndly : int, optional
+            Number of delay points to test around the peak. Default is 10000.
+        drange : list, optional
+            Range of delays to test around the peak. Default is [-6, 20].
+        cv : bool, optional
+            Whether to use cross-validation to stop the path estimation. Default is True.
+        Raises:
+        -------
+        ValueError
+            If there are not enough frames for cross-validation or averaging.
+        Notes:
+        ------
+        - The method uses cross-validation to stop the path estimation when the test error exceeds the training error by a certain tolerance.
+        - The delays are set to test around the peak of the time-domain channel estimate.
+        - The method uses Orthogonal Matching Pursuit (OMP) to find the sparse solution.        
+        """
+
+        # Number of paths stops when test error exceeds training error
+        # by 1+cv_tol
+        cv_tol = 0.1
+
+        # Compute the channel estimates for training and test
+        # by averaging over the different frames
+
+        H = fft(h, axis=0)
+        nframe = H.shape[3]
+        nfft = H.shape[0]
+        if g is None:
+            G = np.ones((H.shape[0], H.shape[1], H.shape[2]), dtype='complex')
+            g = ifft(G, axis=0)
+            nff_g = nfft
+        else:
+            G = fft(g, axis=0)
+            nff_g = G.shape[0]
+        G = ifftshift(fftshift(G, axes=0)[(sc_range_ch[0]+nff_g//2):(sc_range_ch[1]+nff_g//2+1)], axes=0)
+        if cv:
+            if (nframe < 2*nframe_avg):
+                raise ValueError('Not enough frames for cross-validation')
+            Itr = np.arange(0,nframe_avg)*2
+            Its = Itr + 1
+            H_tr = np.mean(H[:,0,0,Itr], axis=1)
+            H_ts = np.mean(H[:,0,0,Its], axis=1)
+
+            # For the FA probability, we set the threhold to the energy
+            # of the max on nfft random basis functions.  The energy
+            # on each basis function is exponential with mean 1/nfft.
+            # So, the maximum energy is exponential with mean 1/nfft* (\sum_k 1/k)
+            t = np.arange(1, nfft)
+            cv_dec = (1 - 2*np.sum(1/t)/nfft)
+        else:
+            if (nframe < nframe_avg):
+                raise ValueError('Not enough frames for averaging')
+            H_tr = H[:,0,0,:nframe_avg]
+        h_tr = np.fft.ifft(H_tr, axis=0)
+
+        # Set the delays to test around the peak
+        idx = np.argmax(np.abs(h_tr))
+
+        dly_test = (idx + np.linspace(drange[0], drange[1],ndly))/self.fs_trx
+        # Create the basis vectors
+        freq = (np.arange(nfft)/nfft)*self.fs_trx + self.fc - self.fs_trx/2
+        B = G[:,0,0,None]*np.exp(-2*np.pi*1j*freq[:,None] * dly_test[None,:])
+
+        # Use OMP to find the sparse solution
+        coeff_est = np.zeros(npaths)
+        
+        resid = H_tr
+        indices = []
+        indices1 = []
+        mse_tr = np.zeros(npaths)
+        mse_ts = np.zeros(npaths)
+
+        npaths_est = 0
+        for i in range(npaths):
+            
+            # Compute the correlation
+            cor = np.abs(B.conj().T.dot(resid))
+
+            # Add the highest correlation to the list
+            idx = np.argmax(cor)
+            indices1.append(idx)
+
+            # Use least squares to estimate the coefficients
+            coeffs_est = np.linalg.lstsq(B[:,indices1], H_tr, rcond=None)[0]
+
+            # Compute the resulting sparse channel
+            H_sparse = B[:,indices1].dot(coeffs_est)
+
+            # Compute the current residual 
+            resid = H_tr - H_sparse
+            
+            # Compute the MSE on the training data
+            mse_tr[i] = np.mean(np.abs(resid)**2)/np.mean(np.abs(H_tr)**2)
+
+            # Compute the MSE on the test data if CV is used
+            if cv:
+                resid_ts = H_ts - H_sparse
+                mse_ts[i] = np.mean(np.abs(resid_ts)**2)/np.mean(np.abs(H_ts)**2)
+
+                # Check if path is valid
+                if (i > 0):
+                    if (mse_ts[i] > cv_dec*mse_ts[i-1]):
+                        break
+                if (mse_ts[i] > (1+cv_tol)*mse_tr[i]):
+                    break
+
+            # Updated the number of paths
+            npaths_est = i+1
+            indices.append(idx)
+
+        dly_est = dly_test[indices]
+
+        # Use least squares to estimate the coefficients
+        coeffs_est = np.linalg.lstsq(B[:,indices], H_tr, rcond=None)[0]
+
+        # Compute the resulting sparse channel
+        H_sparse = B[:,indices].dot(coeffs_est)
+        h_sparse = np.fft.ifft(H_sparse, axis=0)
+
+
+        # Plot the raw response
+        dly = np.arange(nfft) 
+        dly = dly - nfft*(dly > nfft/2)
+        dly = dly / self.fs_trx
+        chan_pow = 20*np.log10(np.abs(h_tr))
+
+        # Roll the response and shift the response
+        rots = 32
+        yshift = np.percentile(chan_pow, 25)
+        chan_powr = np.roll(chan_pow, rots) - yshift
+        dlyr = np.roll(dly, rots)
+        plt.plot(dlyr[:128]*1e9, chan_powr[:128])
+        plt.grid()
+
+        # Compute the axes
+        ymax = np.max(chan_powr)+5
+        ymin = -10
+
+        # Plot the locations of the detected peaks
+        scale = np.mean(np.abs(G))**2
+        peaks  = 10*np.log10(np.abs(coeffs_est)**2 * scale  )-yshift
+        plt.stem(dly_est*1e9, peaks, 'r-', basefmt='', bottom=ymin)
+        plt.ylim([ymin, ymax])
+        plt.xlabel('Delay [ns]')
+        plt.ylabel('SNR [dB]')
+
+        #plt.savefig('peaks.png')
+        plt.show()
+
+        return (h_tr, dly_est, coeffs_est)
+
+
     def channel_estimate(self, txtd, rxtd_s, sys_response=None, sc_range_ch=[0,0], snr_est=100):
         deconv_sys_response = (sys_response is not None)
 
@@ -977,8 +1145,9 @@ class Signal_Utils(General):
                     txfd_ = txfd[tx_ant_id] * G[rx_ant_id, tx_ant_id]
                 else:
                     txfd_ = txfd[tx_ant_id]
-                tx_pow = np.mean(np.abs(txfd_)**2)
-                noise_pow = tx_pow / snr_est
+                rxfd_ = rxfd_s[rx_ant_id, tx_ant_id]
+                rx_pow = np.mean(np.abs(rxfd_)**2)
+                noise_pow = rx_pow / snr_est
                 H_est_full_ = rxfd_s[rx_ant_id, tx_ant_id] * np.conj(txfd_) / ((np.abs(txfd_)**2) + noise_pow)
                 # H_est_full_ = rxfd[rx_ant_id] * np.conj(txfd_)
                 # H_est_full_ = rxfd[rx_ant_id] / txfd_
@@ -997,13 +1166,13 @@ class Signal_Utils(General):
                 title = 'Channel response in the time domain \n between TX antenna {} and RX antenna {}'.format(tx_ant_id, rx_ant_id)
                 xlabel = 'Time (s)'
                 ylabel = 'Normalized Magnitude (dB)'
-                self.plot_signal(t_ch, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)
+                self.plot_signal(t_ch, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=5)
 
                 sig = np.abs(fftshift(H_est_full_))
                 title = 'Channel response in the frequency domain \n between TX antenna {} and RX antenna {}'.format(tx_ant_id, rx_ant_id)
                 xlabel = 'Frequency (MHz)'
                 ylabel = 'Magnitude (dB)'
-                self.plot_signal(freq_ch, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=3)
+                self.plot_signal(freq_ch, sig, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, plot_level=5)
 
         # H_est = np.linalg.pinv(txfd.T) @ rxfd.T
         # H_est = H_est.T
@@ -1133,10 +1302,15 @@ class Signal_Utils(General):
 
     def angle_of_arrival(self, txtd, rxtd, rx_phase_offset=0):
         phase_diff = self.calc_phase_offset(rxtd[0,:], rxtd[1,:])
-        print("phase_diff: ", phase_diff)
+        # print("phase_diff: ", phase_diff)
         rx_phase = phase_diff - rx_phase_offset
-        print("rx_phase: ", rx_phase)
-        angle = np.arcsin(rx_phase/(2*np.pi*self.ant_dx))
+        # print("rx_phase: ", rx_phase)
+        angle_sin = rx_phase/(2*np.pi*self.ant_dx)
+        if angle_sin > 1 or angle_sin < -1:
+            angle = np.nan
+            self.print("AoA sin is out of range: {}".format(angle_sin), 1)
+        else:
+            angle = np.arcsin(angle_sin)
 
         return angle
     
@@ -1152,7 +1326,7 @@ class Signal_Utils(General):
             rx_phase = np.mean(np.angle(U[0,:]*np.conj(U[1,:])))
             tx_phase = np.mean(np.angle(Vh[:,0]*np.conj(Vh[:,1])))
         aoa = self.angle_of_arrival(txtd=txtd, rxtd=rxtd, rx_phase_offset=self.rx_phase_offset)
-        print("AoA: {} deg".format(np.rad2deg(aoa)))
+        # print("AoA: {} deg".format(np.rad2deg(aoa)))
 
         return aoa
 
@@ -1251,7 +1425,10 @@ class Signal_Utils(General):
 
 
     def gauge_update_needle(self, ax, value, min_val=90, max_val=-90):
-        angle = (value - min_val) * 180 / (max_val - min_val)
+        if value != np.nan:
+            angle = (value - min_val) * 180 / (max_val - min_val)
+        else:
+            return
         x = 0.5 + 0.35 * np.cos(np.radians(angle))
         y = 0.5 + 0.35 * np.sin(np.radians(angle))
 

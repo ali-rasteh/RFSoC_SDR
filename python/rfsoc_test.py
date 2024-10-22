@@ -71,8 +71,8 @@ class Params_Class(object):
             self.mix_phase_off=0.0
             self.calib_params_path=os.path.join(os.getcwd(), 'calib/calib_params.npz')
             self.sig_path=os.path.join(os.getcwd(), 'sigs/txtd.npz')
-            self.sig_save_path=os.path.join(os.getcwd(), 'sigs/mimo_trx.npz')
-            self.channel_save_path=os.path.join(os.getcwd(), 'channels/channel_response.npz')
+            self.sig_save_path=os.path.join(os.getcwd(), 'sigs/trx.npz')
+            self.channel_save_path=os.path.join(os.getcwd(), 'channels/channel.npz')
             self.sys_response_path=self.channel_save_path
             self.wb_null_sc=0
             self.tcp_localIP = "0.0.0.0"
@@ -115,10 +115,10 @@ class Params_Class(object):
             self.beamforming=False
             self.steer_phi_deg = 30        # Desired steering azimuth in degrees
             self.anim_interval=500
-            self.piradio_host = '10.18.239.141'
+            self.piradio_host = '192.168.137.51'
             self.piradio_port = '22'
-            self.piradio_username = 'wirelesslab914'
-            self.piradio_password = 'nyu@1234'
+            self.piradio_username = 'ubuntu'
+            self.piradio_password = 'temppwd'
             self.sig_modulation = '4qam'
             self.sig_mode='wideband_null'
             self.calib_iter = 100
@@ -126,34 +126,48 @@ class Params_Class(object):
             self.plot_level=0
             self.verbose_level=0
             self.snr_est_db=40
-            # self.freq_hop_list = [6.0e9, 8.0e9, 10.0e9, 12.0e9]
-            self.freq_hop_list = [1.0e9]
-            self.fc = self.freq_hop_list[0]
             self.rx_chain=[]        # filter, integrate, sync_time, sync_freq, pilot_separate, channel_est, channel_eq
+            self.nf_walls = np.array([[-3,3], [-1,8]])
+            # self.rx_loc_sep = np.array([0,1])
+            self.rx_loc_sep = np.array([0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1])
+            self.rx_sep_dir = np.array([1,0])
+            # self.ant_sep = np.array([0.5,1,2,4])
+            self.ant_sep = np.array([0.5])
 
-            self.channel_limit = True
-            self.ant_dx_m = 0.3               # Antenna spacing in meters
-            self.n_rx_ch_eq=1
-            self.sig_gen_mode = 'fft'
-            self.n_frame_rd=2
+            # self.freq_hop_list = [6.0e9, 8.0e9, 10.0e9, 12.0e9]
+            self.freq_hop_list = [10.0e9]
+            self.nf_stop_thr = 0.03
+            self.npath_max = 10
+            self.plt_tx_ant_id = 0
+            self.plt_rx_ant_id = 0
+            self.plt_frame_id = 0
+            self.nf_param_estimate = False
             self.use_linear_track=False
             self.control_piradio=False
-            self.animate_plot_mode=['rxfd', 'rxtd01', 'IQ']
+            self.channel_limit = True              # TODO: There is a bug, we need to manually set this to False for channel saving
+            self.ant_dx_m = 0.020               # Antenna spacing in meters
+            self.n_rx_ch_eq=1
+            self.sig_gen_mode = 'fft'
+            self.n_rd_rep=1
+            self.n_frame_rd=2
+            self.animate_plot_mode=['rxfd', 'h', 'aoa_gauge']
             self.wb_sc_range=[-250,250]
-            self.save_list = []           # signal or channel
+            self.save_list = ['', '']           # signal or channel
 
             # self.rx_chain.append('filter')
             # self.rx_chain.append('integrate')
             self.rx_chain.append('sync_time')
             # self.rx_chain.append('sync_freq')
-            self.rx_chain.append('pilot_separate')
+            # self.rx_chain.append('pilot_separate')
             # self.rx_chain.append('sys_res_deconv')
             self.rx_chain.append('channel_est')
-            self.rx_chain.append('channel_eq')
+            # self.rx_chain.append('sparse_est')
+            # self.rx_chain.append('channel_eq')
 
 
 
 
+        self.fc = self.freq_hop_list[0]
         self.wl = constants.c / self.fc
         self.ant_dx = self.ant_dx_m/self.wl             # Antenna spacing in wavelengths (lambda)
         self.ant_dy = self.ant_dy_m/self.wl
@@ -162,8 +176,9 @@ class Params_Class(object):
         if "pynq" in system_info.node.lower():
             self.mode = 'server'
             if self.overwrite_level:
-                self.plot_level=5
+                self.plot_level=4
                 self.verbose_level=4
+                self.nf_param_estimate=False
                 self.use_linear_track=False
                 self.control_piradio=False
         else:
@@ -171,6 +186,8 @@ class Params_Class(object):
             if self.overwrite_level:
                 self.plot_level=0
                 self.verbose_level=1
+            # if self.nf_param_estimate:
+            #     self.use_linear_track=True
 
         self.server_ip = None
         self.steer_phi_rad = np.deg2rad(self.steer_phi_deg)
@@ -248,7 +265,7 @@ class Params_Class(object):
         self.seed = [self.seed for i in range(self.n_tx_ant)]
 
 
-        if self.channel_limit:
+        if self.channel_limit and not ('channel' in self.save_list):
             self.sc_range_ch = self.sc_range
             self.n_samples_ch = self.sc_range_ch[1] - self.sc_range_ch[0] + 1
             self.nfft_ch = self.n_samples_ch
@@ -313,10 +330,10 @@ def rfsoc_run(params):
                 client_rfsoc.set_mode('RXen1_TXen0')
                 client_rfsoc.set_rx_gain()
 
-        if params.mode != 'server':
-            signals_inst.calibrate_rx_phase_offset(client_rfsoc)
+        signals_inst.calibrate_rx_phase_offset(client_rfsoc)
+        signals_inst.create_near_field_model()
 
-        if len(params.save_list)>0:
+        if 'channel' in params.save_list or 'signal' in params.save_list:
             signals_inst.save_signal_channel(client_rfsoc, txtd_base, save_list=params.save_list)
         signals_inst.animate_plot(client_rfsoc, client_lintrack, client_piradio, txtd_base, plot_mode=params.animate_plot_mode, plot_level=0)
        
