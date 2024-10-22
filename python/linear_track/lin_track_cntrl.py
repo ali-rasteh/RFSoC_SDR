@@ -300,7 +300,7 @@ def lintrack_run(params):
 
     # lt.calibrate()
     # lt.interactive_move()
-    lt.return2home()
+    # lt.return2home()
 
     if params.run_tcp_server:
         lt.run_tcp()

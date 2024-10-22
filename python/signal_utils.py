@@ -928,7 +928,7 @@ class Signal_Utils(General):
 
     def sync_time(self, rxtd, txtd, sc_range=[0,0]):
         n_samples_rx = rxtd.shape[-1]
-        n_samples = min(txtd.shape[1], rxtd.shape[1])
+        n_samples = min(txtd.shape[-1], rxtd.shape[-1])
         txtd_ = txtd.copy()[:,:n_samples]
         rxtd_ = rxtd.copy()[:,:n_samples]
         n_rx_ant = rxtd.shape[0]
@@ -977,6 +977,8 @@ class Signal_Utils(General):
         - The method uses Orthogonal Matching Pursuit (OMP) to find the sparse solution.        
         """
 
+        irx = 1
+        itx = 0
         # Number of paths stops when test error exceeds training error
         # by 1+cv_tol
         cv_tol = 0.1
@@ -987,6 +989,8 @@ class Signal_Utils(General):
         H = fft(h, axis=0)
         nframe = H.shape[3]
         nfft = H.shape[0]
+        n_rx_ant = H.shape[1]
+        n_tx_ant = H.shape[2]
         if g is None:
             G = np.ones((H.shape[0], H.shape[1], H.shape[2]), dtype='complex')
             g = ifft(G, axis=0)
@@ -995,121 +999,109 @@ class Signal_Utils(General):
             G = fft(g, axis=0)
             nff_g = G.shape[0]
         G = ifftshift(fftshift(G, axes=0)[(sc_range_ch[0]+nff_g//2):(sc_range_ch[1]+nff_g//2+1)], axes=0)
-        if cv:
-            if (nframe < 2*nframe_avg):
-                raise ValueError('Not enough frames for cross-validation')
-            Itr = np.arange(0,nframe_avg)*2
-            Its = Itr + 1
-            H_tr = np.mean(H[:,0,0,Itr], axis=1)
-            H_ts = np.mean(H[:,0,0,Its], axis=1)
 
-            # For the FA probability, we set the threhold to the energy
-            # of the max on nfft random basis functions.  The energy
-            # on each basis function is exponential with mean 1/nfft.
-            # So, the maximum energy is exponential with mean 1/nfft* (\sum_k 1/k)
-            t = np.arange(1, nfft)
-            cv_dec = (1 - 2*np.sum(1/t)/nfft)
-        else:
-            if (nframe < nframe_avg):
-                raise ValueError('Not enough frames for averaging')
-            H_tr = H[:,0,0,:nframe_avg]
-        h_tr = np.fft.ifft(H_tr, axis=0)
+        h_tr_mat = [[None for i in range(n_tx_ant)] for j in range(n_rx_ant)]
+        dly_est_mat = [[[] for i in range(n_tx_ant)] for j in range(n_rx_ant)]
+        peaks_mat = [[[] for i in range(n_tx_ant)] for j in range(n_rx_ant)]
 
-        # Set the delays to test around the peak
-        idx = np.argmax(np.abs(h_tr))
+        for irx in range(n_rx_ant):
+            for itx in range(n_tx_ant):
+                if cv:
+                    if (nframe < 2*nframe_avg):
+                        raise ValueError('Not enough frames for cross-validation')
+                    Itr = np.arange(0,nframe_avg)*2
+                    Its = Itr + 1
+                    H_tr = np.mean(H[:,irx,itx,Itr], axis=1)
+                    H_ts = np.mean(H[:,irx,itx,Its], axis=1)
 
-        dly_test = (idx + np.linspace(drange[0], drange[1],ndly))/self.fs_trx
-        # Create the basis vectors
-        freq = (np.arange(nfft)/nfft)*self.fs_trx + self.fc - self.fs_trx/2
-        B = G[:,0,0,None]*np.exp(-2*np.pi*1j*freq[:,None] * dly_test[None,:])
+                    # For the FA probability, we set the threhold to the energy
+                    # of the max on nfft random basis functions.  The energy
+                    # on each basis function is exponential with mean 1/nfft.
+                    # So, the maximum energy is exponential with mean 1/nfft* (\sum_k 1/k)
+                    t = np.arange(1, nfft)
+                    cv_dec = (1 - 2*np.sum(1/t)/nfft)
+                else:
+                    if (nframe < nframe_avg):
+                        raise ValueError('Not enough frames for averaging')
+                    H_tr = H[:,irx,itx,:nframe_avg]
+                h_tr = np.fft.ifft(H_tr, axis=0)
 
-        # Use OMP to find the sparse solution
-        coeff_est = np.zeros(npaths)
+                # Set the delays to test around the peak
+                idx = np.argmax(np.abs(h_tr))
+
+                dly_test = (idx + np.linspace(drange[0], drange[1],ndly))/self.fs_trx
+                # Create the basis vectors
+                freq = (np.arange(nfft)/nfft)*self.fs_trx + self.fc - self.fs_trx/2
+                B = G[:,irx,itx,None]*np.exp(-2*np.pi*1j*freq[:,None] * dly_test[None,:])
+
+                # Use OMP to find the sparse solution
+                coeff_est = np.zeros(npaths)
+                
+                resid = H_tr
+                indices = []
+                indices1 = []
+                mse_tr = np.zeros(npaths)
+                mse_ts = np.zeros(npaths)
+
+                npaths_est = 0
+                for i in range(npaths):
+                    
+                    # Compute the correlation
+                    cor = np.abs(B.conj().T.dot(resid))
+
+                    # Add the highest correlation to the list
+                    idx = np.argmax(cor)
+                    indices1.append(idx)
+
+                    # Use least squares to estimate the coefficients
+                    coeffs_est = np.linalg.lstsq(B[:,indices1], H_tr, rcond=None)[0]
+
+                    # Compute the resulting sparse channel
+                    H_sparse = B[:,indices1].dot(coeffs_est)
+
+                    # Compute the current residual 
+                    resid = H_tr - H_sparse
+                    
+                    # Compute the MSE on the training data
+                    mse_tr[i] = np.mean(np.abs(resid)**2)/np.mean(np.abs(H_tr)**2)
+
+                    # Compute the MSE on the test data if CV is used
+                    if cv:
+                        resid_ts = H_ts - H_sparse
+                        mse_ts[i] = np.mean(np.abs(resid_ts)**2)/np.mean(np.abs(H_ts)**2)
+
+                        # Check if path is valid
+                        if (i > 0):
+                            if (mse_ts[i] > cv_dec*mse_ts[i-1]):
+                                break
+                        if (mse_ts[i] > (1+cv_tol)*mse_tr[i]):
+                            break
+
+                    # Updated the number of paths
+                    npaths_est = i+1
+                    indices.append(idx)
+
+                dly_est = dly_test[indices]
+
+                # Use least squares to estimate the coefficients
+                coeffs_est = np.linalg.lstsq(B[:,indices], H_tr, rcond=None)[0]
+
+                # Compute the resulting sparse channel
+                H_sparse = B[:,indices].dot(coeffs_est)
+                h_sparse = np.fft.ifft(H_sparse, axis=0)
+
+                scale = np.mean(np.abs(G))**2
+                peaks  = np.abs(coeffs_est)**2 * scale
+
+                h_tr_mat[irx][itx] = h_tr.copy()
+                dly_est_mat[irx][itx] = dly_est.copy()
+                peaks_mat[irx][itx] = peaks.copy()
         
-        resid = H_tr
-        indices = []
-        indices1 = []
-        mse_tr = np.zeros(npaths)
-        mse_ts = np.zeros(npaths)
+        h_tr_mat = np.array(h_tr_mat)
+        dly_est_mat = np.array(dly_est_mat)
+        peaks_mat = np.array(peaks_mat)
 
-        npaths_est = 0
-        for i in range(npaths):
-            
-            # Compute the correlation
-            cor = np.abs(B.conj().T.dot(resid))
-
-            # Add the highest correlation to the list
-            idx = np.argmax(cor)
-            indices1.append(idx)
-
-            # Use least squares to estimate the coefficients
-            coeffs_est = np.linalg.lstsq(B[:,indices1], H_tr, rcond=None)[0]
-
-            # Compute the resulting sparse channel
-            H_sparse = B[:,indices1].dot(coeffs_est)
-
-            # Compute the current residual 
-            resid = H_tr - H_sparse
-            
-            # Compute the MSE on the training data
-            mse_tr[i] = np.mean(np.abs(resid)**2)/np.mean(np.abs(H_tr)**2)
-
-            # Compute the MSE on the test data if CV is used
-            if cv:
-                resid_ts = H_ts - H_sparse
-                mse_ts[i] = np.mean(np.abs(resid_ts)**2)/np.mean(np.abs(H_ts)**2)
-
-                # Check if path is valid
-                if (i > 0):
-                    if (mse_ts[i] > cv_dec*mse_ts[i-1]):
-                        break
-                if (mse_ts[i] > (1+cv_tol)*mse_tr[i]):
-                    break
-
-            # Updated the number of paths
-            npaths_est = i+1
-            indices.append(idx)
-
-        dly_est = dly_test[indices]
-
-        # Use least squares to estimate the coefficients
-        coeffs_est = np.linalg.lstsq(B[:,indices], H_tr, rcond=None)[0]
-
-        # Compute the resulting sparse channel
-        H_sparse = B[:,indices].dot(coeffs_est)
-        h_sparse = np.fft.ifft(H_sparse, axis=0)
-
-
-        # Plot the raw response
-        dly = np.arange(nfft) 
-        dly = dly - nfft*(dly > nfft/2)
-        dly = dly / self.fs_trx
-        chan_pow = 20*np.log10(np.abs(h_tr))
-
-        # Roll the response and shift the response
-        rots = 32
-        yshift = np.percentile(chan_pow, 25)
-        chan_powr = np.roll(chan_pow, rots) - yshift
-        dlyr = np.roll(dly, rots)
-        plt.plot(dlyr[:128]*1e9, chan_powr[:128])
-        plt.grid()
-
-        # Compute the axes
-        ymax = np.max(chan_powr)+5
-        ymin = -10
-
-        # Plot the locations of the detected peaks
-        scale = np.mean(np.abs(G))**2
-        peaks  = 10*np.log10(np.abs(coeffs_est)**2 * scale  )-yshift
-        plt.stem(dly_est*1e9, peaks, 'r-', basefmt='', bottom=ymin)
-        plt.ylim([ymin, ymax])
-        plt.xlabel('Delay [ns]')
-        plt.ylabel('SNR [dB]')
-
-        #plt.savefig('peaks.png')
-        plt.show()
-
-        return (h_tr, dly_est, coeffs_est)
+        return (h_tr_mat, dly_est_mat, peaks_mat)
 
 
     def channel_estimate(self, txtd, rxtd_s, sys_response=None, sc_range_ch=[0,0], snr_est=100):
@@ -1158,7 +1150,7 @@ class Signal_Utils(General):
                 H_est_full[rx_ant_id, tx_ant_id, :] = H_est_full_.copy()
                 h_est_full[rx_ant_id, tx_ant_id, :] = h_est_full_.copy()
 
-                im = np.argmax(h_est_full_)
+                im = np.argmax(np.abs(h_est_full_))
                 h_est_full_ = np.roll(h_est_full_, -im + len(h_est_full_)//10)
                 h_est_full_ = h_est_full_.flatten()
 

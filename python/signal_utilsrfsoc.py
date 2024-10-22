@@ -55,7 +55,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.calib_iter = params.calib_iter
         self.rx_loc_sep = params.rx_loc_sep
         self.ant_sep = params.ant_sep
-        self.npath_max = params.npath_max
+        self.nf_npath_max = params.nf_npath_max
         self.nf_walls = params.nf_walls
         self.rx_sep_dir = params.rx_sep_dir
         self.nf_stop_thr = params.nf_stop_thr
@@ -153,7 +153,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         # nf_region[1,0] -= room_length
         nf_region[1,1] += room_length
         self.nf_model = Near_Field_Model(fc=self.fc, fsamp=self.fs_rx, nfft=self.nfft_ch, nantrx=self.n_rx_ant,
-                        rxlocsep=self.rx_loc_sep, sepdir=self.rx_sep_dir, antsep=self.ant_sep, npath_est=self.npath_max, 
+                        rxlocsep=self.rx_loc_sep, sepdir=self.rx_sep_dir, antsep=self.ant_sep, npath_est=self.nf_npath_max, 
                         stop_thresh=self.nf_stop_thr, region=nf_region, tx=None)
         
         self.nf_model.gen_tx_pos()
@@ -231,7 +231,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 rxtd.append(rxtd_)
             rxtd = np.array(rxtd)
             # to handle the dimenstion needed for read repeat
-            (rxtd_base, h_est_full, H_est, H_est_max) = self.rx_operations(txtd_base, rxtd)
+            (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd)
             txtd_save.append(txtd_base)
             rxtd_save.append(rxtd_base)
             h_est_full_save.append(h_est_full)
@@ -247,7 +247,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         # h_est_full_avg = np.mean(h_est_full_save, axis=0)
         rxtd_avg = np.mean(rxtd_save, axis=0)
         self.rx_chain = ['channel_est']
-        (rxtd_avg, h_est_full_avg, H_est_avg, H_est_max_avg) = self.rx_operations(txtd_base, rxtd_avg)
+        (rxtd_avg, h_est_full_avg, H_est_avg, H_est_max_avg, sparse_est_params) = self.rx_operations(txtd_base, rxtd_avg)
 
         if 'signal' in save_list:
             np.savez(self.sig_save_path, txtd=txtd_save, rxtd=rxtd_save)
@@ -271,6 +271,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         n_samples_trx = self.n_samples_trx
         n_samples_rx01 = 100
         n_samples_ch = self.n_samples_ch
+        n_samp_ch_sp = n_samples_ch // 2
 
         def receive_data(txtd_base):
             rxtd=[]
@@ -279,19 +280,29 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 rxtd_ = rxtd_.squeeze(axis=0)
                 rxtd.append(rxtd_)
             rxtd = np.array(rxtd)
-            (rxtd_base, h_est_full, H_est, H_est_max) = self.rx_operations(txtd_base, rxtd)
+            (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd)
             H_est_full = fft(h_est_full, axis=-1)
             sigs=[]
             for item in plot_mode:
                 if item=='h':
                     h_est_full_ = h_est_full[rx_ant_id, tx_ant_id].copy()
-                    im = np.argmax(h_est_full_)
+                    im = np.argmax(np.abs(h_est_full_))
                     h_est_full_ = np.roll(h_est_full_, -im + len(h_est_full_)//10)
                     h_est_full_ = self.lin_to_db(np.abs(h_est_full_), mode='mag')
                     # h_est_full_ = self.lin_to_db(np.abs(h_est_full_) / np.max(np.abs(h_est_full_)), mode='mag')
                     p = np.percentile(h_est_full_, 25)
                     h_est_full_ = h_est_full_ - p
                     sigs.append(h_est_full_)
+                elif item=='h01':
+                    h_est_full_ = h_est_full[:, tx_ant_id, :].copy()
+                    im = np.argmax(np.abs(h_est_full_[0]), axis=-1)
+                    h_est_full_ = np.roll(h_est_full_, -im + len(h_est_full_[0])//10, axis=-1)
+                    h_est_full_ = self.lin_to_db(np.abs(h_est_full_), mode='mag')
+                    p = np.percentile(h_est_full_[0], 25, axis=-1)
+                    h_est_full_ = h_est_full_ - p
+                    sigs.append([h_est_full_[0], h_est_full_[1]])
+                elif item=='h_sparse':
+                    sigs.append(sparse_est_params)
                 elif item=='H':
                     H_est_full_ = H_est_full[rx_ant_id, tx_ant_id]
                     sigs.append(self.lin_to_db(np.abs(fftshift(H_est_full_)), mode='mag'))
@@ -416,7 +427,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     line_id+=1
                     line[line_id][j].set_ydata(sigs[i].imag)
                     line_id+=1
-                elif plot_mode[i]=='rxtd01' or plot_mode[i]=='rxfd01':
+                elif plot_mode[i]=='h01':
+                    line[line_id][j].set_ydata(sigs[i][0])
+                    line_id+=1
+                    line[line_id][j].set_ydata(sigs[i][1])
+                    line_id+=1
+                elif plot_mode[i]=='rxtd01' or plot_mode[i]=='rxfd01' or plot_mode[i]=='h01':
                     line[line_id][j].set_ydata(sigs[i][0])
                     line_id+=1
                     line[line_id][j].set_ydata(sigs[i][1])
@@ -432,16 +448,53 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ax[i][j].set_xlim(0, 1)
                     ax[i][j].set_ylim(0.5, 1)
                     ax[i][j].axis('off')
+                elif plot_mode[i]=='h_sparse':
+                    (h_tr, dly_est, peaks) = sigs[i]
+                    h_tr = h_tr[rx_ant_id, tx_ant_id]
+                    dly_est = dly_est[rx_ant_id, tx_ant_id]
+                    peaks = peaks[rx_ant_id, tx_ant_id]
+                    
+                    # Plot the raw response
+                    dly = np.arange(n_samples_ch)
+                    dly = dly - n_samples_ch*(dly > n_samples_ch/2)
+                    dly = dly / self.fs_trx *1e9
+                    chan_pow = self.lin_to_db(np.abs(h_tr), mode='mag')
+
+                    # Roll the response and shift the response
+                    rots = n_samp_ch_sp//4
+                    yshift = np.percentile(chan_pow, 25)
+                    chan_powr = np.roll(chan_pow, rots) - yshift
+                    dlyr = np.roll(dly, rots)
+                    line[line_id][j].set_data(dlyr[:n_samp_ch_sp], chan_powr[:n_samp_ch_sp])
+                    line_id+=1
+
+                    # Compute the axes
+                    ymax = np.max(chan_powr)+5
+                    ymin = -10
+
+                    # Plot the locations of the detected peaks
+                    peaks  = self.lin_to_db(peaks, mode='pow')-yshift
+                    dly_est *= 1e9
+                    dly_est = dly_est[dly_est<=np.max(dlyr[:n_samp_ch_sp])]
+                    line[line_id][j].set_data(dly_est, peaks)
+                    line_id+=1
+                    # for dly, peak in zip(dly_est, peaks):
+                    #     # line[line_id][j].set_ydata([dly, peak])
+                    #     line[line_id][j].set_segments([[[dly, ymin], [dly, peak]]])
+                    line[line_id][j].set_segments([[[i,ymin], [i,j]] for i,j in zip(dly_est, peaks)])
+                    line_id+=1
+                    ax[i][j].set_ylim([ymin, ymax])
                 elif plot_mode[i]=='nf_loc':
                     pass
                 else:
                     line[line_id][j].set_ydata(sigs[i])
                     line_id+=1
-                if plot_mode[i]!='IQ' and plot_mode[i]!='aoa_gauge':
+
+                if plot_mode[i]=='h' or plot_mode[i]=='h01' or plot_mode[i]=='h_sparse':
+                    # ax[i][j].set_ylim(np.min(sigs[i]), 1.1*np.max(sigs[i]))
+                    ax[i][j].set_ylim(-10,60)
+                if plot_mode[i]!='IQ' and plot_mode[i]!='aoa_gauge' and plot_mode[i]!='nf_loc':
                     ax[i][j].relim()
-                if plot_mode[i]=='h':
-                    ax[i][j].set_ylim(np.min(sigs[i]), 1.1*np.max(sigs[i]))
-                if plot_mode[i]!='aoa_gauge' and plot_mode[i]!='nf_loc':
                     ax[i][j].autoscale_view()
 
             return line
@@ -467,6 +520,24 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ax[i][j].set_title("Channel-Mag-TD, Freq {}, TX ant {}, RX ant {}".format(self.freq_hop_list[j]/1e9, tx_ant_id, rx_ant_id))
                     ax[i][j].set_xlabel("Time (s)")
                     ax[i][j].set_ylabel("Normalized Magnitude (dB)")
+                elif plot_mode[i]=='h01':
+                    line[line_id][j], = ax[i][j].plot(self.t_trx[:n_samples_ch], sigs[i][0], label='Antenna 0')
+                    line_id+=1
+                    line[line_id][j], = ax[i][j].plot(self.t_trx[:n_samples_ch], sigs[i][1], label='Antenna 1')
+                    line_id+=1
+                    ax[i][j].set_title("Channel-Mag-TD, Freq {}, RX ant 0/1".format(self.freq_hop_list[j]/1e9))
+                    ax[i][j].set_xlabel("Time (s)")
+                    ax[i][j].set_ylabel("Normalized Magnitude (dB)")
+                elif plot_mode[i]=='h_sparse':
+                    # (h_tr, dly_est, peaks) = sigs[i]
+                    line[line_id][j], = ax[i][j].plot([], [])
+                    line_id+=1
+                    # (markerline, stemlines, baseline)
+                    line[line_id][j], line[line_id+1][j], _ = ax[i][j].stem([0], [1], 'r-', basefmt='', bottom=-10)
+                    # line[line_id][j], line[line_id+1][j], _ = ax[i][j].stem([0], [1], use_line_collection=True)
+                    line_id+=2
+                    ax[i][j].set_xlabel('Delay [ns]')
+                    ax[i][j].set_ylabel('SNR [dB]')
                 elif plot_mode[i]=='H':
                     line[line_id][j], = ax[i][j].plot(self.freq_trx[(self.sc_range_ch[0]+n_samples_trx//2):(self.sc_range_ch[1]+n_samples_trx//2+1)], sigs[i])
                     line_id+=1
@@ -579,6 +650,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ax[i][j].axis('off')
                 # elif plot_mode[i]=='nf_loc':
                 #     self.nf_model.plot_results(RoomModel=self.RoomModel, plot_type='init_est')
+
                 # ax[i].autoscale()
                 ax[i][j].grid(True)
                 if plot_mode[i]!='IQ':
@@ -590,7 +662,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         # Create the animation
         plt.tight_layout()
         plt.subplots_adjust(hspace=0.4, wspace=0.4)
-        anim = animation.FuncAnimation(fig, update, frames=1000000000, interval=self.anim_interval, blit=False)
+        anim = animation.FuncAnimation(fig, update, frames=int(1e9), interval=self.anim_interval, blit=False)
         plt.show()
 
 
@@ -598,6 +670,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         # Expand the dimension for 1 frame received signals
         if len(rxtd.shape)<3:
             rxtd = np.expand_dims(rxtd, axis=0)
+        sparse_est_params = None
         plt_frm_id = self.plt_frame_id
         n_rd_rep = rxtd.shape[0]
 
@@ -690,16 +763,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             rxtd_pilot_s = rxtd_base_s.copy()
         
 
-        rxtd_base = np.stack((rxtd_base_s[:,0,0,:self.n_samples_trx], rxtd_base_s[:,1,1,:self.n_samples_trx]), axis=1)
-        rxtd_pilot = np.stack((rxtd_pilot_s[:,0,0,:self.n_samples_trx], rxtd_pilot_s[:,1,1,:self.n_samples_trx]), axis=1)
+        rxtd_base = np.stack((rxtd_base_s[:,0,0,:self.n_samples_trx], rxtd_base_s[:,1,0,:self.n_samples_trx]), axis=1)
+        rxtd_pilot = np.stack((rxtd_pilot_s[:,0,0,:self.n_samples_trx], rxtd_pilot_s[:,1,0,:self.n_samples_trx]), axis=1)
         
         if 'channel_est' in self.rx_chain:
             if 'sys_res_deconv' in self.rx_chain:
                 sys_response = np.load(self.sys_response_path)['h_est_full_avg']
-                g = sys_response.transpose(2,0,1)
             else:
                 sys_response = None
-                g = None
             snr_est = self.db_to_lin(self.snr_est_db, mode='pow')
 
             if 'sparse_est' in self.rx_chain:
@@ -709,7 +780,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     h.append(h_est_full)
                 h = np.array(h)
                 h = h.transpose(3,1,2,0)
-                (h_tr, dly_est, coeffs_est) = self.sparse_est(h=h, g=g, sc_range_ch=self.sc_range_ch, npaths=1, nframe_avg=1, ndly=5000, drange=[-6,20], cv=True)
+                g = sys_response
+                if g is not None:
+                    g = g.copy().transpose(2,0,1)
+                (h_tr, dly_est, peaks) = self.sparse_est(h=h, g=g, sc_range_ch=self.sc_range_ch, npaths=1, nframe_avg=1, ndly=5000, drange=[-6,20], cv=True)
+                sparse_est_params = (h_tr, dly_est, peaks)
             else:
                 h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_pilot_s[plt_frm_id], sys_response=sys_response, sc_range_ch=self.sc_range_ch, snr_est=snr_est)
             self.estimate_mimo_params(txtd_base, rxtd_pilot[plt_frm_id], H_est_max)
@@ -724,6 +799,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         if len(rxtd_base.shape)==3:
             rxtd_base = rxtd_base[plt_frm_id]
 
-        return (rxtd_base, h_est_full, H_est, H_est_max)
+        return (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params)
     
 

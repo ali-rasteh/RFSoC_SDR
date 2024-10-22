@@ -61,7 +61,6 @@ class Params_Class(object):
         params.overwrite_configs=True
 
         if params.overwrite_configs:
-            self.counter=0
             self.fs=245.76e6 * 4
             self.fs_tx=self.fs
             self.fs_rx=self.fs
@@ -94,7 +93,8 @@ class Params_Class(object):
             self.send_signal=True
             self.recv_signal=True
             self.rfsoc_server_ip='192.168.3.1'
-            self.lintrack_server_ip='10.18.239.141'
+            # self.lintrack_server_ip='10.18.242.48'
+            self.lintrack_server_ip='192.168.137.100'
             self.ant_dim = 1
             self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-58_20241001-150336.bit')       # Without DAC MTS
             # self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-62_20241019-173825.bit')         # With DAC MTS
@@ -127,31 +127,32 @@ class Params_Class(object):
             self.verbose_level=0
             self.snr_est_db=40
             self.rx_chain=[]        # filter, integrate, sync_time, sync_freq, pilot_separate, channel_est, channel_eq
-            self.nf_walls = np.array([[-3,3], [-1,8]])
+            self.nf_walls = np.array([[-5,4], [-1,6]])
+            self.rx_sep_dir = np.array([1,0])
+
+
             # self.rx_loc_sep = np.array([0,1])
             self.rx_loc_sep = np.array([0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1])
-            self.rx_sep_dir = np.array([1,0])
             # self.ant_sep = np.array([0.5,1,2,4])
             self.ant_sep = np.array([0.5])
-
             # self.freq_hop_list = [6.0e9, 8.0e9, 10.0e9, 12.0e9]
             self.freq_hop_list = [10.0e9]
+            self.sig_gen_mode = 'fft'
+            self.wb_sc_range=[-250,250]
             self.nf_stop_thr = 0.03
-            self.npath_max = 10
+            self.nf_npath_max = 10
             self.plt_tx_ant_id = 0
             self.plt_rx_ant_id = 0
             self.plt_frame_id = 0
-            self.nf_param_estimate = False
+            self.nf_param_estimate = True
             self.use_linear_track=False
             self.control_piradio=False
-            self.channel_limit = True              # TODO: There is a bug, we need to manually set this to False for channel saving
+            self.channel_limit = True
             self.ant_dx_m = 0.020               # Antenna spacing in meters
             self.n_rx_ch_eq=1
-            self.sig_gen_mode = 'fft'
-            self.n_rd_rep=1
+            self.n_rd_rep=2
             self.n_frame_rd=2
-            self.animate_plot_mode=['rxfd', 'h', 'aoa_gauge']
-            self.wb_sc_range=[-250,250]
+            self.animate_plot_mode=['rxfd', 'h', 'nf_loc']
             self.save_list = ['', '']           # signal or channel
 
             # self.rx_chain.append('filter')
@@ -161,7 +162,7 @@ class Params_Class(object):
             # self.rx_chain.append('pilot_separate')
             # self.rx_chain.append('sys_res_deconv')
             self.rx_chain.append('channel_est')
-            # self.rx_chain.append('sparse_est')
+            self.rx_chain.append('sparse_est')
             # self.rx_chain.append('channel_eq')
 
 
@@ -265,7 +266,9 @@ class Params_Class(object):
         self.seed = [self.seed for i in range(self.n_tx_ant)]
 
 
-        if self.channel_limit and not ('channel' in self.save_list):
+        if ('channel' in self.save_list):
+            self.channel_limit = False
+        if self.channel_limit:
             self.sc_range_ch = self.sc_range
             self.n_samples_ch = self.sc_range_ch[1] - self.sc_range_ch[0] + 1
             self.nfft_ch = self.n_samples_ch
@@ -336,7 +339,7 @@ def rfsoc_run(params):
         if 'channel' in params.save_list or 'signal' in params.save_list:
             signals_inst.save_signal_channel(client_rfsoc, txtd_base, save_list=params.save_list)
         signals_inst.animate_plot(client_rfsoc, client_lintrack, client_piradio, txtd_base, plot_mode=params.animate_plot_mode, plot_level=0)
-       
+
 
 
 if __name__ == '__main__':
