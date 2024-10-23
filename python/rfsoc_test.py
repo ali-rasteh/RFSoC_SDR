@@ -135,28 +135,28 @@ class Params_Class(object):
             self.saved_sig_plot = []
             self.ant_dx_m = 0.020               # Antenna spacing in meters
             self.control_piradio=False
+            self.nf_stop_thr = 0.03
+            # self.rx_loc_sep = np.array([0,1])
+            self.rx_loc_sep = np.array([0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1])
+            # self.ant_sep = np.array([0.5,1,2,4])
+            self.ant_sep = np.array([0.5])
+            self.nf_param_estimate = False
+            self.use_linear_track=False
 
 
             # self.freq_hop_list = [6.0e9, 8.0e9, 10.0e9, 12.0e9]
             self.freq_hop_list = [8.75e9]
-            # self.rx_loc_sep = np.array([0,1])
-            self.rx_loc_sep = np.array([0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1])
-            # self.ant_sep = np.array([0.5,1,2,4])
             self.tx_sig_sim = 'same'        # same or orthogonal
-            self.ant_sep = np.array([0.5])
+            self.n_rx_ch_eq=1
+            self.n_frame_rd=2
             self.wb_sc_range=[-250,250]
-            self.nf_stop_thr = 0.03
-            self.nf_npath_max = 10
+            self.nf_npath_max = 5
             self.plt_tx_ant_id = 0
             self.plt_rx_ant_id = 0
             self.plt_frame_id = 0
-            self.nf_param_estimate = False
-            self.use_linear_track=False
             self.channel_limit = True
-            self.n_rx_ch_eq=1
-            self.n_rd_rep=2
-            self.n_frame_rd=2
-            self.animate_plot_mode=['rxfd', 'rx_phase_diff', 'aoa_gauge']
+            self.n_rd_rep=8
+            self.animate_plot_mode=['h01', 'rx_phase_diff', 'aoa_gauge']
             self.save_list = ['', '']           # signal or channel
 
             # self.rx_chain.append('filter')
@@ -337,7 +337,8 @@ def rfsoc_run(params):
             client_rfsoc.init_tcp_client()
 
             if params.send_signal:
-                client_rfsoc.transmit_data()
+                pass
+                # client_rfsoc.transmit_data()
 
             if params.RFFE=='sivers':
                 client_rfsoc.set_frequency(params.fc)

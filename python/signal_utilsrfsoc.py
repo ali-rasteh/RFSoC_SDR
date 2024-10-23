@@ -551,8 +551,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     y_max = np.max(sig) + 0.1*(np.max(sig)-y_min)
                     ax[i][j].set_ylim(y_min, y_max)
                 elif not (plot_mode[i] in self.untoched_plot_list):
-                    ax[i][j].relim()
-                    ax[i][j].autoscale_view()
+                    try:
+                        ax[i][j].relim()
+                        ax[i][j].autoscale_view()
+                    except Exception as e:
+                        print("Error in autoscale {}".format(e))
                 # if plot_mode[i]=='h' or plot_mode[i]=='h01' or plot_mode[i]=='h_sparse':
                 #     ax[i][j].set_ylim(-10,60)
 
@@ -788,21 +791,21 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         for ant_id in range(self.n_rx_ant):
             # n_samples = min(len(txtd_base), len(rxtd_base))
-            txfd_base = np.abs(fftshift(fft(txtd_base[ant_id,:self.n_samples])))
-            rxfd_base = np.abs(fftshift(fft(rxtd_base[plt_frm_id, ant_id,:self.n_samples])))
+            txfd_base_ = np.abs(fftshift(fft(txtd_base[ant_id,:self.n_samples])))
+            rxfd_base_ = np.abs(fftshift(fft(rxtd_base[plt_frm_id, ant_id,:self.n_samples])))
 
             title = 'TX and RX signals spectrum in base-band for antenna {}'.format(ant_id)
             xlabel = 'Frequency (MHz)'
             ylabel = 'Magnitude (dB)'
-            scale = np.max(txfd_base)/np.max(rxfd_base)
+            scale = np.max(txfd_base_)/np.max(rxfd_base_)
             self.print("TX to RX spectrum scale for antenna {}: {:0.3f}".format(ant_id, scale), thr=4)
             xlim=(-2*self.f_max/1e6, 2*self.f_max/1e6)
             f1=np.abs(self.freq - xlim[0]).argmin()
             f2=np.abs(self.freq - xlim[1]).argmin()
-            ylim=(np.min(rxfd_base[f1:f2]*scale), 1.1*np.max(rxfd_base[f1:f2]*scale))
-            self.plot_signal(x=self.freq, sigs={"txfd_base":txfd_base, "Scaled rxfd_base":rxfd_base*scale}, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, xlim=xlim, ylim=ylim, legend=True, plot_level=5)
-            self.print("txfd_base max freq for antenna {}: {} MHz".format(ant_id, self.freq[(self.nfft>>1)+np.argmax(txfd_base[self.nfft>>1:])]), thr=4)
-            self.print("rxfd_base max freq for antenna {}: {} MHz".format(ant_id, self.freq[(self.nfft>>1)+np.argmax(rxfd_base[self.nfft>>1:])]), thr=4)
+            ylim=(np.min(rxfd_base_[f1:f2]*scale), 1.1*np.max(rxfd_base_[f1:f2]*scale))
+            self.plot_signal(x=self.freq, sigs={"txfd_base":txfd_base_, "Scaled rxfd_base":rxfd_base_*scale}, scale='dB20', title=title, xlabel=xlabel, ylabel=ylabel, xlim=xlim, ylim=ylim, legend=True, plot_level=5)
+            self.print("txfd_base max freq for antenna {}: {} MHz".format(ant_id, self.freq[(self.nfft>>1)+np.argmax(txfd_base_[self.nfft>>1:])]), thr=4)
+            self.print("rxfd_base max freq for antenna {}: {} MHz".format(ant_id, self.freq[(self.nfft>>1)+np.argmax(rxfd_base_[self.nfft>>1:])]), thr=4)
 
 
         if 'pilot_separate' in self.rx_chain:
@@ -858,7 +861,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 g = sys_response
                 if g is not None:
                     g = g.copy().transpose(2,0,1)
-                sparse_est_params = self.sparse_est(h=h, g=g, sc_range_ch=self.sc_range_ch, npaths=10, nframe_avg=1, ndly=5000, drange=[-6,20], cv=False)
+                sparse_est_params = self.sparse_est(h=h, g=g, sc_range_ch=self.sc_range_ch, npaths=self.nf_npath_max, nframe_avg=1, ndly=5000, drange=[-6,20], cv=True)
             else:
                 h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_pilot_s, sys_response=sys_response, sc_range_ch=self.sc_range_ch, snr_est=snr_est)
             

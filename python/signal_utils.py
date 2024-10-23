@@ -1001,8 +1001,8 @@ class Signal_Utils(General):
         G = ifftshift(fftshift(G, axes=0)[(sc_range_ch[0]+nff_g//2):(sc_range_ch[1]+nff_g//2+1)], axes=0)
 
         h_tr_mat = [[None for i in range(n_tx_ant)] for j in range(n_rx_ant)]
-        dly_est_mat = [[[] for i in range(n_tx_ant)] for j in range(n_rx_ant)]
-        peaks_mat = [[[] for i in range(n_tx_ant)] for j in range(n_rx_ant)]
+        dly_est_mat = [[None for i in range(n_tx_ant)] for j in range(n_rx_ant)]
+        peaks_mat = [[None for i in range(n_tx_ant)] for j in range(n_rx_ant)]
 
         for irx in range(n_rx_ant):
             for itx in range(n_tx_ant):
@@ -1081,7 +1081,8 @@ class Signal_Utils(General):
                     npaths_est = i+1
                     indices.append(idx)
 
-                dly_est = dly_test[indices]
+                # dly_est = dly_test[indices]
+                dly_est = np.array(list(dly_test[indices]) + [0]*(npaths-npaths_est))
 
                 # Use least squares to estimate the coefficients
                 coeffs_est = np.linalg.lstsq(B[:,indices], H_tr, rcond=None)[0]
@@ -1092,16 +1093,19 @@ class Signal_Utils(General):
 
                 scale = np.mean(np.abs(G))**2
                 peaks  = np.abs(coeffs_est)**2 * scale
+                peaks = np.array(list(peaks) + [0]*(npaths-npaths_est))
 
                 h_tr_mat[irx][itx] = h_tr.copy()
-                if len(dly_est) > 0:
+                if len(dly_est) == npaths:
                     dly_est_mat[irx][itx] = dly_est.copy()
                 else:
-                    dly_est_mat[irx][itx] = [0]
-                if len(peaks) > 0:
+                    # dly_est_mat[irx][itx] = dly_est.copy().extend([0]*(npaths-npaths_est))
+                    dly_est_mat[irx][itx] = np.array([0] * npaths)
+                if len(peaks) == npaths:
                     peaks_mat[irx][itx] = peaks.copy()
                 else:
-                    peaks_mat[irx][itx] = [0]
+                    # peaks_mat[irx][itx] = peaks.copy() + [0]*(npaths-npaths_est)
+                    peaks_mat[irx][itx] = np.array([0] * npaths)
         
         h_tr_mat = np.array(h_tr_mat)
         dly_est_mat = np.array(dly_est_mat)
@@ -1357,7 +1361,7 @@ class Signal_Utils(General):
         if angle_sin > 1 or angle_sin < -1:
             # angle = np.nan
             aoa = None
-            # rx_phase = None
+            rx_phase = None
             self.print("AoA sin is out of range: {}".format(angle_sin), 1)
         else:
             aoa = np.arcsin(angle_sin)
@@ -1368,10 +1372,9 @@ class Signal_Utils(General):
     
 
     def estimate_mimo_params(self, txtd, rxtd, h_full, H, rx_phase_list, aoa_list):
-        U, S, Vh = np.linalg.svd(H)
+        # U, S, Vh = np.linalg.svd(H)
         # W_tx = Vh.conj().T
         # W_rx = U
-
         # rx_phase = np.mean(np.angle(U[0,:]*np.conj(U[1,:])))
         # tx_phase = np.mean(np.angle(Vh[:,0]*np.conj(Vh[:,1])))
 
