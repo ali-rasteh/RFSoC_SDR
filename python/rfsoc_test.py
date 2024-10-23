@@ -72,7 +72,9 @@ class Params_Class(object):
             self.sig_path=os.path.join(os.getcwd(), 'sigs/txtd.npz')
             self.sig_save_path=os.path.join(os.getcwd(), 'sigs/trx.npz')
             self.channel_save_path=os.path.join(os.getcwd(), 'channels/channel.npz')
-            self.sys_response_path=self.channel_save_path
+            self.figs_dir=os.path.join(os.getcwd(), 'figs/')
+            self.figs_save_path=os.path.join(self.figs_dir, 'plot.pdf')
+            self.sys_response_path=os.path.join(os.getcwd(), 'channels/sys_response.npz')
             self.wb_null_sc=0
             self.tcp_localIP = "0.0.0.0"
             self.tcp_bufferSize=2**10
@@ -102,7 +104,7 @@ class Params_Class(object):
             self.board='rfsoc_4x2'
             self.n_tx_ant=2
             self.n_rx_ant=2
-            self.ant_dy_m = 0.025
+            self.ant_dy_m = 0.020
             self.wb_bw_mode='sc'    # sc or freq
             self.wb_bw_range=[-250e6,250e6]
             self.tone_f_mode='sc'    # sc or freq
@@ -129,30 +131,32 @@ class Params_Class(object):
             self.rx_chain=[]        # filter, integrate, sync_time, sync_freq, pilot_separate, channel_est, channel_eq
             self.nf_walls = np.array([[-5,4], [-1,6]])
             self.rx_sep_dir = np.array([1,0])
+            self.sig_gen_mode = 'fft'
+            self.saved_sig_plot = []
+            self.ant_dx_m = 0.020               # Antenna spacing in meters
+            self.control_piradio=False
 
 
+            # self.freq_hop_list = [6.0e9, 8.0e9, 10.0e9, 12.0e9]
+            self.freq_hop_list = [8.75e9]
             # self.rx_loc_sep = np.array([0,1])
             self.rx_loc_sep = np.array([0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1])
             # self.ant_sep = np.array([0.5,1,2,4])
+            self.tx_sig_sim = 'same'        # same or orthogonal
             self.ant_sep = np.array([0.5])
-            # self.freq_hop_list = [6.0e9, 8.0e9, 10.0e9, 12.0e9]
-            self.freq_hop_list = [10.0e9]
-            self.sig_gen_mode = 'fft'
             self.wb_sc_range=[-250,250]
             self.nf_stop_thr = 0.03
             self.nf_npath_max = 10
             self.plt_tx_ant_id = 0
             self.plt_rx_ant_id = 0
             self.plt_frame_id = 0
-            self.nf_param_estimate = True
+            self.nf_param_estimate = False
             self.use_linear_track=False
-            self.control_piradio=False
             self.channel_limit = True
-            self.ant_dx_m = 0.020               # Antenna spacing in meters
             self.n_rx_ch_eq=1
             self.n_rd_rep=2
             self.n_frame_rd=2
-            self.animate_plot_mode=['rxfd', 'h', 'nf_loc']
+            self.animate_plot_mode=['rxfd', 'rx_phase_diff', 'aoa_gauge']
             self.save_list = ['', '']           # signal or channel
 
             # self.rx_chain.append('filter')
@@ -162,16 +166,14 @@ class Params_Class(object):
             # self.rx_chain.append('pilot_separate')
             # self.rx_chain.append('sys_res_deconv')
             self.rx_chain.append('channel_est')
-            self.rx_chain.append('sparse_est')
+            # self.rx_chain.append('sparse_est')
             # self.rx_chain.append('channel_eq')
 
 
 
 
-        self.fc = self.freq_hop_list[0]
-        self.wl = constants.c / self.fc
-        self.ant_dx = self.ant_dx_m/self.wl             # Antenna spacing in wavelengths (lambda)
-        self.ant_dy = self.ant_dy_m/self.wl
+        if 'h_sparse' in self.animate_plot_mode and 'sparse_est' not in self.rx_chain:
+            self.rx_chain.append('sparse_est')
 
         system_info = platform.uname()
         if "pynq" in system_info.node.lower():
@@ -190,22 +192,6 @@ class Params_Class(object):
             # if self.nf_param_estimate:
             #     self.use_linear_track=True
 
-        self.server_ip = None
-        self.steer_phi_rad = np.deg2rad(self.steer_phi_deg)
-        self.steer_theta_rad = np.deg2rad(self.steer_theta_deg)
-        self.n_samples_tx = self.n_frame_wr*self.n_samples
-        self.n_samples_rx = self.n_frame_rd*self.n_samples
-        self.n_samples_trx = min(self.n_samples_tx, self.n_samples_rx)
-        self.nfft_tx = self.n_frame_wr*self.nfft
-        self.nfft_rx = self.n_frame_rd*self.nfft
-        self.nfft_trx = min(self.nfft_tx, self.nfft_rx)
-        self.freq = ((np.arange(0, self.nfft) / self.nfft) - 0.5) * self.fs / 1e6
-        self.freq_tx = ((np.arange(0, self.nfft_tx) / self.nfft_tx) - 0.5) * self.fs_tx / 1e6
-        self.freq_rx = ((np.arange(0, self.nfft_rx) / self.nfft_rx) - 0.5) * self.fs_rx / 1e6
-        self.freq_trx = ((np.arange(0, self.nfft_trx) / self.nfft_trx) - 0.5) * self.fs_trx / 1e6
-        self.beam_test = np.array([1, 5, 9, 13, 17, 21, 25, 29, 32, 35, 39, 43, 47, 51, 55, 59, 63])
-        self.DynamicPLLConfig = (0, self.lmk_freq_mhz, self.lmx_freq_mhz)
-
         if self.mixer_mode=='digital' and self.mix_freq!=0:
             self.mix_freq_dac = 0
             self.mix_freq_adc = 0
@@ -223,13 +209,46 @@ class Params_Class(object):
             self.n_rx_ant=1
         if self.board == "rfsoc_4x2":
             self.do_pll_settings=False
-        
+
+        if self.n_tx_ant==1 and self.n_rx_ant==1:
+            self.ant_dim = 1
+            self.beamforming = False
+
+
+
+
+        self.fc = self.freq_hop_list[0]
+        self.wl = constants.c / self.fc
+        self.ant_dx = self.ant_dx_m/self.wl             # Antenna spacing in wavelengths (lambda)
+        self.ant_dy = self.ant_dy_m/self.wl
+
         if self.board=='rfsoc_2x2':
             self.adc_bits = 12
             self.dac_bits = 14
         elif self.board=='rfsoc_4x2':
             self.adc_bits = 14
             self.dac_bits = 14
+
+        if self.tx_sig_sim=='same':
+            self.seed = [self.seed for i in range(self.n_tx_ant)]
+        elif self.tx_sig_sim=='orthogonal':
+            self.seed = [self.seed*i+i for i in range(self.n_tx_ant)]
+
+        self.server_ip = None
+        self.steer_phi_rad = np.deg2rad(self.steer_phi_deg)
+        self.steer_theta_rad = np.deg2rad(self.steer_theta_deg)
+        self.n_samples_tx = self.n_frame_wr*self.n_samples
+        self.n_samples_rx = self.n_frame_rd*self.n_samples
+        self.n_samples_trx = min(self.n_samples_tx, self.n_samples_rx)
+        self.nfft_tx = self.n_frame_wr*self.nfft
+        self.nfft_rx = self.n_frame_rd*self.nfft
+        self.nfft_trx = min(self.nfft_tx, self.nfft_rx)
+        self.freq = ((np.arange(0, self.nfft) / self.nfft) - 0.5) * self.fs / 1e6
+        self.freq_tx = ((np.arange(0, self.nfft_tx) / self.nfft_tx) - 0.5) * self.fs_tx / 1e6
+        self.freq_rx = ((np.arange(0, self.nfft_rx) / self.nfft_rx) - 0.5) * self.fs_rx / 1e6
+        self.freq_trx = ((np.arange(0, self.nfft_trx) / self.nfft_trx) - 0.5) * self.fs_trx / 1e6
+        self.beam_test = np.array([1, 5, 9, 13, 17, 21, 25, 29, 32, 35, 39, 43, 47, 51, 55, 59, 63])
+        self.DynamicPLLConfig = (0, self.lmk_freq_mhz, self.lmx_freq_mhz)
 
         if self.tone_f_mode=='sc':
             self.f_tone = self.sc_tone * self.fs_tx/self.nfft_tx
@@ -262,10 +281,6 @@ class Params_Class(object):
         else:
             raise ValueError('Unsupported signal mode: ' + self.sig_mode)
         
-        # self.seed = [self.seed*i+i for i in range(self.n_tx_ant)]
-        self.seed = [self.seed for i in range(self.n_tx_ant)]
-
-
         if ('channel' in self.save_list):
             self.channel_limit = False
         if self.channel_limit:
@@ -277,15 +292,17 @@ class Params_Class(object):
             self.n_samples_ch = self.n_samples_trx
             self.nfft_ch = self.nfft_trx
 
-        if self.n_tx_ant==1 and self.n_rx_ant==1:
-            self.ant_dim = 1
-            self.beamforming = False
+
         
 
 
 
 
 def rfsoc_run(params):
+    client_rfsoc = None
+    client_lintrack = None
+    client_piradio = None
+
     signals_inst = Signal_Utils_Rfsoc(params)
     signals_inst.print("Running the code in mode {}".format(params.mode), thr=1)
     (txtd_base, txtd) = signals_inst.gen_tx_signal()
@@ -295,15 +312,11 @@ def rfsoc_run(params):
         client_lintrack.init_tcp_client()
         # client_lintrack.return2home()
         # client_lintrack.go2end()
-    else:
-        client_lintrack = None
 
     if params.control_piradio:
         client_piradio = ssh_Com_Piradio(params)
         client_piradio.init_ssh_client()
         # client_piradio.set_frequency(verif_keyword='')
-    else:
-        client_piradio = None
 
     if params.mode=='server':
         rfsoc_inst = RFSoC(params)
@@ -318,26 +331,29 @@ def rfsoc_run(params):
 
 
     elif params.mode=='client':
-        client_rfsoc=Tcp_Comm_RFSoC(params)
-        client_rfsoc.init_tcp_client()
+        params.show_saved_sigs=len(params.saved_sig_plot)>0
+        if not params.show_saved_sigs:
+            client_rfsoc=Tcp_Comm_RFSoC(params)
+            client_rfsoc.init_tcp_client()
 
-        if params.send_signal:
-            client_rfsoc.transmit_data()
-
-        if params.RFFE=='sivers':
-            client_rfsoc.set_frequency(params.fc)
             if params.send_signal:
-                client_rfsoc.set_mode('RXen0_TXen1')
-                client_rfsoc.set_tx_gain()
-            elif params.recv_signal:
-                client_rfsoc.set_mode('RXen1_TXen0')
-                client_rfsoc.set_rx_gain()
+                client_rfsoc.transmit_data()
 
-        signals_inst.calibrate_rx_phase_offset(client_rfsoc)
-        signals_inst.create_near_field_model()
+            if params.RFFE=='sivers':
+                client_rfsoc.set_frequency(params.fc)
+                if params.send_signal:
+                    client_rfsoc.set_mode('RXen0_TXen1')
+                    client_rfsoc.set_tx_gain()
+                elif params.recv_signal:
+                    client_rfsoc.set_mode('RXen1_TXen0')
+                    client_rfsoc.set_rx_gain()
 
-        if 'channel' in params.save_list or 'signal' in params.save_list:
-            signals_inst.save_signal_channel(client_rfsoc, txtd_base, save_list=params.save_list)
+            signals_inst.calibrate_rx_phase_offset(client_rfsoc)
+            signals_inst.create_near_field_model()
+
+            if 'channel' in params.save_list or 'signal' in params.save_list:
+                signals_inst.save_signal_channel(client_rfsoc, txtd_base, save_list=params.save_list)
+        
         signals_inst.animate_plot(client_rfsoc, client_lintrack, client_piradio, txtd_base, plot_mode=params.animate_plot_mode, plot_level=0)
 
 

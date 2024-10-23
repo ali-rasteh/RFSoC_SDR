@@ -60,10 +60,16 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.rx_sep_dir = params.rx_sep_dir
         self.nf_stop_thr = params.nf_stop_thr
         self.n_rd_rep = params.n_rd_rep
+        self.saved_sig_plot = params.saved_sig_plot
+        self.figs_save_path = params.figs_save_path
 
 
         self.rx_phase_offset = 0
         self.nf_loc_idx = -1
+        self.rx_phase_list = []
+        self.aoa_list = []
+        self.lin_track_pos = 0
+        self.lin_track_dir = 'forward'
 
         self.print("signals object initialization done", thr=1)
         
@@ -204,7 +210,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
             self.rx_phase_offset = np.mean(phase_diff_list)
             np.savez(self.calib_params_path, rx_phase_offset=self.rx_phase_offset)
-            self.print("Calibrated phase offset between RX ports: {:0.3f} Rad".format(self.rx_phase_offset), thr=1)
+            self.print("Calibrated and saved phase offset between RX ports: {:0.3f} Rad".format(self.rx_phase_offset), thr=1)
 
 
     def save_signal_channel(self, client_rfsoc, txtd_base, save_list=[]):
@@ -261,7 +267,10 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         if self.plot_level<plot_level:
             return
         self.anim_paused = False
+        self.mag_filter_list = ['rxfd01', 'txfd', 'rxfd', 'H', 'h01', 'h']
+        self.untoched_plot_list = ['aoa_gauge', 'nf_loc', 'IQ']
         self.fc_id = 0
+        self.read_id = -1
         n_plots_row = len(plot_mode)
         n_plots_col = len(self.freq_hop_list)
         tx_ant_id = self.plt_tx_ant_id
@@ -273,33 +282,67 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         n_samples_ch = self.n_samples_ch
         n_samp_ch_sp = n_samples_ch // 2
 
+
         def receive_data(txtd_base):
-            rxtd=[]
-            for i in range(self.n_rd_rep):
-                rxtd_ = client_rfsoc.receive_data(mode='once')
-                rxtd_ = rxtd_.squeeze(axis=0)
-                rxtd.append(rxtd_)
-            rxtd = np.array(rxtd)
-            (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd)
-            H_est_full = fft(h_est_full, axis=-1)
+            self.read_id+=1
+            sigs_save = None
+            channels_save = None
+            if 'channel' in self.saved_sig_plot:
+                channels_save = np.load(self.channel_save_path)
+            if 'signal' in self.saved_sig_plot:
+                sigs_save = np.load(self.sig_save_path)
+
+            if sigs_save is None:
+                if channels_save is None:
+                    rxtd=[]
+                    for i in range(self.n_rd_rep):
+                        rxtd_ = client_rfsoc.receive_data(mode='once')
+                        rxtd_ = rxtd_.squeeze(axis=0)
+                        rxtd.append(rxtd_)
+                    rxtd = np.array(rxtd)
+                else:
+                    rxtd = None
+            else:
+                rxtd = sigs_save['rxtd'][self.read_id*self.n_rd_rep:(self.read_id+1)*self.n_rd_rep]
+                txtd_base = sigs_save['txtd'][0]
+
+            if channels_save is None:
+                (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd)
+                H_est_full = fft(h_est_full, axis=-1)
+            else:
+                h_est_full = channels_save['h_est_full']
+                H_est = channels_save['H_est']
+                H_est_max = channels_save['H_est_max']
+
+                h = h_est_full.copy()[self.read_id*self.n_rd_rep:(self.read_id+1)*self.n_rd_rep]
+                h = h.transpose(3,1,2,0)
+                g = None
+                sparse_est_params = self.sparse_est(h=h, g=g, sc_range_ch=self.sc_range_ch, npaths=1, nframe_avg=1, ndly=5000, drange=[-6,20], cv=True)
+
+                h_est_full = h_est_full[self.read_id]
+                H_est_full = fft(h_est_full, axis=-1)
+                H_est = H_est[self.read_id]
+                H_est_max = H_est_max[self.read_id]
+
+
             sigs=[]
             for item in plot_mode:
                 if item=='h':
                     h_est_full_ = h_est_full[rx_ant_id, tx_ant_id].copy()
                     im = np.argmax(np.abs(h_est_full_))
-                    h_est_full_ = np.roll(h_est_full_, -im + len(h_est_full_)//10)
+                    h_est_full_ = np.roll(h_est_full_, -im + len(h_est_full_)//4)
                     h_est_full_ = self.lin_to_db(np.abs(h_est_full_), mode='mag')
                     # h_est_full_ = self.lin_to_db(np.abs(h_est_full_) / np.max(np.abs(h_est_full_)), mode='mag')
-                    p = np.percentile(h_est_full_, 25)
-                    h_est_full_ = h_est_full_ - p
+                    # p = np.percentile(h_est_full_, 25)
+                    # h_est_full_ = h_est_full_ - p
                     sigs.append(h_est_full_)
                 elif item=='h01':
                     h_est_full_ = h_est_full[:, tx_ant_id, :].copy()
                     im = np.argmax(np.abs(h_est_full_[0]), axis=-1)
-                    h_est_full_ = np.roll(h_est_full_, -im + len(h_est_full_[0])//10, axis=-1)
+                    h_est_full_ = np.roll(h_est_full_, -im + len(h_est_full_[0])//4, axis=-1)
                     h_est_full_ = self.lin_to_db(np.abs(h_est_full_), mode='mag')
-                    p = np.percentile(h_est_full_[0], 25, axis=-1)
-                    h_est_full_ = h_est_full_ - p
+                    # p = np.percentile(h_est_full_[0], 25, axis=-1)
+                    # h_est_full_ = h_est_full_ - p
                     sigs.append([h_est_full_[0], h_est_full_[1]])
                 elif item=='h_sparse':
                     sigs.append(sparse_est_params)
@@ -357,9 +400,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     phi = np.angle(fftshift(fft(rxtd_base[rx_ant_id,:self.n_samples_trx], axis=-1)) * np.conj(fftshift(fft(txtd_base[tx_ant_id,:self.n_samples_trx], axis=-1))))
                     # phi = np.unwrap(phi)
                     sigs.append(phi)
+                elif item=='rx_phase_diff':
+                    # self.rx_phase_list, self.aoa_list = self.estimate_mimo_params(txtd_base, rxtd_base, h_est_full, H_est_max, self.rx_phase_list, self.aoa_list)
+                    sigs.append(self.rx_phase_list)
                 elif item=='aoa_gauge':
-                    aoa = self.estimate_mimo_params(txtd_base, rxtd_base, H_est_max)
-                    sigs.append(aoa)
+                    # self.rx_phase_list, self.aoa_list = self.estimate_mimo_params(txtd_base, rxtd_base, h_est_full, H_est_max, self.rx_phase_list, self.aoa_list)
+                    sigs.append(self.aoa_list[-1])
                 elif item=='nf_loc':
                     pass
                 else:
@@ -376,11 +422,24 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 return line
             sigs, h_est_full = receive_data(txtd_base)
 
+            if self.use_linear_track:
+                if self.lin_track_dir=='forward':
+                    dir = 1
+                else:
+                    dir = -1
+                dist = 100 * dir
+                thr = 400
+                client_lintrack.move(distance=dist)
+                self.lin_track_pos += dist
+
+                if self.lin_track_pos >= thr:
+                    self.lin_track_dir = 'backward'
+                elif self.lin_track_pos <= -1*thr:
+                    self.lin_track_dir = 'forward'
+
+
             if self.control_piradio:
                 self.fc = self.freq_hop_list[int(self.fc_id)]
-                self.wl = constants.c / self.fc
-                self.ant_dx = self.ant_dx_m/self.wl             # Antenna spacing in wavelengths (lambda)
-                self.ant_dy = self.ant_dy_m/self.wl
 
                 # client_piradio.set_frequency(fc=self.fc)
                 self.fc_id = (self.fc_id + 1) % len(self.freq_hop_list)
@@ -417,22 +476,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             line_id = 0
             for i in range(n_plots_row):
                 j = self.fc_id
-                if plot_mode[i]=='rxtd':
+                if plot_mode[i]=='rxtd' or plot_mode[i]=='txtd':
                     line[line_id][j].set_ydata(sigs[i].real)
                     line_id+=1
                     line[line_id][j].set_ydata(sigs[i].imag)
                     line_id+=1
-                elif plot_mode[i]=='txtd':
-                    line[line_id][j].set_ydata(sigs[i].real)
-                    line_id+=1
-                    line[line_id][j].set_ydata(sigs[i].imag)
-                    line_id+=1
-                elif plot_mode[i]=='h01':
-                    line[line_id][j].set_ydata(sigs[i][0])
-                    line_id+=1
-                    line[line_id][j].set_ydata(sigs[i][1])
-                    line_id+=1
-                elif plot_mode[i]=='rxtd01' or plot_mode[i]=='rxfd01' or plot_mode[i]=='h01':
+                elif plot_mode[i]=='rxtd01' or plot_mode[i]=='rxfd01' or plot_mode[i]=='h01' or plot_mode[i]=='h01':
                     line[line_id][j].set_ydata(sigs[i][0])
                     line_id+=1
                     line[line_id][j].set_ydata(sigs[i][1])
@@ -443,8 +492,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     margin = max(np.abs(sigs[i])) * 0.1
                     ax[i][j].set_xlim(min(sigs[i].real) - margin, max(sigs[i].real) + margin)
                     ax[i][j].set_ylim(min(sigs[i].imag) - margin, max(sigs[i].imag) + margin)
+                elif plot_mode[i]=='rx_phase_diff':
+                    line[line_id][j].set_data(np.arange(len(sigs[i])), sigs[i])
+                    line_id+=1
                 elif plot_mode[i]=='aoa_gauge':
-                    self.gauge_update_needle(ax[i][j], np.rad2deg(sigs[i]))
+                    self.gauge_update_needle(ax[i][j], np.rad2deg(-sigs[i]))
                     ax[i][j].set_xlim(0, 1)
                     ax[i][j].set_ylim(0.5, 1)
                     ax[i][j].axis('off')
@@ -474,7 +526,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
                     # Plot the locations of the detected peaks
                     peaks  = self.lin_to_db(peaks, mode='pow')-yshift
-                    dly_est *= 1e9
+                    dly_est = dly_est*1e9
                     dly_est = dly_est[dly_est<=np.max(dlyr[:n_samp_ch_sp])]
                     line[line_id][j].set_data(dly_est, peaks)
                     line_id+=1
@@ -490,19 +542,26 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     line[line_id][j].set_ydata(sigs[i])
                     line_id+=1
 
-                if plot_mode[i]=='h' or plot_mode[i]=='h01' or plot_mode[i]=='h_sparse':
-                    # ax[i][j].set_ylim(np.min(sigs[i]), 1.1*np.max(sigs[i]))
-                    ax[i][j].set_ylim(-10,60)
-                if plot_mode[i]!='IQ' and plot_mode[i]!='aoa_gauge' and plot_mode[i]!='nf_loc':
+                if plot_mode[i] in self.mag_filter_list:
+                    if len(np.array(sigs[i]).shape)>1:
+                        sig = sigs[i][0]
+                    else:
+                        sig = sigs[i].copy()
+                    y_min = np.percentile(sig, 10)
+                    y_max = np.max(sig) + 0.1*(np.max(sig)-y_min)
+                    ax[i][j].set_ylim(y_min, y_max)
+                elif not (plot_mode[i] in self.untoched_plot_list):
                     ax[i][j].relim()
                     ax[i][j].autoscale_view()
+                # if plot_mode[i]=='h' or plot_mode[i]=='h01' or plot_mode[i]=='h_sparse':
+                #     ax[i][j].set_ylim(-10,60)
 
             return line
 
 
         # Set up the figure and plot
         sigs, _ = receive_data(txtd_base)
-        line = [[None for j in range(n_plots_col)] for i in range(2*n_plots_row)]
+        line = [[None for j in range(n_plots_col)] for i in range(3*n_plots_row)]
         fig, ax = plt.subplots(n_plots_row, n_plots_col)
         if type(ax) is not np.ndarray:
             ax = np.array([ax])
@@ -515,18 +574,18 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             for i in range(n_plots_row):
                 # ax[i].set_autoscale_on(True)
                 if plot_mode[i]=='h':
-                    line[line_id][j], = ax[i][j].plot(self.t_trx[:n_samples_ch], sigs[i])
+                    line[line_id][j], = ax[i][j].plot(self.t_trx[:n_samples_ch]*1e9, sigs[i])
                     line_id+=1
                     ax[i][j].set_title("Channel-Mag-TD, Freq {}, TX ant {}, RX ant {}".format(self.freq_hop_list[j]/1e9, tx_ant_id, rx_ant_id))
-                    ax[i][j].set_xlabel("Time (s)")
+                    ax[i][j].set_xlabel("Time (ns)")
                     ax[i][j].set_ylabel("Normalized Magnitude (dB)")
                 elif plot_mode[i]=='h01':
-                    line[line_id][j], = ax[i][j].plot(self.t_trx[:n_samples_ch], sigs[i][0], label='Antenna 0')
+                    line[line_id][j], = ax[i][j].plot(self.t_trx[:n_samples_ch]*1e9, sigs[i][0], label='Antenna 0')
                     line_id+=1
-                    line[line_id][j], = ax[i][j].plot(self.t_trx[:n_samples_ch], sigs[i][1], label='Antenna 1')
+                    line[line_id][j], = ax[i][j].plot(self.t_trx[:n_samples_ch]*1e9, sigs[i][1], label='Antenna 1')
                     line_id+=1
                     ax[i][j].set_title("Channel-Mag-TD, Freq {}, RX ant 0/1".format(self.freq_hop_list[j]/1e9))
-                    ax[i][j].set_xlabel("Time (s)")
+                    ax[i][j].set_xlabel("Time (ns)")
                     ax[i][j].set_ylabel("Normalized Magnitude (dB)")
                 elif plot_mode[i]=='h_sparse':
                     # (h_tr, dly_est, peaks) = sigs[i]
@@ -536,12 +595,15 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     line[line_id][j], line[line_id+1][j], _ = ax[i][j].stem([0], [1], 'r-', basefmt='', bottom=-10)
                     # line[line_id][j], line[line_id+1][j], _ = ax[i][j].stem([0], [1], use_line_collection=True)
                     line_id+=2
-                    ax[i][j].set_xlabel('Delay [ns]')
-                    ax[i][j].set_ylabel('SNR [dB]')
+                    # ax[i][j].set_title("Channel-Mag-TD, Freq {}, TX ant {}, RX ant {}".format(self.freq_hop_list[j]/1e9, tx_ant_id, rx_ant_id))
+                    ax[i][j].set_title("Multipath Channel PDP, Freq {}GHz".format(self.freq_hop_list[j]/1e9))
+                    ax[i][j].set_xlabel('Time (ns)')
+                    ax[i][j].set_ylabel('SNR (dB)')
                 elif plot_mode[i]=='H':
                     line[line_id][j], = ax[i][j].plot(self.freq_trx[(self.sc_range_ch[0]+n_samples_trx//2):(self.sc_range_ch[1]+n_samples_trx//2+1)], sigs[i])
                     line_id+=1
-                    ax[i][j].set_title("Channel-Mag-FD, Freq {}GHz, TX ant {}, RX ant {}".format(self.freq_hop_list[j]/1e9, tx_ant_id, rx_ant_id))
+                    # ax[i][j].set_title("Channel-Mag-FD, Freq {}GHz, TX ant {}, RX ant {}".format(self.freq_hop_list[j]/1e9, tx_ant_id, rx_ant_id))
+                    ax[i][j].set_title("Multipath Channel Freq Response, {}GHz".format(self.freq_hop_list[j]/1e9))
                     ax[i][j].set_xlabel("Frequency (MHz)")
                     ax[i][j].set_ylabel("Magnitude (dB)")
                 elif plot_mode[i]=='H_phase':
@@ -549,14 +611,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     line_id+=1
                     ax[i][j].set_title("Channel-Phase-FD, Freq {}GHz, TX ant {}, RX ant {}".format(self.freq_hop_list[j]/1e9, tx_ant_id, rx_ant_id))
                     ax[i][j].set_xlabel("Frequency (MHz)")
-                    ax[i][j].set_ylabel("Phase (radians)")
+                    ax[i][j].set_ylabel("Phase (Rad)")
                 elif plot_mode[i]=='rxtd':
-                    line[line_id][j], = ax[i][j].plot(self.t_rx[:n_samples_rx], sigs[i].real, label='I')
+                    line[line_id][j], = ax[i][j].plot(self.t_rx[:n_samples_rx]*1e9, sigs[i].real, label='I')
                     line_id+=1
-                    line[line_id][j], = ax[i][j].plot(self.t_rx[:n_samples_rx], sigs[i].imag, label='Q')
+                    line[line_id][j], = ax[i][j].plot(self.t_rx[:n_samples_rx]*1e9, sigs[i].imag, label='Q')
                     line_id+=1
                     ax[i][j].set_title("RX-TD-IQ, Freq {}GHz, RX ant {}".format(self.freq_hop_list[j]/1e9, rx_ant_id))
-                    ax[i][j].set_xlabel("Time (s)")
+                    ax[i][j].set_xlabel("Time (ns)")
                     ax[i][j].set_ylabel("Magnitude")
                 elif plot_mode[i]=='rxfd':
                     line[line_id][j], = ax[i][j].plot(self.freq_trx, sigs[i])
@@ -565,12 +627,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ax[i][j].set_xlabel("Freq (MHz)")
                     ax[i][j].set_ylabel("Magnitude (dB)")
                 elif plot_mode[i]=='txtd':
-                    line[line_id][j], = ax[i][j].plot(self.t_tx, sigs[i].real, label='I')
+                    line[line_id][j], = ax[i][j].plot(self.t_tx*1e9, sigs[i].real, label='I')
                     line_id+=1
-                    line[line_id][j], = ax[i][j].plot(self.t_tx, sigs[i].imag, label='Q')
+                    line[line_id][j], = ax[i][j].plot(self.t_tx*1e9, sigs[i].imag, label='Q')
                     line_id+=1
                     ax[i][j].set_title("TX-TD-IQ, Freq {}GHz, TX ant {}".format(self.freq_hop_list[j]/1e9, tx_ant_id))
-                    ax[i][j].set_xlabel("Time (s)")
+                    ax[i][j].set_xlabel("Time (ns)")
                     ax[i][j].set_ylabel("Magnitude")
                 elif plot_mode[i]=='txfd':
                     line[line_id][j], = ax[i][j].plot(self.freq_tx, sigs[i])
@@ -579,12 +641,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ax[i][j].set_xlabel("Freq (MHz)")
                     ax[i][j].set_ylabel("Magnitude (dB)")
                 elif plot_mode[i]=='rxtd01':
-                    line[line_id][j], = ax[i][j].plot(self.t_rx[:n_samples_rx01], sigs[i][0], label='Antenna 0')
+                    line[line_id][j], = ax[i][j].plot(self.t_rx[:n_samples_rx01]*1e9, sigs[i][0], label='Antenna 0')
                     line_id+=1
-                    line[line_id][j], = ax[i][j].plot(self.t_rx[:n_samples_rx01], sigs[i][1], label='Antenna 1')
+                    line[line_id][j], = ax[i][j].plot(self.t_rx[:n_samples_rx01]*1e9, sigs[i][1], label='Antenna 1')
                     line_id+=1
                     ax[i][j].set_title("Aligned RX-TD, Freq {}GHz, RX ant 0-1".format(self.freq_hop_list[j]/1e9))
-                    ax[i][j].set_xlabel("Time (s)")
+                    ax[i][j].set_xlabel("Time (ns)")
                     ax[i][j].set_ylabel("Magnitude")
                 elif plot_mode[i]=='rxfd01':
                     line[line_id][j], = ax[i][j].plot(self.freq_trx, sigs[i][0], label='Antenna 0')
@@ -607,41 +669,47 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ax[i][j].set_xlim(min(sigs[i].real)-margin, max(sigs[i].real+margin))
                     ax[i][j].set_ylim(min(sigs[i].imag)-margin, max(sigs[i].imag+margin))
                 elif plot_mode[i]=='rxtd_phase':
-                    line[line_id][j], = ax[i][j].plot(self.t_rx[:n_samples_rx], sigs[i])
+                    line[line_id][j], = ax[i][j].plot(self.t_rx[:n_samples_rx]*1e9, sigs[i])
                     line_id+=1
                     ax[i][j].set_title("RX-Phase-TD, Freq {}GHz, RX ant {}".format(self.freq_hop_list[j]/1e9, rx_ant_id))
-                    ax[i][j].set_xlabel("Time (s)")
-                    ax[i][j].set_ylabel("Phase (radians)")
+                    ax[i][j].set_xlabel("Time (ns)")
+                    ax[i][j].set_ylabel("Phase (Rad)")
                 elif plot_mode[i]=='rxfd_phase':
                     line[line_id][j], = ax[i][j].plot(self.freq_trx, sigs[i])
                     line_id+=1
                     ax[i][j].set_title("RX-Phase-FD, Freq {}GHz, RX ant {}".format(self.freq_hop_list[j]/1e9, rx_ant_id))
                     ax[i][j].set_xlabel("Freq (MHz)")
-                    ax[i][j].set_ylabel("Phase (radians)")
+                    ax[i][j].set_ylabel("Phase (Rad)")
                 elif plot_mode[i]=='txtd_phase':
-                    line[line_id][j], = ax[i][j].plot(self.t_tx, sigs[i])
+                    line[line_id][j], = ax[i][j].plot(self.t_tx*1e9, sigs[i])
                     line_id+=1
                     ax[i][j].set_title("TX-Phase-TD, Freq {}GHz, TX ant {}".format(self.freq_hop_list[j]/1e9, tx_ant_id))
-                    ax[i][j].set_xlabel("Time (s)")
+                    ax[i][j].set_xlabel("Time (ns)")
                     ax[i][j].set_ylabel("Phase (radians)")
                 elif plot_mode[i]=='txfd_phase':
                     line[line_id][j], = ax[i][j].plot(self.freq_tx, sigs[i])
                     line_id+=1
                     ax[i][j].set_title("RX-Phase-FD, Freq {}GHz, TX ant {}".format(self.freq_hop_list[j]/1e9, tx_ant_id))
                     ax[i][j].set_xlabel("Freq (MHz)")
-                    ax[i][j].set_ylabel("Phase (radians)")
+                    ax[i][j].set_ylabel("Phase (Rad)")
                 elif plot_mode[i]=='trxtd_phase_diff':
-                    line[line_id][j], = ax[i][j].plot(self.t_trx, sigs[i])
+                    line[line_id][j], = ax[i][j].plot(self.t_trx*1e9, sigs[i])
                     line_id+=1
                     ax[i][j].set_title("TRX-Phase Diff-TD, Freq {}GHz, TX ant {}, RX ant {}".format(self.freq_hop_list[j]/1e9, tx_ant_id, rx_ant_id))
-                    ax[i][j].set_xlabel("Time (s)")
-                    ax[i][j].set_ylabel("Phase (radians)")
+                    ax[i][j].set_xlabel("Time (ns)")
+                    ax[i][j].set_ylabel("Phase (Rad)")
                 elif plot_mode[i]=='trxfd_phase_diff':
                     line[line_id][j], = ax[i][j].plot(self.freq_trx, sigs[i])
                     line_id+=1
                     ax[i][j].set_title("TRX-Phase Diff-FD, Freq {}GHz, TX ant {}, RX ant {}".format(self.freq_hop_list[j]/1e9, tx_ant_id, rx_ant_id))
                     ax[i][j].set_xlabel("Freq (MHz)")
-                    ax[i][j].set_ylabel("Phase (radians)")
+                    ax[i][j].set_ylabel("Phase (Rad)")
+                elif plot_mode[i]=='rx_phase_diff':
+                    line[line_id][j], = ax[i][j].plot([], [])
+                    line_id+=1
+                    ax[i][j].set_title("RX-Phase Diff-TD, Freq {}GHz".format(self.freq_hop_list[j]/1e9))
+                    ax[i][j].set_xlabel("Experiment ID")
+                    ax[i][j].set_ylabel("Calibrated Phase (Rad)")
                 elif plot_mode[i]=='aoa_gauge':
                     self.draw_half_gauge(ax[i][j], min_val=-90, max_val=90)
                     self.gauge_update_needle(ax[i][j], 0, min_val=-90, max_val=90)
@@ -650,6 +718,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ax[i][j].axis('off')
                 # elif plot_mode[i]=='nf_loc':
                 #     self.nf_model.plot_results(RoomModel=self.RoomModel, plot_type='init_est')
+
+                ax[i][j].title.set_fontsize(20)
+                ax[i][j].xaxis.label.set_fontsize(15)
+                ax[i][j].yaxis.label.set_fontsize(15)
+                ax[i][j].tick_params(axis='both', which='major', labelsize=12)  # For major ticks
+                ax[i][j].tick_params(axis='both', which='minor', labelsize=12)
 
                 # ax[i].autoscale()
                 ax[i][j].grid(True)
@@ -664,6 +738,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         plt.subplots_adjust(hspace=0.4, wspace=0.4)
         anim = animation.FuncAnimation(fig, update, frames=int(1e9), interval=self.anim_interval, blit=False)
         plt.show()
+        fig.savefig(self.figs_save_path, dpi=300)
 
 
     def rx_operations(self, txtd_base, rxtd):
@@ -783,11 +858,15 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 g = sys_response
                 if g is not None:
                     g = g.copy().transpose(2,0,1)
-                (h_tr, dly_est, peaks) = self.sparse_est(h=h, g=g, sc_range_ch=self.sc_range_ch, npaths=1, nframe_avg=1, ndly=5000, drange=[-6,20], cv=True)
-                sparse_est_params = (h_tr, dly_est, peaks)
+                sparse_est_params = self.sparse_est(h=h, g=g, sc_range_ch=self.sc_range_ch, npaths=10, nframe_avg=1, ndly=5000, drange=[-6,20], cv=False)
             else:
-                h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_pilot_s[plt_frm_id], sys_response=sys_response, sc_range_ch=self.sc_range_ch, snr_est=snr_est)
-            self.estimate_mimo_params(txtd_base, rxtd_pilot[plt_frm_id], H_est_max)
+                h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_pilot_s, sys_response=sys_response, sc_range_ch=self.sc_range_ch, snr_est=snr_est)
+            
+            self.rx_phase_list, self.aoa_list = self.estimate_mimo_params(txtd_base, rxtd_pilot, h_est_full, H_est_max, self.rx_phase_list, self.aoa_list)
+            if len(self.rx_phase_list)>self.nfft_trx//10:
+                self.rx_phase_list.pop(0)
+            if len(self.aoa_list)>self.nfft_trx//10:
+                self.aoa_list.pop(0)
         else:
             h_est_full = np.ones((self.n_rx_ant, self.n_tx_ant, self.n_samples_ch), dtype=complex)
             H_est = np.ones((self.n_rx_ant, self.n_tx_ant), dtype=complex)

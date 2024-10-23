@@ -566,32 +566,58 @@ class Sim(object):
 
         if ax is None:
             fig, ax = plt.subplots(1, nplots)
-        if nplots == 1:
-            ax = [ax]
-        for i in range(nplots):
-        
-            # Plot the estimated heatmap
-            rho1 = self.rho[:,i].reshape(self.npoints,self.npoints)
-            ax[i].contourf(self.xtest0, self.xtest1, rho1)
+            if nplots == 1:
+                ax = [ax]
 
-            # Draw the room walls
-            if RoomModel is not None:
-                RoomModel.draw_walls(ax[i])
+            for i in range(nplots):
+            
+                # Plot the estimated heatmap
+                rho1 = self.rho[:,i].reshape(self.npoints,self.npoints)
+                ax[i].contourf(self.xtest0, self.xtest1, rho1)
+
+                # Draw the room walls
+                if RoomModel is not None:
+                    RoomModel.draw_walls(ax[i])
+                    
                 
-            
-            # Plot the TX locations as blue circles
-            ax[i].plot(self.tx[:,0], self.tx[:,1], 'ro')
-            ax[i].plot(self.tx_est[i,0], self.tx_est[i,1], 'bx')
-            ax[i].set_xlim(self.region[0])
-            ax[i].set_ylim(self.region[1])
-            if (nplots > 1):
-                ax[i].set_title(f'Iter {i}')
-            if (i > 0):
-                ax[i].set_yticks([])
-            
-            
-        plt.tight_layout()
-        plt.show()
+                # Plot the TX locations as blue circles
+                ax[i].plot(self.tx[:,0], self.tx[:,1], 'ro')
+                ax[i].plot(self.tx_est[i,0], self.tx_est[i,1], 'bx')
+                ax[i].set_xlim(self.region[0])
+                ax[i].set_ylim(self.region[1])
+                if (nplots > 1):
+                    ax[i].set_title(f'Iter {i}')
+                if (i > 0):
+                    ax[i].set_yticks([])
+                
+                
+            plt.tight_layout()
+            plt.show()
+
+        else:
+            ax.clear()  # Clear the previous frame
+
+            # Update heatmap
+            rho1 = self.rho[:, i].reshape(self.npoints, self.npoints)
+            ax.contourf(self.xtest0, self.xtest1, rho1)
+
+            # Draw room walls if RoomModel is provided
+            if self.RoomModel is not None:
+                self.RoomModel.draw_walls(self.ax[i])
+
+            # Plot TX locations and estimated TX locations
+            self.ax[i].plot(self.tx[:, 0], self.tx[:, 1], 'ro')  # Actual TX
+            self.ax[i].plot(self.tx_est[i, 0], self.tx_est[i, 1], 'bx')  # Estimated TX
+
+            # Set plot limits and titles
+            self.ax[i].set_xlim(self.region[0])
+            self.ax[i].set_ylim(self.region[1])
+            if self.npath_det > 1:
+                self.ax[i].set_title(f'Iter {frame}')
+
+            # Remove y-ticks for plots beyond the first
+            if i > 0:
+                self.ax[i].set_yticks([])
 
         return ax
 

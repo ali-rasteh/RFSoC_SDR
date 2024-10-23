@@ -1094,8 +1094,14 @@ class Signal_Utils(General):
                 peaks  = np.abs(coeffs_est)**2 * scale
 
                 h_tr_mat[irx][itx] = h_tr.copy()
-                dly_est_mat[irx][itx] = dly_est.copy()
-                peaks_mat[irx][itx] = peaks.copy()
+                if len(dly_est) > 0:
+                    dly_est_mat[irx][itx] = dly_est.copy()
+                else:
+                    dly_est_mat[irx][itx] = [0]
+                if len(peaks) > 0:
+                    peaks_mat[irx][itx] = peaks.copy()
+                else:
+                    peaks_mat[irx][itx] = [0]
         
         h_tr_mat = np.array(h_tr_mat)
         dly_est_mat = np.array(dly_est_mat)
@@ -1105,6 +1111,8 @@ class Signal_Utils(General):
 
 
     def channel_estimate(self, txtd, rxtd_s, sys_response=None, sc_range_ch=[0,0], snr_est=100):
+        if len(rxtd_s.shape) == 4:
+            rxtd_s = np.mean(rxtd_s.copy(), axis=0)
         deconv_sys_response = (sys_response is not None)
 
         n_samples = min(txtd.shape[-1], rxtd_s.shape[-1])
@@ -1292,35 +1300,85 @@ class Signal_Utils(General):
         return rxtd_eq
 
 
-    def angle_of_arrival(self, txtd, rxtd, rx_phase_offset=0):
-        phase_diff = self.calc_phase_offset(rxtd[0,:], rxtd[1,:])
+    def filter_aoa(self, rx_phase_list, rx_phase, aoa_list, aoa):
+        alpha_phase = 0.5
+        alpha_aoa = 0.5
+
+        if len(aoa_list) > 0:
+            aoa_last = aoa_list[-1]
+        else:
+            if aoa is None:
+                aoa_last = 0
+            else:
+                aoa_last = aoa
+        if aoa is None:
+            aoa = aoa_last
+        else:
+            aoa = alpha_aoa * aoa + (1 - alpha_aoa) * aoa_last
+
+
+        if len(rx_phase_list) > 0:
+            rx_phase_last = rx_phase_list[-1]
+        else:
+            if rx_phase is None:
+                rx_phase_last = 0
+            else:
+                rx_phase_last = rx_phase
+        if rx_phase is None:
+            rx_phase = rx_phase_last
+        else:
+            rx_phase = alpha_phase * rx_phase + (1 - alpha_phase) * rx_phase_last
+
+        rx_phase_list.append(rx_phase)
+        aoa_list.append(aoa)
+
+        return rx_phase_list, aoa_list
+
+
+    def angle_of_arrival(self, txtd, rxtd, h_full, rx_phase_list, aoa_list, rx_phase_offset=0):
+        if len(rxtd.shape) == 3:
+            rxtd = np.mean(rxtd.copy(), axis=0)
+        rx_phase = self.calc_phase_offset(rxtd[0,:], rxtd[1,:])
+
         # print("phase_diff: ", phase_diff)
-        rx_phase = phase_diff - rx_phase_offset
+        # h_full_ = h_full.copy()[:,0,:]
+        # h_full_ = np.sum(np.abs(h_full_)**2, axis=0)
+        # im = np.argmax(h_full_)
+        # i0 = np.maximum(0, im-10)
+        # i1 = np.minimum(self.nfft_ch, im+10)
+        # z = np.mean(rxtd[0, i0:i1] * np.conj(rxtd[1, i0:i1]))
+        # rx_phase = np.angle(z)
+        #rx_phase = np.angle(rxtd[0,im] * np.conj(rxtd[1,im]))
+
+        rx_phase = rx_phase - rx_phase_offset
         # print("rx_phase: ", rx_phase)
+
         angle_sin = rx_phase/(2*np.pi*self.ant_dx)
         if angle_sin > 1 or angle_sin < -1:
-            angle = np.nan
+            # angle = np.nan
+            aoa = None
+            # rx_phase = None
             self.print("AoA sin is out of range: {}".format(angle_sin), 1)
         else:
-            angle = np.arcsin(angle_sin)
+            aoa = np.arcsin(angle_sin)
 
-        return angle
+        rx_phase_list, aoa_list = self.filter_aoa(rx_phase_list, rx_phase, aoa_list, aoa)
+
+        return rx_phase_list, aoa_list
     
 
-    def estimate_mimo_params(self, txtd, rxtd, H):
+    def estimate_mimo_params(self, txtd, rxtd, h_full, H, rx_phase_list, aoa_list):
         U, S, Vh = np.linalg.svd(H)
         # W_tx = Vh.conj().T
         # W_rx = U
-        if H.shape[0] == 1:
-            tx_phase = 0
-            rx_phase = 0
-        elif H.shape[0] == 2:
-            rx_phase = np.mean(np.angle(U[0,:]*np.conj(U[1,:])))
-            tx_phase = np.mean(np.angle(Vh[:,0]*np.conj(Vh[:,1])))
-        aoa = self.angle_of_arrival(txtd=txtd, rxtd=rxtd, rx_phase_offset=self.rx_phase_offset)
+
+        # rx_phase = np.mean(np.angle(U[0,:]*np.conj(U[1,:])))
+        # tx_phase = np.mean(np.angle(Vh[:,0]*np.conj(Vh[:,1])))
+
+        rx_phase_list, aoa_list = self.angle_of_arrival(txtd=txtd, rxtd=rxtd, h_full=h_full, rx_phase_list=rx_phase_list, aoa_list=aoa_list, rx_phase_offset=self.rx_phase_offset)
         # print("AoA: {} deg".format(np.rad2deg(aoa)))
 
-        return aoa
+        return rx_phase_list, aoa_list
 
 
     # plot_signal(self, x, sig, mode='time_IQ', scale='linear', title='Custom Title', xlabel='Time', ylabel='Amplitude', plot_args={'color': 'red', 'linestyle': '--'}, xlim=(0, 10), ylim=(-1, 1), legend=True)
@@ -1417,7 +1475,7 @@ class Signal_Utils(General):
 
 
     def gauge_update_needle(self, ax, value, min_val=90, max_val=-90):
-        if value != np.nan:
+        if value != np.nan and value != None:
             angle = (value - min_val) * 180 / (max_val - min_val)
         else:
             return

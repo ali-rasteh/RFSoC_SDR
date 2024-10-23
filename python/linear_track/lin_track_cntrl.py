@@ -147,6 +147,8 @@ class LinearTrack(General):
         self.print("Starting interactive move", thr=1)
         while True:
             dis = float(input("Enter the distance to move in mm: "))
+            if dis == 0:
+                break
             self.displace(dis)
 
 
@@ -200,7 +202,7 @@ class LinearTrack(General):
         be used to bring the plate back to home position(if needed)
         """
         position = self.position + dis
-        if position > 1500 or position < 0:
+        if position >= self.travel_length or position <= 0:
             raise Exception("Gantry plate already at the edge")
             success = False
         else:
@@ -237,7 +239,7 @@ class LinearTrack(General):
 
     def return2home(self):
         self.print("Returning to home position", thr=1)
-        dis_from_home = self.position
+        dis_from_home = self.position + self.margin2edge
 
         success = True
         status = None
@@ -265,6 +267,43 @@ class LinearTrack(General):
             raise Exception("The position status variable is negative for gotoend. Please check the position file")
 
         return success, status
+    
+
+    def back_and_forth(self, distance=100.0, margin=100.0, repeats=8, delay=2.0):
+        self.print("Moving back and forth", thr=1)
+        direction = 'forward'
+        rep_id = 0
+
+        while True:
+            time.sleep(delay)
+            rep_id += 1
+
+            if direction=='forward':
+                dir = 1
+            elif direction=='backward':
+                dir = -1
+            else:
+                raise Exception("Invalid direction")
+            dist = distance * dir
+            success, status = self.displace(dist)
+            if success == False:
+                break
+            
+            if rep_id>=repeats:
+                rep_id = 0
+                if direction == 'forward':
+                    direction = 'backward'
+                elif direction == 'backward':
+                    direction = 'forward'
+
+            if self.position >= self.travel_length - margin:
+                rep_id = 0
+                direction = 'backward'
+            elif self.position <= margin:
+                rep_id = 0
+                direction = 'forward'
+
+
     
 
     def stop(self):
@@ -298,9 +337,13 @@ def lintrack_run(params):
     atexit.register(lt.reset)
     # atexit.register(on_program_exit)
 
-    # lt.calibrate()
-    # lt.interactive_move()
+    # lt.calibrate(mode='start')
+    # lt.calibrate(mode='end')
     # lt.return2home()
+    # lt.go2end()
+
+    lt.interactive_move()
+    lt.back_and_forth()
 
     if params.run_tcp_server:
         lt.run_tcp()
