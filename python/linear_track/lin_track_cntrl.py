@@ -58,6 +58,8 @@ class LinearTrack(General):
         self.travel_length = self.total_length - self.plate_length
         self.margin2edge = 5
 
+        self.travel_length -= 2*self.margin2edge
+
         if self.output_mode == 'stepper':
             self.kit = stepper.StepperMotor(microsteps=2)
         elif self.output_mode == 'dc':
@@ -202,7 +204,7 @@ class LinearTrack(General):
         be used to bring the plate back to home position(if needed)
         """
         position = self.position + dis
-        if position >= self.travel_length or position <= 0:
+        if position > self.travel_length or position < 0:
             raise Exception("Gantry plate already at the edge")
             success = False
         else:
@@ -239,7 +241,7 @@ class LinearTrack(General):
 
     def return2home(self):
         self.print("Returning to home position", thr=1)
-        dis_from_home = self.position + self.margin2edge
+        dis_from_home = self.position
 
         success = True
         status = None
@@ -255,7 +257,7 @@ class LinearTrack(General):
 
     def go2end(self):
         self.print("Going to the end of the linear track", thr=1)
-        dis_from_end = self.travel_length - self.position - 2*self.margin2edge
+        dis_from_end = self.travel_length - self.position
 
         success = True
         status = None
@@ -303,6 +305,9 @@ class LinearTrack(General):
                 rep_id = 0
                 direction = 'forward'
 
+            if rep_id == 0:
+                time.sleep(5*delay)
+
 
     
 
@@ -343,7 +348,7 @@ def lintrack_run(params):
     # lt.go2end()
 
     lt.interactive_move()
-    lt.back_and_forth()
+    # lt.back_and_forth(distance=100.0, margin=100.0, repeats=8, delay=3.0)
 
     if params.run_tcp_server:
         lt.run_tcp()

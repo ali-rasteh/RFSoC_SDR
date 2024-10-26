@@ -258,7 +258,7 @@ class ssh_Com(General):
         self.print("SSH Client object deleted", thr=1)
 
 
-    def exec_command(self, command, verif_keyword='done'):
+    def exec_command(self, command, verif_keyword=''):
         # Execute the command
         stdin, stdout, stderr = self.client.exec_command(command)
 
@@ -294,10 +294,23 @@ class ssh_Com_Piradio(ssh_Com):
         self.print("ssh_Com_Piradio object init done", thr=1)
 
 
-    def set_frequency(self, fc=6.0e9, verif_keyword='done'):
+    def initialize(self, verif_keyword='done'):
+        command = f"cd ~/"
+        result = self.exec_command(command, verif_keyword='')
+        command = './do_everything.sh'
+        result &= self.exec_command(command, verif_keyword=verif_keyword)
+        if result:
+            time.sleep(0.1)
+            self.print("Pi-Radio Initialization done", thr=3)
+        else:
+            self.print("Failed to initialize Pi-Radio", thr=0)
+
+
+    def set_frequency(self, fc=6.0e9, verif_keyword=''):
         command = f"ls"
         result = self.exec_command(command, verif_keyword=verif_keyword)
         if result:
+            time.sleep(0.1)
             self.print(f"Frequency set to {fc/1e9} GHz", thr=3)
         else:
             self.print(f"Failed to set frequency to {fc/1e9} GHz", thr=0)

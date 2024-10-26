@@ -1274,28 +1274,26 @@ class Signal_Utils(General):
         #         rxfd_eq[rx_ant_id], _ = self.adjust_phase(rxfd[rx_ant_id], txfd[0], phase_offset)
 
 
+        rxfd_ = fftshift(rxfd, axes=-1)
+        rxfd_eq_ = fftshift(rxfd_eq, axes=-1)
+        H_full_ = fftshift(H_full, axes=-1)
         if n_rx_ch_eq == 1:
             for rx_ant_id in range(rxtd_eq.shape[0]):
                 # rxfd_eq[rx_ant_id] = rxfd[rx_ant_id] / H[rx_ant_id, rx_ant_id]
 
-                H_full_ = fftshift(H_full[rx_ant_id, rx_ant_id], axes=-1)
-                rxfd_ = fftshift(rxfd[rx_ant_id], axes=-1)
-                rxfd_eq_ = fftshift(rxfd_eq[rx_ant_id], axes=-1)
                 for i, sc in enumerate(range(sc_range[0], sc_range[1]+1)):
                     if not sc in range(null_sc_range[0], null_sc_range[1]+1):
-                        rxfd_eq_[sc+n_samples//2] = rxfd_[sc+n_samples//2] / H_full_[i]
-                rxfd_eq[rx_ant_id] = ifftshift(rxfd_eq_)
+                        rxfd_eq_[rx_ant_id, sc+n_samples//2] = rxfd_[rx_ant_id, sc+n_samples//2] / H_full_[rx_ant_id, rx_ant_id, i]
+                rxfd_eq[rx_ant_id] = ifftshift(rxfd_eq_[rx_ant_id])
         else:
             tol = 1e-6
-            rxfd_ = fftshift(rxfd, axes=-1)
-            rxfd_eq_ = fftshift(rxfd_eq, axes=-1)
-            H_full_ = fftshift(H_full, axes=-1)
             for i, sc in enumerate(range(sc_range[0], sc_range[1]+1)):
-                H_sc = H_full_[:,:,i]
-                # H_sc += tol*np.eye(H_sc.shape[0])
-                # H_sc_inv = np.linalg.pinv(H_sc)
-                H_sc_inv = (np.conj(H_sc.T) * H_sc + tol*np.eye(H_sc.shape[0])) * np.conj(H_sc.T)
-                rxfd_eq_[:,sc+n_samples//2] = H_sc_inv @ rxfd_[:,sc+n_samples//2]
+                if not sc in range(null_sc_range[0], null_sc_range[1]+1):
+                    H_sc = H_full_[:,:,i]
+                    # H_sc += tol*np.eye(H_sc.shape[0])
+                    # H_sc_inv = np.linalg.pinv(H_sc)
+                    H_sc_inv = (np.conj(H_sc.T) * H_sc + tol*np.eye(H_sc.shape[0])) * np.conj(H_sc.T)
+                    rxfd_eq_[:,sc+n_samples//2] = H_sc_inv @ rxfd_[:,sc+n_samples//2]
 
             rxfd_eq = ifftshift(rxfd_eq_, axes=-1)
 
@@ -1344,17 +1342,16 @@ class Signal_Utils(General):
             rxtd = np.mean(rxtd.copy(), axis=0)
         rx_phase = self.calc_phase_offset(rxtd[0,:], rxtd[1,:])
 
-        # print("phase_diff: ", phase_diff)
         # h_full_ = h_full.copy()[:,0,:]
         # h_full_ = np.sum(np.abs(h_full_)**2, axis=0)
         # im = np.argmax(h_full_)
-        # i0 = np.maximum(0, im-10)
-        # i1 = np.minimum(self.nfft_ch, im+10)
-        # z = np.mean(rxtd[0, i0:i1] * np.conj(rxtd[1, i0:i1]))
-        # rx_phase = np.angle(z)
-        #rx_phase = np.angle(rxtd[0,im] * np.conj(rxtd[1,im]))
+        # # i0 = np.maximum(0, im-10)
+        # # i1 = np.minimum(self.nfft_ch, im+10)
+        # # z = np.mean(rxtd[0, i0:i1] * np.conj(rxtd[1, i0:i1]))
+        # # rx_phase = np.angle(z)
+        # rx_phase = np.angle(rxtd[0,im] * np.conj(rxtd[1,im]))
 
-        rx_phase = rx_phase - rx_phase_offset
+        rx_phase -= rx_phase_offset
         # print("rx_phase: ", rx_phase)
 
         angle_sin = rx_phase/(2*np.pi*self.ant_dx)

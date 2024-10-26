@@ -117,10 +117,6 @@ class Params_Class(object):
             self.beamforming=False
             self.steer_phi_deg = 30        # Desired steering azimuth in degrees
             self.anim_interval=500
-            self.piradio_host = '192.168.137.51'
-            self.piradio_port = '22'
-            self.piradio_username = 'ubuntu'
-            self.piradio_password = 'temppwd'
             self.sig_modulation = '4qam'
             self.sig_mode='wideband_null'
             self.calib_iter = 100
@@ -129,34 +125,40 @@ class Params_Class(object):
             self.verbose_level=0
             self.snr_est_db=40
             self.rx_chain=[]        # filter, integrate, sync_time, sync_freq, pilot_separate, channel_est, channel_eq
-            self.nf_walls = np.array([[-5,4], [-1,6]])
-            self.rx_sep_dir = np.array([1,0])
             self.sig_gen_mode = 'fft'
             self.saved_sig_plot = []
             self.ant_dx_m = 0.020               # Antenna spacing in meters
             self.control_piradio=False
-            self.nf_stop_thr = 0.03
-            # self.rx_loc_sep = np.array([0,1])
-            self.rx_loc_sep = np.array([0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1])
-            # self.ant_sep = np.array([0.5,1,2,4])
-            self.ant_sep = np.array([0.5])
-            self.nf_param_estimate = False
-            self.use_linear_track=False
-
-
+            self.tx_sig_sim = 'same'        # same or orthogonal
+            self.piradio_host = '192.168.137.51'
+            self.piradio_port = '22'
+            self.piradio_username = 'ubuntu'
+            self.piradio_password = 'temppwd'
             # self.freq_hop_list = [6.0e9, 8.0e9, 10.0e9, 12.0e9]
             self.freq_hop_list = [8.75e9]
-            self.tx_sig_sim = 'same'        # same or orthogonal
+
+
+            self.nf_walls = np.array([[-5,4], [-1,6]])
+            self.nf_rx_sep_dir = np.array([1,0])
+            self.nf_npath_max = 3
+            self.nf_stop_thr = 0.03
+            # self.nf_tx_loc = None
+            self.nf_tx_loc = np.array([[0.3,1]])
+            # self.nf_rx_loc_sep = np.array([0,1])
+            self.nf_rx_loc_sep = np.array([0,0.1,0.2,0.3,0.4,0.5])
+            # self.nf_ant_sep = np.array([0.5,1,2,4])
+            self.nf_ant_sep = np.array([0.5834])
+            self.nf_param_estimate = True
+            self.use_linear_track=True
             self.n_rx_ch_eq=1
             self.n_frame_rd=2
             self.wb_sc_range=[-250,250]
-            self.nf_npath_max = 5
             self.plt_tx_ant_id = 0
             self.plt_rx_ant_id = 0
             self.plt_frame_id = 0
-            self.channel_limit = True
+            self.channel_limit = False
             self.n_rd_rep=8
-            self.animate_plot_mode=['h01', 'rx_phase_diff', 'aoa_gauge']
+            self.animate_plot_mode=['aoa_gauge', 'h', 'nf_loc']
             self.save_list = ['', '']           # signal or channel
 
             # self.rx_chain.append('filter')
@@ -316,7 +318,7 @@ def rfsoc_run(params):
     if params.control_piradio:
         client_piradio = ssh_Com_Piradio(params)
         client_piradio.init_ssh_client()
-        # client_piradio.set_frequency(verif_keyword='')
+        client_piradio.initialize()
 
     if params.mode=='server':
         rfsoc_inst = RFSoC(params)
@@ -337,8 +339,8 @@ def rfsoc_run(params):
             client_rfsoc.init_tcp_client()
 
             if params.send_signal:
-                pass
                 # client_rfsoc.transmit_data()
+                pass
 
             if params.RFFE=='sivers':
                 client_rfsoc.set_frequency(params.fc)

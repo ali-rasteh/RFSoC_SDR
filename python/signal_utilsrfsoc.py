@@ -53,11 +53,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.freq_hop_list = params.freq_hop_list
         self.snr_est_db = params.snr_est_db
         self.calib_iter = params.calib_iter
-        self.rx_loc_sep = params.rx_loc_sep
-        self.ant_sep = params.ant_sep
+        self.nf_tx_loc = params.nf_tx_loc
+        self.nf_rx_loc_sep = params.nf_rx_loc_sep
+        self.nf_ant_sep = params.nf_ant_sep
         self.nf_npath_max = params.nf_npath_max
         self.nf_walls = params.nf_walls
-        self.rx_sep_dir = params.rx_sep_dir
+        self.nf_rx_sep_dir = params.nf_rx_sep_dir
         self.nf_stop_thr = params.nf_stop_thr
         self.n_rd_rep = params.n_rd_rep
         self.saved_sig_plot = params.saved_sig_plot
@@ -65,7 +66,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
         self.rx_phase_offset = 0
-        self.nf_loc_idx = -1
+        self.nf_loc_idx = 0
         self.rx_phase_list = []
         self.aoa_list = []
         self.lin_track_pos = 0
@@ -159,8 +160,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         # nf_region[1,0] -= room_length
         nf_region[1,1] += room_length
         self.nf_model = Near_Field_Model(fc=self.fc, fsamp=self.fs_rx, nfft=self.nfft_ch, nantrx=self.n_rx_ant,
-                        rxlocsep=self.rx_loc_sep, sepdir=self.rx_sep_dir, antsep=self.ant_sep, npath_est=self.nf_npath_max, 
-                        stop_thresh=self.nf_stop_thr, region=nf_region, tx=None)
+                        rxlocsep=self.nf_rx_loc_sep, sepdir=self.nf_rx_sep_dir, antsep=self.nf_ant_sep, npath_est=self.nf_npath_max, 
+                        stop_thresh=self.nf_stop_thr, region=nf_region, tx=self.nf_tx_loc)
         
         self.nf_model.gen_tx_pos()
         self.nf_model.compute_rx_pos()
@@ -188,13 +189,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         self.nf_model.path_est_init()
         self.nf_model.locate_tx()
+        # self.nf_model.plot_results(RoomModel=self.RoomModel, plot_type='')
 
 
     def calibrate_rx_phase_offset(self, client_rfsoc):
         '''
         This function calibrates the phase offset between the receivers ports in RFSoCs
         '''
-        input_ = input("Press Y for phase offset calibration (and position the TX/RX at AoA = 0) and anything to use the saved phase offset: ")
+        input_ = input("Press Y for phase offset calibration (and position the TX/RX at AoA = 0) or any key to use the saved phase offset: ")
 
         if input_.lower()!='y':
             self.rx_phase_offset = np.load(self.calib_params_path)['rx_phase_offset']
@@ -422,57 +424,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 return line
             sigs, h_est_full = receive_data(txtd_base)
 
-            if self.use_linear_track:
-                if self.lin_track_dir=='forward':
-                    dir = 1
-                else:
-                    dir = -1
-                dist = 100 * dir
-                thr = 400
-                client_lintrack.move(distance=dist)
-                self.lin_track_pos += dist
-
-                if self.lin_track_pos >= thr:
-                    self.lin_track_dir = 'backward'
-                elif self.lin_track_pos <= -1*thr:
-                    self.lin_track_dir = 'forward'
-
-
-            if self.control_piradio:
-                self.fc = self.freq_hop_list[int(self.fc_id)]
-
-                # client_piradio.set_frequency(fc=self.fc)
-                self.fc_id = (self.fc_id + 1) % len(self.freq_hop_list)
-                # time.sleep(0.1)
-            else:
-                self.fc_id = 0
-
-            if self.nf_param_estimate:
-                h_index = plot_mode.index('h')
-
-                if self.nf_loc_idx==-1:
-                    # client_lintrack.return2home()
-                    # client_lintrack.go2end()
-                    self.h_nf = []
-                    self.nf_loc_idx+=1
-
-                elif self.nf_loc_idx==len(self.nf_rx_loc):
-                    self.h_nf = np.array(self.h_nf)
-                    self.h_nf = np.transpose(self.h_nf, (2,1,0))
-                    self.nf_locate_tx(self.h_nf)
-                    self.nf_model.plot_results(RoomModel=self.RoomModel, plot_type='init_est')
-
-                    self.nf_loc_idx = -1
-                else:
-                    self.h_nf.append(h_est_full[:,0])
-                    # Just move in the x direction
-                    distance = 1000*(self.nf_rx_loc[self.nf_loc_idx, 0] - self.nf_rx_loc[self.nf_loc_idx-1, 0])
-                    # client_lintrack.move(distance=distance)
-                    # client_lintrack.move(distance=-10)
-                
-                    self.nf_loc_idx+=1
-
-
             line_id = 0
             for i in range(n_plots_row):
                 j = self.fc_id
@@ -496,7 +447,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     line[line_id][j].set_data(np.arange(len(sigs[i])), sigs[i])
                     line_id+=1
                 elif plot_mode[i]=='aoa_gauge':
-                    self.gauge_update_needle(ax[i][j], np.rad2deg(-sigs[i]))
+                    self.gauge_update_needle(ax[i][j], np.rad2deg(sigs[i]))
                     ax[i][j].set_xlim(0, 1)
                     ax[i][j].set_ylim(0.5, 1)
                     ax[i][j].axis('off')
@@ -537,7 +488,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     line_id+=1
                     ax[i][j].set_ylim([ymin, ymax])
                 elif plot_mode[i]=='nf_loc':
-                    pass
+                    self.nf_model.plot_results(ax[i][j], RoomModel=self.RoomModel, plot_type='init_est')
                 else:
                     line[line_id][j].set_ydata(sigs[i])
                     line_id+=1
@@ -558,6 +509,40 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         print("Error in autoscale {}".format(e))
                 # if plot_mode[i]=='h' or plot_mode[i]=='h01' or plot_mode[i]=='h_sparse':
                 #     ax[i][j].set_ylim(-10,60)
+
+
+            
+            if self.control_piradio:
+                self.fc = self.freq_hop_list[int(self.fc_id)]
+                client_piradio.set_frequency(fc=self.fc)
+                self.fc_id = (self.fc_id + 1) % len(self.freq_hop_list)
+            else:
+                self.fc_id = 0
+
+            if self.nf_param_estimate:
+                # h_index = plot_mode.index('h')
+                if self.nf_loc_idx==0:
+                    if self.use_linear_track:
+                        client_lintrack.return2home()
+                        # distance = -1000*(len(self.nf_rx_loc)-1)
+                        # distance = np.round(distance, 2)
+                        # client_lintrack.move(distance=distance)
+                    self.h_nf = []
+                    self.nf_loc_idx+=1
+                elif self.nf_loc_idx==len(self.nf_rx_loc)+1:
+                    self.h_nf = np.array(self.h_nf)
+                    self.h_nf = np.transpose(self.h_nf, (2,1,0))
+                    self.nf_locate_tx(self.h_nf)
+                    self.nf_loc_idx = 0
+                else:
+                    self.h_nf.append(h_est_full[:,0])
+                    if self.use_linear_track and self.nf_loc_idx < len(self.nf_rx_loc):
+                        distance = 1000*(self.nf_rx_loc[self.nf_loc_idx, 0] - self.nf_rx_loc[self.nf_loc_idx-1, 0])
+                        distance = np.round(distance, 2)
+                        client_lintrack.move(distance=distance)
+                        time.sleep(0.1)
+                    self.nf_loc_idx+=1
+
 
             return line
 
@@ -719,8 +704,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ax[i][j].set_xlim(0, 1)
                     ax[i][j].set_ylim(0.5, 1)
                     ax[i][j].axis('off')
-                # elif plot_mode[i]=='nf_loc':
-                #     self.nf_model.plot_results(RoomModel=self.RoomModel, plot_type='init_est')
+                elif plot_mode[i]=='nf_loc':
+                    self.nf_model.plot_results(ax[i][j], RoomModel=self.RoomModel, plot_type='init_est')
 
                 ax[i][j].title.set_fontsize(20)
                 ax[i][j].xaxis.label.set_fontsize(15)
@@ -730,9 +715,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
                 # ax[i].autoscale()
                 ax[i][j].grid(True)
-                if plot_mode[i]!='IQ':
+                if not (plot_mode[i] in self.untoched_plot_list):
                     ax[i][j].relim()
-                ax[i][j].autoscale_view()
+                    ax[i][j].autoscale_view()
                 ax[i][j].minorticks_on()
                 ax[i][j].legend()
 
