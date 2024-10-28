@@ -18,7 +18,8 @@ sudo ./program_spi.py adrf6520 tx1 pdn
 sudo ./program_spi.py adrf6520 rx0 bypass
 sudo ./program_spi.py adrf6520 rx1 bypass
 
-sudo ./program_spi.py lmx2820 hf ./registers/lmx2820/8p75GHz_pow3.txt
+sudo ./program_spi.py lmx2820 hf ./registers/lmx2820/10GHz_pow3.txt
+# sudo ./program_spi.py lmx2820 hf ./registers/lmx2820/8p75GHz_pow3.txt
 sudo ./program_spi.py lmx2820 lf ./registers/lmx2820/1GHz.txt
 
 sudo ./program_spi.py ltc2668 -- 7 0.85
@@ -27,16 +28,16 @@ sudo ./program_spi.py ltc2668 -- 5 0.55
 sudo ./program_spi.py ltc2668 -- 6 0.55
 
 # 8.75 GHz
-sudo ./program_spi.py ltc2668 -- 0 0.000	# TX Ch1 Q Correction
-sudo ./program_spi.py ltc2668 -- 2 0.000	# TX Ch1 I Correction
-sudo ./program_spi.py ltc2668 -- 1 0.000	# TX Ch2 Q Correction
-sudo ./program_spi.py ltc2668 -- 3 0.000	# TX Ch2 I Correction
+# sudo ./program_spi.py ltc2668 -- 0 0.000	# TX Ch1 Q Correction
+# sudo ./program_spi.py ltc2668 -- 2 0.000	# TX Ch1 I Correction
+# sudo ./program_spi.py ltc2668 -- 1 0.000	# TX Ch2 Q Correction
+# sudo ./program_spi.py ltc2668 -- 3 0.000	# TX Ch2 I Correction
 
 # 10 GHz
-#sudo ./program_spi.py ltc2668 -- 0 -0.053	# TX Ch1 Q Correction
-#sudo ./program_spi.py ltc2668 -- 2 0.183	# TX Ch1 I Correction
-#sudo ./program_spi.py ltc2668 -- 1 -0.053	# TX Ch2 Q Correction
-#sudo ./program_spi.py ltc2668 -- 3 0.183	# TX Ch2 I Correction
+sudo ./program_spi.py ltc2668 -- 0 -0.053	# TX Ch1 Q Correction
+sudo ./program_spi.py ltc2668 -- 2 0.183	# TX Ch1 I Correction
+sudo ./program_spi.py ltc2668 -- 1 -0.053	# TX Ch2 Q Correction
+sudo ./program_spi.py ltc2668 -- 3 0.183	# TX Ch2 I Correction
 
 # 14 GHz
 #sudo ./program_spi.py ltc2668 -- 0 -0.001	# TX Ch1 Q Correction

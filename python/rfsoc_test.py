@@ -124,30 +124,28 @@ class Params_Class(object):
             self.plot_level=0
             self.verbose_level=0
             self.snr_est_db=40
-            self.rx_chain=[]        # filter, integrate, sync_time, sync_freq, pilot_separate, channel_est, channel_eq
             self.sig_gen_mode = 'fft'
             self.saved_sig_plot = []
-            self.ant_dx_m = 0.020               # Antenna spacing in meters
             self.control_piradio=False
             self.tx_sig_sim = 'same'        # same or orthogonal
             self.piradio_host = '192.168.137.51'
             self.piradio_port = '22'
             self.piradio_username = 'ubuntu'
             self.piradio_password = 'temppwd'
+            self.ant_dx_m = 0.020               # Antenna spacing in meters
+
+
             # self.freq_hop_list = [6.0e9, 8.0e9, 10.0e9, 12.0e9]
-            self.freq_hop_list = [8.75e9]
-
-
+            self.freq_hop_list = [10.0e9]
             self.nf_walls = np.array([[-5,4], [-1,6]])
             self.nf_rx_sep_dir = np.array([1,0])
-            self.nf_npath_max = 3
+            self.nf_npath_max = 5
             self.nf_stop_thr = 0.03
             # self.nf_tx_loc = None
             self.nf_tx_loc = np.array([[0.3,1]])
-            # self.nf_rx_loc_sep = np.array([0,1])
-            self.nf_rx_loc_sep = np.array([0,0.1,0.2,0.3,0.4,0.5])
-            # self.nf_ant_sep = np.array([0.5,1,2,4])
-            self.nf_ant_sep = np.array([0.5834])
+            # self.nf_rx_loc_sep = np.array([0,0.1,0.2,0.3,0.4,0.5])
+            self.nf_rx_loc_sep = np.array([0,0.3,0.6])
+            self.nf_ant_sep = 0.5 * np.array([1,2,4,8])
             self.nf_param_estimate = True
             self.use_linear_track=True
             self.n_rx_ch_eq=1
@@ -158,9 +156,11 @@ class Params_Class(object):
             self.plt_frame_id = 0
             self.channel_limit = False
             self.n_rd_rep=8
-            self.animate_plot_mode=['aoa_gauge', 'h', 'nf_loc']
+            self.animate_plot_mode=['rxfd', 'h01', 'nf_loc']
             self.save_list = ['', '']           # signal or channel
 
+
+            self.rx_chain=[]        # filter, integrate, sync_time, sync_freq, pilot_separate, channel_est, channel_eq
             # self.rx_chain.append('filter')
             # self.rx_chain.append('integrate')
             self.rx_chain.append('sync_time')

@@ -31,6 +31,7 @@ class Params_Class(object):
             self.dis_coeff = 0.972
             self.overhead_time = 0.0018+0.0061+0.0001
             self.lintrack_server_ip = '0.0.0.0'
+            self.n_motors = 2
             
             self.dis_per_rev = 8
             self.pulse_per_rev = 400
@@ -53,6 +54,7 @@ class LinearTrack(General):
         self.dis_coeff = params.dis_coeff
         self.overhead_time = params.overhead_time
         self.position_file_path = params.position_file_path
+        self.n_motors = params.n_motors
         self.total_length = 1500      # length of the linear track in mm
         self.plate_length = 125
         self.travel_length = self.total_length - self.plate_length
@@ -65,8 +67,12 @@ class LinearTrack(General):
         elif self.output_mode == 'dc':
             self.kit = MotorKit(i2c=board.I2C(), pwm_frequency = self.pulse_freq)
 
-        self.pulse_pwm = self.kit.motor1
-        self.direction_out = self.kit.motor3
+        self.pulse_pwm_1 = self.kit.motor1
+        self.pulse_pwm_2 = self.kit.motor2
+        self.pulse_pwm = [self.pulse_pwm_1, self.pulse_pwm_2]
+        self.direction_out_1 = self.kit.motor3
+        self.direction_out_2 = self.kit.motor4
+        self.direction_out = [self.direction_out_1, self.direction_out_2]
 
         self.reset()
 
@@ -91,10 +97,13 @@ class LinearTrack(General):
         clientMsgParsed = clientMsg.split()
 
         if clientMsgParsed[0] == "Move":
-            if len(clientMsgParsed) == 2:
-                self.print(clientMsgParsed[1], thr=2)
-                distance = float(clientMsgParsed[1])
-                success, status = self.displace(distance)
+            if len(clientMsgParsed) == 3:
+                self.print('{}, {}'.format(clientMsgParsed[1], clientMsgParsed[2]), thr=2)
+                motor_id = int(clientMsgParsed[1])
+                distance = float(clientMsgParsed[2])
+                print("Motor ID: ", motor_id)
+                print("Distance: ", distance)
+                success, status = self.displace(motor_id=motor_id, dis=distance)
                 if success == True:
                     responseToCMD = successMessage 
                 else:
@@ -103,8 +112,9 @@ class LinearTrack(General):
                 responseToCMD = invalidNumberOfArgumentsMessage
 
         elif clientMsgParsed[0] == "Return2home":
-            if len(clientMsgParsed) == 1:
-                success, status = self.return2home()
+            if len(clientMsgParsed) == 2:
+                motor_id = int(clientMsgParsed[1])
+                success, status = self.return2home(motor_id=motor_id)
                 if success == True:
                     responseToCMD = successMessage 
                 else:
@@ -113,8 +123,9 @@ class LinearTrack(General):
                 responseToCMD = invalidNumberOfArgumentsMessage
 
         elif clientMsgParsed[0] == "Go2end":
-            if len(clientMsgParsed) == 1:
-                success, status = self.go2end()
+            if len(clientMsgParsed) == 2:
+                motor_id = int(clientMsgParsed[1])
+                success, status = self.go2end(motor_id=motor_id)
                 if success == True:
                     responseToCMD = successMessage 
                 else:
@@ -129,54 +140,60 @@ class LinearTrack(General):
         return responseToCMDInBytes
 
 
-    def calibrate(self, mode='start'):
-        self.print("Calibrating the linear track with mode {}".format(mode), thr=1)
+    def calibrate(self, motor_id=0, mode='start'):
+        self.print("Calibrating the linear track {} with mode {}".format(motor_id, mode), thr=1)
         while True:
             dis = float(input("Enter the distance to move in mm: "))
             if dis == 0:
                 if mode == 'start':
-                    self.position = 0.0
+                    self.position[motor_id] = 0.0
                 elif mode == 'end':
-                    self.position = self.travel_length
+                    self.position[motor_id] = self.travel_length
                 self.write_position(self.position)
                 break
-            self.displace(dis, pos_check=False)
+            self.displace(motor_id=motor_id, dis=dis, pos_check=False)
 
-        self.print("Calibration complete", thr=1)
+        self.print("Calibration for linear track {} complete".format(motor_id), thr=1)
 
-    
-    def interactive_move(self):
+
+    def interactive_move(self, motor_id=0):
         self.print("Starting interactive move", thr=1)
         while True:
             dis = float(input("Enter the distance to move in mm: "))
             if dis == 0:
                 break
-            self.displace(dis)
+            self.displace(motor_id=motor_id, dis=dis)
 
 
     def read_position(self):
+        self.position = [0.0]*self.n_motors
         with open(self.position_file_path,'r') as f:
-            self.position = float(f.readline(4))
+            for i in range(self.n_motors):
+                self.position[i] = float(f.readline())
+            # self.position = float(f.readline(4))
         return self.position
 
 
     def write_position(self, position):
         with open(self.position_file_path,'w') as f:
-            f.write(str(position))
+            for i in range(self.n_motors):
+                f.write(str(position[i]))
+                f.write('\n')
+            # f.write(str(position))
 
 
-    def set_direction(self, direction='forward'):
+    def set_direction(self, motor_id=0, direction='forward'):
         if direction=='forward':
-            self.direction_out.throttle = 0.0
+            self.direction_out[motor_id].throttle = 0.0
         elif direction=='backward':
-            self.direction_out.throttle = 1.0
-    
+            self.direction_out[motor_id].throttle = 1.0
 
-    def move(self, move_time=0.0):
-        self.pulse_pwm.throttle = 0.5
+
+    def move(self, motor_id=0, move_time=0.0):
+        self.pulse_pwm[motor_id].throttle = 0.5
         sleep_time = max(move_time-self.overhead_time, 0.0)
         time.sleep(sleep_time)
-        self.stop()
+        self.stop(motor_id=motor_id)
 
     # def move(self, move_time=0.1):
     #     for i in range(int(move_time/delay)):
@@ -197,38 +214,38 @@ class LinearTrack(General):
         return dis
 
 
-    def position_check(self, dis=0.0):
+    def position_check(self, motor_id=0, dis=0.0):
         """
         The position valye is maintained and stored to keep track 
         of where the linear track's gantry plate is positioned and can
         be used to bring the plate back to home position(if needed)
         """
-        position = self.position + dis
+        position = self.position[motor_id] + dis
         if position > self.travel_length or position < 0:
             raise Exception("Gantry plate already at the edge")
             success = False
         else:
             success = True
 
-        self.print(f"The new distance from home is {position}mm", thr=2)
+        self.print(f"The new distance from home for linear track {motor_id} is {position}mm", thr=2)
         return success, position
         
 
-    def displace(self, dis=0.0, pos_check=True):
-        self.print(f"Displacing by {dis}mm", thr=1)
+    def displace(self, motor_id=0, dis=0.0, pos_check=True):
+        self.print(f"Displacing linear track {motor_id} by {dis}mm", thr=1)
         if pos_check:
-            result, position = self.position_check(dis)
+            result, position = self.position_check(motor_id, dis)
         else:
             result = True
             position = 0.0
 
         if result:
             direction = 'forward' if dis>=0 else 'backward'
-            self.set_direction(direction)
+            self.set_direction(motor_id=motor_id, direction=direction)
             move_time = self.dis2time(abs(dis))
-            self.move(move_time = move_time)
+            self.move(motor_id=motor_id, move_time = move_time)
 
-            self.position = position
+            self.position[motor_id] = position
             self.write_position(self.position)
 
             success = True
@@ -239,30 +256,30 @@ class LinearTrack(General):
         return success, status
 
 
-    def return2home(self):
+    def return2home(self, motor_id=0):
         self.print("Returning to home position", thr=1)
-        dis_from_home = self.position
+        dis_from_home = self.position[motor_id]
 
         success = True
         status = None
         if dis_from_home > 0:
-            success, status = self.displace(-1 * dis_from_home)
+            success, status = self.displace(motor_id=motor_id, dis=-1 * dis_from_home)
         elif dis_from_home == 0:
-            print("Gantry plate already at home")
+            print("Gantry plate {} already at home".format(motor_id))
         else:
             raise Exception("The position status variable is negative. Please check the position file")
 
         return success, status
     
 
-    def go2end(self):
+    def go2end(self, motor_id=0):
         self.print("Going to the end of the linear track", thr=1)
-        dis_from_end = self.travel_length - self.position
+        dis_from_end = self.travel_length - self.position[motor_id]
 
         success = True
         status = None
         if dis_from_end > 0:
-            success, status = self.displace(dis_from_end)
+            success, status = self.displace(motor_id=motor_id, dis=dis_from_end)
         elif dis_from_end == 0:
             print("Gantry plate already at the end")
         else:
@@ -271,8 +288,8 @@ class LinearTrack(General):
         return success, status
     
 
-    def back_and_forth(self, distance=100.0, margin=100.0, repeats=8, delay=2.0):
-        self.print("Moving back and forth", thr=1)
+    def back_and_forth(self, motor_id=0, distance=100.0, margin=100.0, repeats=8, delay=2.0):
+        self.print("Moving linear track {} back and forth".format(motor_id), thr=1)
         direction = 'forward'
         rep_id = 0
 
@@ -287,7 +304,7 @@ class LinearTrack(General):
             else:
                 raise Exception("Invalid direction")
             dist = distance * dir
-            success, status = self.displace(dist)
+            success, status = self.displace(motor_id=motor_id, dis=dist)
             if success == False:
                 break
             
@@ -298,10 +315,10 @@ class LinearTrack(General):
                 elif direction == 'backward':
                     direction = 'forward'
 
-            if self.position >= self.travel_length - margin:
+            if self.position[motor_id] >= self.travel_length - margin:
                 rep_id = 0
                 direction = 'backward'
-            elif self.position <= margin:
+            elif self.position[motor_id] <= margin:
                 rep_id = 0
                 direction = 'forward'
 
@@ -309,11 +326,11 @@ class LinearTrack(General):
                 time.sleep(5*delay)
 
 
-    
 
-    def stop(self):
-        self.pulse_pwm.throttle = 0.0
-        self.direction_out.throttle = 0.0
+
+    def stop(self, motor_id=0):
+        self.pulse_pwm[motor_id].throttle = 0.0
+        self.direction_out[motor_id].throttle = 0.0
 
 
     def reset(self):
@@ -342,13 +359,18 @@ def lintrack_run(params):
     atexit.register(lt.reset)
     # atexit.register(on_program_exit)
 
-    # lt.calibrate(mode='start')
-    # lt.calibrate(mode='end')
-    # lt.return2home()
-    # lt.go2end()
+    # lt.calibrate(motor_id=0, mode='start')
+    # lt.calibrate(motor_id=1, mode='start')
+    # lt.calibrate(motor_id=0, mode='end')
+    # lt.calibrate(motor_id=1, mode='end')
+    # lt.return2home(motor_id=0)
+    # lt.return2home(motor_id=1)
+    # lt.go2end(motor_id=0)
+    # lt.go2end(motor_id=1)
 
-    lt.interactive_move()
-    # lt.back_and_forth(distance=100.0, margin=100.0, repeats=8, delay=3.0)
+    lt.interactive_move(motor_id=0)
+    lt.interactive_move(motor_id=1)
+    # lt.back_and_forth(motor_id=0, distance=100.0, margin=100.0, repeats=8, delay=3.0)
 
     if params.run_tcp_server:
         lt.run_tcp()

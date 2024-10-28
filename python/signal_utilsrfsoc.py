@@ -67,6 +67,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         self.rx_phase_offset = 0
         self.nf_loc_idx = 0
+        self.nf_sep_idx = 0
         self.rx_phase_list = []
         self.aoa_list = []
         self.lin_track_pos = 0
@@ -424,6 +425,68 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 return line
             sigs, h_est_full = receive_data(txtd_base)
 
+
+            if self.control_piradio:
+                self.fc = self.freq_hop_list[int(self.fc_id)]
+                client_piradio.set_frequency(fc=self.fc)
+                self.fc_id = (self.fc_id + 1) % len(self.freq_hop_list)
+            else:
+                self.fc_id = 0
+
+            if self.nf_param_estimate:
+                # h_index = plot_mode.index('h')
+                if self.nf_loc_idx==0:
+                    self.nf_sep_idx = 0
+
+                    if self.use_linear_track:
+                        client_lintrack.return2home(lin_track_id=0)
+                        client_lintrack.return2home(lin_track_id=1)
+                        time.sleep(0.1)
+                        # distance = -1000*(len(self.nf_rx_loc)-1)
+                        # distance = np.round(distance, 2)
+                        # client_lintrack.move(lin_track_id=0, distance=distance)
+                        # time.sleep(0.1)
+                    self.h_nf = []
+                    self.nf_loc_idx+=1
+                    self.nf_sep_idx+=1
+                elif self.nf_loc_idx==len(self.nf_rx_loc)+1:
+                    self.h_nf = np.array(self.h_nf)
+                    self.h_nf = np.transpose(self.h_nf, (2,1,0))
+                    self.nf_locate_tx(self.h_nf)
+                    self.nf_loc_idx = 0
+                    self.nf_sep_idx = 0
+                else:
+                    self.h_nf.append(h_est_full[:,0])
+
+                    if self.use_linear_track:
+                        if self.nf_loc_idx < len(self.nf_rx_loc):
+                            if self.nf_sep_idx==0:
+                                distance = 1000*(self.nf_ant_sep[0]*self.wl - self.nf_ant_sep[-1]*self.wl)
+                                distance = np.round(distance, 2)
+                                client_lintrack.move(lin_track_id=1, distance=distance)
+                                time.sleep(0.1)
+                                self.ant_dx = self.nf_ant_sep[0]
+
+                                distance = 1000*(self.nf_rx_loc[self.nf_loc_idx] - self.nf_rx_loc[self.nf_loc_idx-1])
+                                distance = np.round(distance, 2)
+                                client_lintrack.move(lin_track_id=1, distance=distance)
+                                client_lintrack.move(lin_track_id=0, distance=distance)
+                                time.sleep(0.1)
+                            elif self.nf_sep_idx==len(self.nf_ant_sep):
+                                self.nf_sep_idx = 0
+                            else:
+                                distance = 1000*(self.nf_ant_sep[self.nf_sep_idx]*self.wl - self.nf_ant_sep[self.nf_sep_idx-1]*self.wl)
+                                distance = np.round(distance, 2)
+                                client_lintrack.move(lin_track_id=1, distance=distance)
+                                time.sleep(0.1)
+                                self.ant_dx = self.nf_ant_sep[self.nf_sep_idx]
+                                
+                                self.nf_sep_idx+=1
+                    
+                            self.ant_dx_m = self.ant_dx * self.wl
+
+                        self.nf_loc_idx+=1
+
             line_id = 0
             for i in range(n_plots_row):
                 j = self.fc_id
@@ -509,40 +572,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         print("Error in autoscale {}".format(e))
                 # if plot_mode[i]=='h' or plot_mode[i]=='h01' or plot_mode[i]=='h_sparse':
                 #     ax[i][j].set_ylim(-10,60)
-
-
-            
-            if self.control_piradio:
-                self.fc = self.freq_hop_list[int(self.fc_id)]
-                client_piradio.set_frequency(fc=self.fc)
-                self.fc_id = (self.fc_id + 1) % len(self.freq_hop_list)
-            else:
-                self.fc_id = 0
-
-            if self.nf_param_estimate:
-                # h_index = plot_mode.index('h')
-                if self.nf_loc_idx==0:
-                    if self.use_linear_track:
-                        client_lintrack.return2home()
-                        # distance = -1000*(len(self.nf_rx_loc)-1)
-                        # distance = np.round(distance, 2)
-                        # client_lintrack.move(distance=distance)
-                    self.h_nf = []
-                    self.nf_loc_idx+=1
-                elif self.nf_loc_idx==len(self.nf_rx_loc)+1:
-                    self.h_nf = np.array(self.h_nf)
-                    self.h_nf = np.transpose(self.h_nf, (2,1,0))
-                    self.nf_locate_tx(self.h_nf)
-                    self.nf_loc_idx = 0
-                else:
-                    self.h_nf.append(h_est_full[:,0])
-                    if self.use_linear_track and self.nf_loc_idx < len(self.nf_rx_loc):
-                        distance = 1000*(self.nf_rx_loc[self.nf_loc_idx, 0] - self.nf_rx_loc[self.nf_loc_idx-1, 0])
-                        distance = np.round(distance, 2)
-                        client_lintrack.move(distance=distance)
-                        time.sleep(0.1)
-                    self.nf_loc_idx+=1
-
 
             return line
 

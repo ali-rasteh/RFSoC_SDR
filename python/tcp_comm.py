@@ -197,20 +197,22 @@ class Tcp_Comm_LinTrack(Tcp_Comm):
 
         self.print("Tcp_Comm_LinTrack object init done", thr=1)
 
-    def move(self, distance=0.0):
-        self.radio_control.sendall(b"Move "+str.encode(str(distance)))
+    def move(self, lin_track_id=0, distance=0.0):
+        self.print("Moving linear track {} by {} mm".format(lin_track_id, distance), thr=0)
+        self.radio_control.sendall(b"Move "+str.encode(str(lin_track_id)+' ')+str.encode(str(distance)))
         data = self.radio_control.recv(1024)
         self.print("Result of move_forward: {}".format(data), thr=1)
         return data
     
-    def return2home(self):
-        self.radio_control.sendall(b"Return2home")
+    def return2home(self, lin_track_id=0):
+        self.print("Returning linear track {} to home".format(lin_track_id), thr=0)
+        self.radio_control.sendall(b"Return2home "+str.encode(str(lin_track_id)))
         data = self.radio_control.recv(1024)
         self.print("Result of Return2home: {}".format(data), thr=1)
         return data
     
-    def go2end(self):
-        self.radio_control.sendall(b"Go2end")
+    def go2end(self, lin_track_id=0):
+        self.radio_control.sendall(b"Go2end "+str.encode(str(lin_track_id)))
         data = self.radio_control.recv(1024)
         self.print("Result of Go2end: {}".format(data), thr=1)
         return data
