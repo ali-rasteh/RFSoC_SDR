@@ -1470,7 +1470,7 @@ class Signal_Utils(General):
             ax.text(x, y, f'{int(value)}', fontsize=10, ha='center', va='center')
 
         ax.add_patch(Circle((0.5, 0.5), 0.05, color='black', zorder=5))
-        ax.text(0.5, 0.95, "Angle of Arrival", fontsize=14, fontweight='bold', horizontalalignment='center')
+        ax.text(0.5, 0.95, "Angle of Arrival", fontsize=30, fontweight='bold', horizontalalignment='center')
         ax.set_aspect('equal')
 
 

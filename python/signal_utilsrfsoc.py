@@ -156,10 +156,10 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         room_width = self.nf_walls[0,1] - self.nf_walls[0,0]
         room_length = self.nf_walls[1,1] - self.nf_walls[1,0]
         nf_region = self.nf_walls.copy()
-        nf_region[0,0] -= room_width
-        nf_region[0,1] += room_width
-        # nf_region[1,0] -= room_length
-        nf_region[1,1] += room_length
+        # nf_region[0,0] -= room_width
+        # nf_region[0,1] += room_width
+        # # nf_region[1,0] -= room_length
+        # nf_region[1,1] += room_length
         self.nf_model = Near_Field_Model(fc=self.fc, fsamp=self.fs_rx, nfft=self.nfft_ch, nantrx=self.n_rx_ant,
                         rxlocsep=self.nf_rx_loc_sep, sepdir=self.nf_rx_sep_dir, antsep=self.nf_ant_sep, npath_est=self.nf_npath_max, 
                         stop_thresh=self.nf_stop_thr, region=nf_region, tx=self.nf_tx_loc)
@@ -441,7 +441,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     if self.use_linear_track:
                         client_lintrack.return2home(lin_track_id=0)
                         client_lintrack.return2home(lin_track_id=1)
-                        time.sleep(0.1)
+                        time.sleep(1.0)
                         # distance = -1000*(len(self.nf_rx_loc)-1)
                         # distance = np.round(distance, 2)
                         # client_lintrack.move(lin_track_id=0, distance=distance)
@@ -459,33 +459,34 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     self.h_nf.append(h_est_full[:,0])
 
                     if self.use_linear_track:
-                        if self.nf_loc_idx < len(self.nf_rx_loc):
-                            if self.nf_sep_idx==0:
-                                distance = 1000*(self.nf_ant_sep[0]*self.wl - self.nf_ant_sep[-1]*self.wl)
-                                distance = np.round(distance, 2)
-                                client_lintrack.move(lin_track_id=1, distance=distance)
-                                time.sleep(0.1)
-                                self.ant_dx = self.nf_ant_sep[0]
+                        
+                        if self.nf_sep_idx==0:
+                            distance = 1000*(self.nf_ant_sep[0]*self.wl - self.nf_ant_sep[-1]*self.wl)
+                            distance = np.round(distance, 2)
+                            client_lintrack.move(lin_track_id=1, distance=distance)
+                            time.sleep(1.0)
+                            self.ant_dx = self.nf_ant_sep[0]
+                            self.nf_sep_idx+=1
 
-                                distance = 1000*(self.nf_rx_loc[self.nf_loc_idx] - self.nf_rx_loc[self.nf_loc_idx-1])
+                            if self.nf_loc_idx < len(self.nf_rx_loc):
+                                distance = 1000*(self.nf_rx_loc[self.nf_loc_idx,0] - self.nf_rx_loc[self.nf_loc_idx-1,0])
                                 distance = np.round(distance, 2)
                                 client_lintrack.move(lin_track_id=1, distance=distance)
                                 client_lintrack.move(lin_track_id=0, distance=distance)
-                                time.sleep(0.1)
-                            elif self.nf_sep_idx==len(self.nf_ant_sep):
-                                self.nf_sep_idx = 0
-                            else:
-                                distance = 1000*(self.nf_ant_sep[self.nf_sep_idx]*self.wl - self.nf_ant_sep[self.nf_sep_idx-1]*self.wl)
-                                distance = np.round(distance, 2)
-                                client_lintrack.move(lin_track_id=1, distance=distance)
-                                time.sleep(0.1)
-                                self.ant_dx = self.nf_ant_sep[self.nf_sep_idx]
-                                
-                                self.nf_sep_idx+=1
+                                time.sleep(1.0)
+                            self.nf_loc_idx+=1
+                        elif self.nf_sep_idx==len(self.nf_ant_sep):
+                            self.nf_sep_idx = 0
+                        else:
+                            distance = 1000*(self.nf_ant_sep[self.nf_sep_idx]*self.wl - self.nf_ant_sep[self.nf_sep_idx-1]*self.wl)
+                            distance = np.round(distance, 2)
+                            client_lintrack.move(lin_track_id=1, distance=distance)
+                            time.sleep(1)
+                            self.ant_dx = self.nf_ant_sep[self.nf_sep_idx]
+                            
+                            self.nf_sep_idx+=1
                     
-                            self.ant_dx_m = self.ant_dx * self.wl
-
-                        self.nf_loc_idx+=1
+                        self.ant_dx_m = self.ant_dx * self.wl
 
             line_id = 0
             for i in range(n_plots_row):
@@ -736,11 +737,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 elif plot_mode[i]=='nf_loc':
                     self.nf_model.plot_results(ax[i][j], RoomModel=self.RoomModel, plot_type='init_est')
 
-                ax[i][j].title.set_fontsize(20)
-                ax[i][j].xaxis.label.set_fontsize(15)
-                ax[i][j].yaxis.label.set_fontsize(15)
-                ax[i][j].tick_params(axis='both', which='major', labelsize=12)  # For major ticks
-                ax[i][j].tick_params(axis='both', which='minor', labelsize=12)
+                ax[i][j].title.set_fontsize(35-5*n_plots_row)
+                ax[i][j].xaxis.label.set_fontsize(30-4*n_plots_row)
+                ax[i][j].yaxis.label.set_fontsize(30-4*n_plots_row)
+                ax[i][j].tick_params(axis='both', which='major', labelsize=25-4*n_plots_row)  # For major ticks
+                ax[i][j].legend(fontsize=30-4*n_plots_row)
 
                 # ax[i].autoscale()
                 ax[i][j].grid(True)
@@ -748,7 +749,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ax[i][j].relim()
                     ax[i][j].autoscale_view()
                 ax[i][j].minorticks_on()
-                ax[i][j].legend()
+
+        for j in range(n_plots_col):
+            for i in range(len(line)):
+                if line[i][j] is not None:
+                    line[i][j].set_linewidth(3.0-0.5*n_plots_row)
 
         # Create the animation
         plt.tight_layout()

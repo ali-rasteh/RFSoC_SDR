@@ -609,8 +609,8 @@ class Sim(object):
                 RoomModel.draw_walls(ax)
 
             # Plot TX locations and estimated TX locations
-            ax.plot(self.tx[:, 0], self.tx[:, 1], 'ro')  # Actual TX
-            ax.plot(self.tx_est[i_path, 0], self.tx_est[i_path, 1], 'bx')  # Estimated TX
+            ax.plot(self.tx[:, 0], self.tx[:, 1], 'ro', markersize=15)  # Actual TX
+            ax.plot(self.tx_est[i_path, 0], self.tx_est[i_path, 1], 'bx', markersize=15)  # Estimated TX
 
             # Set plot limits and titles
             ax.set_xlim(self.region[0])
@@ -620,6 +620,13 @@ class Sim(object):
             ax.set_xlabel("X (m)")
             ax.set_ylabel("Y (m)")
             ax.set_yticks([])
+
+            ax.title.set_fontsize(18)
+            ax.xaxis.label.set_fontsize(15)
+            ax.yaxis.label.set_fontsize(15)
+            ax.tick_params(axis='both', which='both', labelsize=12)  # For major ticks
+            ax.set_xticks(np.arange(self.region[0,0], self.region[0,1], 2.0))
+            ax.set_yticks(np.arange(self.region[1,0], self.region[1,1], 2.0))
 
         return ax
 

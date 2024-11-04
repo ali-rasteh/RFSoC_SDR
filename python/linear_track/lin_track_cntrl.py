@@ -36,7 +36,7 @@ class Params_Class(object):
             self.dis_per_rev = 8
             self.pulse_per_rev = 400
             self.pulse_freq = 1600
-            self.verbose_level = 5
+            self.verbose_level = 4
             self.plot_level = 5
 
 
@@ -98,11 +98,9 @@ class LinearTrack(General):
 
         if clientMsgParsed[0] == "Move":
             if len(clientMsgParsed) == 3:
-                self.print('{}, {}'.format(clientMsgParsed[1], clientMsgParsed[2]), thr=2)
+                self.print('{}, {}'.format(clientMsgParsed[1], clientMsgParsed[2]), thr=5)
                 motor_id = int(clientMsgParsed[1])
                 distance = float(clientMsgParsed[2])
-                print("Motor ID: ", motor_id)
-                print("Distance: ", distance)
                 success, status = self.displace(motor_id=motor_id, dis=distance)
                 if success == True:
                     responseToCMD = successMessage 
@@ -157,7 +155,7 @@ class LinearTrack(General):
 
 
     def interactive_move(self, motor_id=0):
-        self.print("Starting interactive move", thr=1)
+        self.print("Starting interactive move for linear track {}".format(motor_id), thr=1)
         while True:
             dis = float(input("Enter the distance to move in mm: "))
             if dis == 0:
@@ -222,7 +220,7 @@ class LinearTrack(General):
         """
         position = self.position[motor_id] + dis
         if position > self.travel_length or position < 0:
-            raise Exception("Gantry plate already at the edge")
+            raise Exception("Gantry plate at linear track {} already at the edge".format(motor_id))
             success = False
         else:
             success = True
@@ -257,7 +255,7 @@ class LinearTrack(General):
 
 
     def return2home(self, motor_id=0):
-        self.print("Returning to home position", thr=1)
+        self.print("Returning to home position on linea track {}".format(motor_id), thr=1)
         dis_from_home = self.position[motor_id]
 
         success = True
@@ -265,7 +263,7 @@ class LinearTrack(General):
         if dis_from_home > 0:
             success, status = self.displace(motor_id=motor_id, dis=-1 * dis_from_home)
         elif dis_from_home == 0:
-            print("Gantry plate {} already at home".format(motor_id))
+            print("Gantry plate of linear track {} already at home".format(motor_id))
         else:
             raise Exception("The position status variable is negative. Please check the position file")
 
@@ -273,7 +271,7 @@ class LinearTrack(General):
     
 
     def go2end(self, motor_id=0):
-        self.print("Going to the end of the linear track", thr=1)
+        self.print("Going to the end of the line on linear track {}".format(motor_id), thr=1)
         dis_from_end = self.travel_length - self.position[motor_id]
 
         success = True
@@ -281,7 +279,7 @@ class LinearTrack(General):
         if dis_from_end > 0:
             success, status = self.displace(motor_id=motor_id, dis=dis_from_end)
         elif dis_from_end == 0:
-            print("Gantry plate already at the end")
+            print("Gantry plate on linear track {} already at the end",format(motor_id))
         else:
             raise Exception("The position status variable is negative for gotoend. Please check the position file")
 
@@ -334,7 +332,7 @@ class LinearTrack(General):
 
 
     def reset(self):
-        self.print("Resetting the linear track", thr=1)
+        self.print("Resetting all the motors", thr=1)
         self.kit.motor1.throttle = 0.0
         self.kit.motor2.throttle = 0.0
         self.kit.motor3.throttle = 0.0

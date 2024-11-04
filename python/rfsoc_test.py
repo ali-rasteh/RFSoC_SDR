@@ -142,11 +142,11 @@ class Params_Class(object):
             self.nf_npath_max = 5
             self.nf_stop_thr = 0.03
             # self.nf_tx_loc = None
-            self.nf_tx_loc = np.array([[0.3,1]])
+            self.nf_tx_loc = np.array([[0.3,0.9]])
             # self.nf_rx_loc_sep = np.array([0,0.1,0.2,0.3,0.4,0.5])
             self.nf_rx_loc_sep = np.array([0,0.3,0.6])
             self.nf_ant_sep = 0.5 * np.array([1,2,4,8])
-            self.nf_param_estimate = True
+            self.nf_param_estimate = False
             self.use_linear_track=True
             self.n_rx_ch_eq=1
             self.n_frame_rd=2
@@ -154,9 +154,9 @@ class Params_Class(object):
             self.plt_tx_ant_id = 0
             self.plt_rx_ant_id = 0
             self.plt_frame_id = 0
-            self.channel_limit = False
+            self.channel_limit = True
             self.n_rd_rep=8
-            self.animate_plot_mode=['rxfd', 'h01', 'nf_loc']
+            self.animate_plot_mode=['h01', 'rxfd', 'IQ']
             self.save_list = ['', '']           # signal or channel
 
 
