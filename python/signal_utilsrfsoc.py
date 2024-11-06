@@ -155,14 +155,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         room_width = self.nf_walls[0,1] - self.nf_walls[0,0]
         room_length = self.nf_walls[1,1] - self.nf_walls[1,0]
-        nf_region = self.nf_walls.copy()
-        # nf_region[0,0] -= room_width
-        # nf_region[0,1] += room_width
-        # # nf_region[1,0] -= room_length
-        # nf_region[1,1] += room_length
+        self.nf_region = self.nf_walls.copy()
+        # self.nf_region[0,0] -= room_width
+        # self.nf_region[0,1] += room_width
+        # # self.nf_region[1,0] -= room_length
+        # self.nf_region[1,1] += room_length
         self.nf_model = Near_Field_Model(fc=self.fc, fsamp=self.fs_rx, nfft=self.nfft_ch, nantrx=self.n_rx_ant,
                         rxlocsep=self.nf_rx_loc_sep, sepdir=self.nf_rx_sep_dir, antsep=self.nf_ant_sep, npath_est=self.nf_npath_max, 
-                        stop_thresh=self.nf_stop_thr, region=nf_region, tx=self.nf_tx_loc)
+                        stop_thresh=self.nf_stop_thr, region=self.nf_region, tx=self.nf_tx_loc)
         
         self.nf_model.gen_tx_pos()
         self.nf_model.compute_rx_pos()
@@ -457,16 +457,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     self.nf_sep_idx = 0
                 else:
                     self.h_nf.append(h_est_full[:,0])
-
-                    if self.use_linear_track:
                         
-                        if self.nf_sep_idx==0:
+                    if self.nf_sep_idx==0:
+                        if self.use_linear_track:
                             distance = 1000*(self.nf_ant_sep[0]*self.wl - self.nf_ant_sep[-1]*self.wl)
                             distance = np.round(distance, 2)
                             client_lintrack.move(lin_track_id=1, distance=distance)
                             time.sleep(1.0)
                             self.ant_dx = self.nf_ant_sep[0]
-                            self.nf_sep_idx+=1
 
                             if self.nf_loc_idx < len(self.nf_rx_loc):
                                 distance = 1000*(self.nf_rx_loc[self.nf_loc_idx,0] - self.nf_rx_loc[self.nf_loc_idx-1,0])
@@ -474,19 +472,22 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                                 client_lintrack.move(lin_track_id=1, distance=distance)
                                 client_lintrack.move(lin_track_id=0, distance=distance)
                                 time.sleep(1.0)
-                            self.nf_loc_idx+=1
-                        elif self.nf_sep_idx==len(self.nf_ant_sep):
-                            self.nf_sep_idx = 0
-                        else:
+                                
+                        self.nf_sep_idx+=1
+                        self.nf_loc_idx+=1
+                    elif self.nf_sep_idx==len(self.nf_ant_sep):
+                        self.nf_sep_idx = 0
+                    else:
+                        if self.use_linear_track:
                             distance = 1000*(self.nf_ant_sep[self.nf_sep_idx]*self.wl - self.nf_ant_sep[self.nf_sep_idx-1]*self.wl)
                             distance = np.round(distance, 2)
                             client_lintrack.move(lin_track_id=1, distance=distance)
                             time.sleep(1)
                             self.ant_dx = self.nf_ant_sep[self.nf_sep_idx]
-                            
-                            self.nf_sep_idx+=1
-                    
-                        self.ant_dx_m = self.ant_dx * self.wl
+                        
+                        self.nf_sep_idx+=1
+                
+                    self.ant_dx_m = self.ant_dx * self.wl
 
             line_id = 0
             for i in range(n_plots_row):
@@ -735,7 +736,16 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ax[i][j].set_ylim(0.5, 1)
                     ax[i][j].axis('off')
                 elif plot_mode[i]=='nf_loc':
-                    self.nf_model.plot_results(ax[i][j], RoomModel=self.RoomModel, plot_type='init_est')
+                    ax[i][j] = self.nf_model.plot_results(ax[i][j], RoomModel=self.RoomModel, plot_type='init_est')
+                    ax[i][j].set_title('Heatmap of TX Location probability in the room')
+                    ax[i][j].set_xlabel("X (m)")
+                    ax[i][j].set_ylabel("Y (m)")
+                    ax[i][j].set_yticks([])
+
+                    ax[i][j].set_xlim(self.nf_region[0])
+                    ax[i][j].set_ylim(self.nf_region[1])
+                    ax[i][j].set_xticks(np.arange(self.nf_region[0,0], self.nf_region[0,1], 1.0))
+                    ax[i][j].set_yticks(np.arange(self.nf_region[1,0], self.nf_region[1,1], 2.0))
 
                 ax[i][j].title.set_fontsize(35-5*n_plots_row)
                 ax[i][j].xaxis.label.set_fontsize(30-4*n_plots_row)

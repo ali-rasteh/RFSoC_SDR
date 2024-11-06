@@ -132,6 +132,8 @@ class Sim(object):
         self.stop_thresh = stop_thresh
         self.region = region
 
+        self.points = []    # List of points to plot
+
 
         # # Generate the TX positions and search region
         # self.gen_tx_pos()
@@ -597,36 +599,43 @@ class Sim(object):
             plt.show()
 
         else:
-            ax.clear()  # Clear the previous frame
+            # ax.clear()  # Clear the previous frame
+            for c in ax.collections:
+                c.remove()
+            for point in self.points:
+                point.remove()
 
             i_path = 0
             # Update heatmap
             rho1 = self.rho[:, i_path].reshape(self.npoints, self.npoints)
-            ax.contourf(self.xtest0, self.xtest1, rho1)
+            contour = ax.contourf(self.xtest0, self.xtest1, rho1)
 
             # Draw room walls if RoomModel is provided
             if RoomModel is not None:
                 RoomModel.draw_walls(ax)
 
             # Plot TX locations and estimated TX locations
-            ax.plot(self.tx[:, 0], self.tx[:, 1], 'ro', markersize=15)  # Actual TX
-            ax.plot(self.tx_est[i_path, 0], self.tx_est[i_path, 1], 'bx', markersize=15)  # Estimated TX
+            self.points = []
+            point = ax.plot(self.tx[:, 0], self.tx[:, 1], 'ro', markersize=15)  # Actual TX
+            self.points.append(point[0])
+            point = ax.plot(self.tx_est[i_path, 0], self.tx_est[i_path, 1], 'bx', markersize=15)  # Estimated TX
+            self.points.append(point[0])
 
-            # Set plot limits and titles
-            ax.set_xlim(self.region[0])
-            ax.set_ylim(self.region[1])
+            # # Set plot limits and titles
+            # ax.set_xlim(self.region[0])
+            # ax.set_ylim(self.region[1])
 
-            ax.set_title('Heatmap of TX Location probability in the room')
-            ax.set_xlabel("X (m)")
-            ax.set_ylabel("Y (m)")
-            ax.set_yticks([])
+            # ax.set_title('Heatmap of TX Location probability in the room')
+            # ax.set_xlabel("X (m)")
+            # ax.set_ylabel("Y (m)")
+            # ax.set_yticks([])
 
-            ax.title.set_fontsize(18)
-            ax.xaxis.label.set_fontsize(15)
-            ax.yaxis.label.set_fontsize(15)
-            ax.tick_params(axis='both', which='both', labelsize=12)  # For major ticks
-            ax.set_xticks(np.arange(self.region[0,0], self.region[0,1], 2.0))
-            ax.set_yticks(np.arange(self.region[1,0], self.region[1,1], 2.0))
+            # ax.title.set_fontsize(18)
+            # ax.xaxis.label.set_fontsize(15)
+            # ax.yaxis.label.set_fontsize(15)
+            # ax.tick_params(axis='both', which='both', labelsize=12)  # For major ticks
+            # ax.set_xticks(np.arange(self.region[0,0], self.region[0,1], 1.0))
+            # ax.set_yticks(np.arange(self.region[1,0], self.region[1,1], 2.0))
 
         return ax
 
