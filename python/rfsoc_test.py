@@ -61,6 +61,7 @@ class Params_Class(object):
         params.overwrite_configs=True
 
         if params.overwrite_configs:
+            self.c = constants.c
             self.fs=245.76e6 * 4
             self.fs_tx=self.fs
             self.fs_rx=self.fs
@@ -133,31 +134,33 @@ class Params_Class(object):
             self.piradio_username = 'ubuntu'
             self.piradio_password = 'temppwd'
             self.ant_dx_m = 0.020               # Antenna spacing in meters
-
-
-            # self.freq_hop_list = [6.0e9, 8.0e9, 10.0e9, 12.0e9]
-            self.freq_hop_list = [10.0e9]
             self.nf_walls = np.array([[-5,4], [-1,6]])
             self.nf_rx_sep_dir = np.array([1,0])
+            self.nf_tx_sep_dir = np.array([1,0])
             self.nf_npath_max = 5
             self.nf_stop_thr = 0.03
             # self.nf_tx_loc = None
             self.nf_tx_loc = np.array([[0.3,0.9]])
             # self.nf_rx_loc_sep = np.array([0,0.1,0.2,0.3,0.4,0.5])
             self.nf_rx_loc_sep = np.array([0,0.3,0.6])
-            self.nf_ant_sep = 0.5 * np.array([1,2,4])
+            self.nf_tx_ant_sep = 0.5
+            self.nf_rx_ant_sep = 0.5 * np.array([1,2,4])
             self.nf_param_estimate = True
+            self.n_frame_rd=2
+
+
+            # self.freq_hop_list = [6.0e9, 8.0e9, 10.0e9, 12.0e9]
+            self.freq_hop_list = [10.0e9]
             self.use_linear_track=False
             self.n_rx_ch_eq=1
-            self.n_frame_rd=2
             self.wb_sc_range=[-250,250]
             self.plt_tx_ant_id = 0
             self.plt_rx_ant_id = 0
             self.plt_frame_id = 0
             self.channel_limit = True
             self.n_rd_rep=8
-            self.animate_plot_mode=['h01', 'rxfd', 'nf_loc']
-            self.save_list = ['', '']           # signal or channel
+            self.animate_plot_mode=['h01', 'rxfd', 'aoa_gauge']
+            self.save_list = ['signal', 'channel']           # signal or channel
 
 
             self.rx_chain=[]        # filter, integrate, sync_time, sync_freq, pilot_separate, channel_est, channel_eq
@@ -220,7 +223,7 @@ class Params_Class(object):
 
 
         self.fc = self.freq_hop_list[0]
-        self.wl = constants.c / self.fc
+        self.wl = self.c / self.fc
         self.ant_dx = self.ant_dx_m/self.wl             # Antenna spacing in wavelengths (lambda)
         self.ant_dy = self.ant_dy_m/self.wl
 

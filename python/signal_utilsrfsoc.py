@@ -55,7 +55,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.calib_iter = params.calib_iter
         self.nf_tx_loc = params.nf_tx_loc
         self.nf_rx_loc_sep = params.nf_rx_loc_sep
-        self.nf_ant_sep = params.nf_ant_sep
+        self.nf_rx_ant_sep = params.nf_rx_ant_sep
         self.nf_npath_max = params.nf_npath_max
         self.nf_walls = params.nf_walls
         self.nf_rx_sep_dir = params.nf_rx_sep_dir
@@ -161,7 +161,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         # # self.nf_region[1,0] -= room_length
         # self.nf_region[1,1] += room_length
         self.nf_model = Near_Field_Model(fc=self.fc, fsamp=self.fs_rx, nfft=self.nfft_ch, nantrx=self.n_rx_ant,
-                        rxlocsep=self.nf_rx_loc_sep, sepdir=self.nf_rx_sep_dir, antsep=self.nf_ant_sep, npath_est=self.nf_npath_max, 
+                        rxlocsep=self.nf_rx_loc_sep, sepdir=self.nf_rx_sep_dir, antsep=self.nf_rx_ant_sep, npath_est=self.nf_npath_max, 
                         stop_thresh=self.nf_stop_thr, region=self.nf_region, tx=self.nf_tx_loc)
         
         self.nf_model.gen_tx_pos()
@@ -178,7 +178,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.print("Near field model created", thr=1)
     
 
-    def nf_locate_tx(self, h):
+    def nf_locate_tx(self, h, dly_est, peaks):
         """
         Parameters
         -------
@@ -186,7 +186,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             The channel frequency response.
         """
         self.nf_model.chan_td = h
-        self.nf_model.chan_fd = fft(h, axis=-1)
+        self.nf_model.chan_fd = fft(h, axis=0)
+        self.nf_model.sparse_dly_est = dly_est
+        self.nf_model.sparse_peaks = peaks
 
         self.nf_model.path_est_init()
         self.nf_model.locate_tx()
@@ -414,7 +416,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 else:
                     raise ValueError('Unsupported plot mode: ' + item)
 
-            return (sigs, h_est_full)
+            return (sigs, h_est_full, sparse_est_params)
 
         def toggle_pause(event):
             if event.key == 'p':  # Press 'p' to pause/resume
@@ -423,7 +425,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         def update(frame):
             if self.anim_paused:
                 return line
-            sigs, h_est_full = receive_data(txtd_base)
+            sigs, h_est_full, sparse_est_params = receive_data(txtd_base)
 
 
             if self.control_piradio:
@@ -447,24 +449,34 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         # client_lintrack.move(lin_track_id=0, distance=distance)
                         # time.sleep(0.1)
                     self.h_nf = []
+                    self.dly_est_nf = []
+                    self.peaks_nf = []
                     self.nf_loc_idx+=1
                     self.nf_sep_idx+=1
+
                 elif self.nf_loc_idx==len(self.nf_rx_loc)+1:
                     self.h_nf = np.array(self.h_nf)
                     self.h_nf = np.transpose(self.h_nf, (2,1,0))
-                    self.nf_locate_tx(self.h_nf)
+                    self.dly_est_nf = np.array(self.dly_est_nf)
+                    self.dly_est_nf = np.transpose(self.dly_est_nf, (2,1,0))
+                    self.peaks_nf = np.array(self.peaks_nf)
+                    self.peaks_nf = np.transpose(self.peaks_nf, (2,1,0))
+                    self.nf_locate_tx(self.h_nf, self.dly_est_nf, self.peaks_nf)
                     self.nf_loc_idx = 0
                     self.nf_sep_idx = 0
                 else:
                     self.h_nf.append(h_est_full[:,0])
-                        
+                    (h_tr, dly_est, peaks) = sparse_est_params
+                    self.dly_est_nf.append(dly_est[:,0])
+                    self.peaks_nf.append(peaks[:,0])
+
                     if self.nf_sep_idx==0:
                         if self.use_linear_track:
-                            distance = 1000*(self.nf_ant_sep[0]*self.wl - self.nf_ant_sep[-1]*self.wl)
+                            distance = 1000*(self.nf_rx_ant_sep[0]*self.wl - self.nf_rx_ant_sep[-1]*self.wl)
                             distance = np.round(distance, 2)
                             client_lintrack.move(lin_track_id=1, distance=distance)
                             time.sleep(1.0)
-                            self.ant_dx = self.nf_ant_sep[0]
+                            self.ant_dx = self.nf_rx_ant_sep[0]
 
                             if self.nf_loc_idx < len(self.nf_rx_loc):
                                 distance = 1000*(self.nf_rx_loc[self.nf_loc_idx,0] - self.nf_rx_loc[self.nf_loc_idx-1,0])
@@ -475,15 +487,15 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                                 
                         self.nf_sep_idx+=1
                         self.nf_loc_idx+=1
-                    elif self.nf_sep_idx==len(self.nf_ant_sep):
+                    elif self.nf_sep_idx==len(self.nf_rx_ant_sep):
                         self.nf_sep_idx = 0
                     else:
                         if self.use_linear_track:
-                            distance = 1000*(self.nf_ant_sep[self.nf_sep_idx]*self.wl - self.nf_ant_sep[self.nf_sep_idx-1]*self.wl)
+                            distance = 1000*(self.nf_rx_ant_sep[self.nf_sep_idx]*self.wl - self.nf_rx_ant_sep[self.nf_sep_idx-1]*self.wl)
                             distance = np.round(distance, 2)
                             client_lintrack.move(lin_track_id=1, distance=distance)
                             time.sleep(1)
-                            self.ant_dx = self.nf_ant_sep[self.nf_sep_idx]
+                            self.ant_dx = self.nf_rx_ant_sep[self.nf_sep_idx]
                         
                         self.nf_sep_idx+=1
                 
@@ -579,7 +591,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
         # Set up the figure and plot
-        sigs, _ = receive_data(txtd_base)
+        sigs, _, _ = receive_data(txtd_base)
         line = [[None for j in range(n_plots_col)] for i in range(3*n_plots_row)]
         fig, ax = plt.subplots(n_plots_row, n_plots_col)
         if type(ax) is not np.ndarray:

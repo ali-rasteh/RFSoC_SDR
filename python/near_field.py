@@ -1,10 +1,10 @@
-import numpy as np
-# import torch
-# import torch.nn as nn
-# import torch.optim as optim
-import matplotlib.pyplot as plt
+from backend import *
+from backend import be_np as np, be_scp as scipy
+from signal_utils import Signal_Utils
 
-class RoomModel(object):
+
+
+class RoomModel(Signal_Utils):
     def __init__(self, xlim=np.array([-10,10]), ylim=np.array([-3,10])):
 
         # Define the walls of the room
@@ -55,7 +55,7 @@ class RoomModel(object):
         xref = x - 2*d*n
         return xref
 
-class Sim(object):
+class Sim(Signal_Utils):
     """
     Describes the configuration of the simulation.
 
@@ -105,7 +105,7 @@ class Sim(object):
                 lossavg=10, tx=None, npath_est=4, stop_thresh=0.03, region=None):
         # Parameters
         self.fc = fc  # Carrier frequency
-        self.c = 3e8  # Speed of light
+        self.c = constants.c  # Speed of light
         self.lam = self.c/self.fc  # Wavelength
         self.fsamp = fsamp  # Sampling frequency
         self.bw = bw    # Sounding bandwidth relative to the sampling rate
@@ -404,10 +404,8 @@ class Sim(object):
         self.npoints = npoints
 
         # Find the distances from each TX test location to each RX antenna
-        # print(self.rxantpos)
         dist = self.rxantpos[:,:,None,:] - X[None,None,:,:]
         self.dtest = np.sqrt(np.sum(dist**2, axis=3))
-        # print(self.dtest)
 
     def path_est_init(self):
         """
@@ -459,47 +457,56 @@ class Sim(object):
                 # Compute the correlation
                 self.rho[:,ipath] = np.sum( np.abs(np.sum(aresp[:,:,None]*dexp, axis=0))**2, axis=0 )
 
+
+                # Find the location that maximizes the correlation
+                im = np.argmax(self.rho[:,ipath])
+
+                # Check stopping condition
+                if ipath == 0:
+                    rho_max = np.max(self.rho[:,0])
+                    done = False
+                else:
+                    done = np.max(self.rho[:,ipath]) < self.stop_thresh*rho_max
+
             else:
-                                   
-                aresp = np.zeros((self.nantrx, self.nmeas, ntest), dtype=np.complex64)
-                for i in range(ntest):
-                    for m in range(self.nmeas):
                 
-                        # Get the array response from the appropriate sample offset
-                        isamp = self.samp_offset[m,i]
-                        aresp[:,m,i] = self.resid[isamp,:,m]
+                # aresp = np.zeros((self.nantrx, self.nmeas, ntest), dtype=np.complex64)
+                # for i in range(ntest):
+                #     for m in range(self.nmeas):
+                
+                #         # Get the array response from the appropriate sample offset
+                #         isamp = self.samp_offset[m,i]
+                #         aresp[:,m,i] = self.resid[isamp,:,m]
 
-                # Compute the correlation
-                self.rho[:,ipath] = np.sum( np.abs(np.sum(aresp*dexp, axis=0))**2, axis=0 )
+                # # Compute the correlation
+                # self.rho[:,ipath] = np.sum( np.abs(np.sum(aresp*dexp, axis=0))**2, axis=0 )
+
+                dly = self.sparse_dly_est[ipath] - self.sparse_dly_est[0]
+                dist_rel = dly * self.c
+                d_diff = np.sum(np.abs(self.dtest[:,:,:] - dist_rel[:,:,None]), axis=(0,1))
+                im = np.argmin(d_diff)
+
+                done = (self.peaks_nf[ipath] == 0)
 
 
-            # Find the location that maximizes the correlation
-            im = np.argmax(self.rho[:,ipath])
-
-            # Check stopping condition
-            if ipath == 0:
-                rho_max = np.max(self.rho[:,0])
-                done = False
-            else:
-                done = np.max(self.rho[:,ipath]) < self.stop_thresh*rho_max
-
-            if done:               
+            if done:
                 break
             else:
                 self.npath_det = ipath+1
 
-            self.tx_est[ipath,:] = self.Xtest[np.argmax(self.rho[:,ipath]),:]
+            self.tx_est[ipath,:] = self.Xtest[im,:]
 
             # Set the disances for the path
             self.dist_est[:,:,ipath] = self.dtest[:,:,im] 
 
             # For the first path, we estimate the reference distance
             # and the sample locations of the other paths
-            if ipath == 0:   
+            if ipath == 0:
                 self.set_ref_distances()
 
             # Fit the coefficients and find the residual
             self.fit_coeffs(npath_fit=ipath+1)
+            
 
     def set_ref_distances(self):
         """
@@ -519,8 +526,6 @@ class Sim(object):
         self.samp_offset = np.round(self.samp_offset).astype(int)
         self.samp_offset = np.maximum(0, self.samp_offset)
         self.samp_offset = np.minimum(self.nfft-1, self.samp_offset)
-
-
 
 
 
@@ -618,8 +623,13 @@ class Sim(object):
             self.points = []
             point = ax.plot(self.tx[:, 0], self.tx[:, 1], 'ro', markersize=15)  # Actual TX
             self.points.append(point[0])
-            point = ax.plot(self.tx_est[i_path, 0], self.tx_est[i_path, 1], 'bx', markersize=15)  # Estimated TX
-            self.points.append(point[0])
+            for i_path in range(self.npath_det):
+                if i_path == 0:
+                    color = 'gx'
+                else:
+                    color = 'bx'
+                point = ax.plot(self.tx_est[i_path, 0], self.tx_est[i_path, 1], color, markersize=15)  # Estimated TX
+                self.points.append(point[0])
 
             # # Set plot limits and titles
             # ax.set_xlim(self.region[0])
@@ -639,3 +649,51 @@ class Sim(object):
 
         return ax
 
+
+
+
+
+
+class Channel_Model(nn.Module):
+    def __init__(self, n_path=1):
+        super(Channel_Model, self).__init__()
+
+        # Initialize learnable parameters for angles of arrival and path coefficients
+        self.n_path = n_path
+        self.alpha = nn.Parameter(torch.randn(self.n_path))  # Rotation angles
+        self.s = nn.Parameter(torch.randn(self.n_path))  # parameter S, the parity of number of reflections
+        self.g = nn.Parameter(torch.randn(self.n_path))  # parameter G, the gain of the path
+        # self.tau = nn.Parameter(torch.randn(self.n_path))  # parameter tau, the delay of the path
+        self.tau = None
+
+
+    def rotation_matrix(self, angle):
+        # Define the 2D rotation matrix
+        cos_a = torch.cos(angle)
+        sin_a = torch.sin(angle)
+        return torch.tensor([[cos_a, -sin_a], [sin_a, cos_a]])
+
+
+    def forward(self, tx_ant_vec=None, rx_ant_vec=None, tau=None):
+        '''
+        Compute the channel response for a given TX and RX antenna vector.
+        tx_ant_vec: (t,m,p), t: number of TX antennas, m: number of measurements, p: dimension of the region
+        rx_ant_vec: (r,m,p), r: number of RX antennas, m: number of measurements, p: dimension of the region
+        '''
+
+        # Sum the contributions from each path
+        path_sum = torch.zeros_like(input_vector)
+        for i in range(self.n_path):
+            rotation_mat = self.rotation_matrix(self.alpha[i])
+            if self.tau is not None:
+                tau = self.tau
+            dist_vec = rx_ant_vec - constants.c*tau[i] - tx_ant_vec
+            rotated_path = self.g[i] * torch.matmul(rotation_mat, input_vector)
+            path_sum += rotated_path
+        return path_sum
+    
+
+
+
+
+    
