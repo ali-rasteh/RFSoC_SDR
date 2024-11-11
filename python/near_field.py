@@ -133,6 +133,8 @@ class Sim(Signal_Utils):
         self.region = region
 
         self.points = []    # List of points to plot
+        self.sparse_dly_est = np.zeros((self.npath_est, self.nantrx, self.nmeas))
+        self.sparse_peaks_est = np.zeros((self.npath_est, self.nantrx, self.nmeas))
 
 
         # # Generate the TX positions and search region
@@ -384,6 +386,7 @@ class Sim(Signal_Utils):
         #plt.grid(True)
         #plt.show()
 
+
     def create_tx_test_points(self):
         """
         Create a set of test points over the region using meshgrid.
@@ -406,6 +409,7 @@ class Sim(Signal_Utils):
         # Find the distances from each TX test location to each RX antenna
         dist = self.rxantpos[:,:,None,:] - X[None,None,:,:]
         self.dtest = np.sqrt(np.sum(dist**2, axis=3))
+
 
     def path_est_init(self):
         """
@@ -433,11 +437,11 @@ class Sim(Signal_Utils):
         self.dist_est = np.zeros((self.nantrx, self.nmeas, self.npath_est))
         self.coeffs_est = np.zeros((self.nmeas, self.npath_est), dtype=np.complex64)
 
+
     def locate_tx(self):
         """
         Iteratively locates the TX image points
         """
-        
 
         # Initialize the correlation estimates for each iteration
         ntest = self.dtest.shape[-1]
@@ -486,8 +490,7 @@ class Sim(Signal_Utils):
                 d_diff = np.sum(np.abs(self.dtest[:,:,:] - dist_rel[:,:,None]), axis=(0,1))
                 im = np.argmin(d_diff)
 
-                done = (self.peaks_nf[ipath] == 0)
-
+                done = (np.max(self.sparse_peaks_est[ipath]) == 0)
 
             if done:
                 break
@@ -561,6 +564,23 @@ class Sim(Signal_Utils):
         #self.resid = np.sum(np.abs(np.sum(self.coeffs_est[:,None,:]*self.basis, axis=2) - chan_fd_rot1)**2, axis=0)
 
 
+
+    def nf_channel_param_est(self, ch_gt=None, n_epochs=1000, lr_init=0.01):
+        # Initialize model, loss function, and optimizer
+        self.nf_ch_model = NF_Channel_Model(n_path=self.npath_det, fc=self.fc)
+        criterion = nn.MSELoss()
+        optimizer = optim.Adam(self.nf_ch_model.parameters(), lr=lr_init)
+
+        # Training loop
+        for epoch in range(n_epochs):  # Number of epochs
+            optimizer.zero_grad()
+            output = self.nf_ch_model(tx_ant_vec=None, rx_ant_vec=None, trx_unit_vec=None, tau=None, g=None)
+            loss = criterion(output, ch_gt)
+            loss.backward()
+            optimizer.step()
+            
+            if epoch % 100 == 0:
+                print(f'Epoch {epoch}, Loss: {loss.item()}')
 
 
 
@@ -654,15 +674,19 @@ class Sim(Signal_Utils):
 
 
 
-class Channel_Model(nn.Module):
-    def __init__(self, n_path=1):
-        super(Channel_Model, self).__init__()
+class NF_Channel_Model(nn.Module):
+    def __init__(self, n_path=1, fc=10e9):
+        super(NF_Channel_Model, self).__init__()
 
         # Initialize learnable parameters for angles of arrival and path coefficients
+        self.fc = fc
         self.n_path = n_path
+
         self.alpha = nn.Parameter(torch.randn(self.n_path))  # Rotation angles
         self.s = nn.Parameter(torch.randn(self.n_path))  # parameter S, the parity of number of reflections
-        self.g = nn.Parameter(torch.randn(self.n_path))  # parameter G, the gain of the path
+        
+        # self.g = nn.Parameter(torch.randn(self.n_path))  # parameter G, the gain of the path
+        self.g = None
         # self.tau = nn.Parameter(torch.randn(self.n_path))  # parameter tau, the delay of the path
         self.tau = None
 
@@ -674,23 +698,36 @@ class Channel_Model(nn.Module):
         return torch.tensor([[cos_a, -sin_a], [sin_a, cos_a]])
 
 
-    def forward(self, tx_ant_vec=None, rx_ant_vec=None, tau=None):
+    def forward(self, tx_ant_vec=None, rx_ant_vec=None, trx_unit_vec=None, tau=None, g=None):
         '''
         Compute the channel response for a given TX and RX antenna vector.
         tx_ant_vec: (t,m,p), t: number of TX antennas, m: number of measurements, p: dimension of the region
         rx_ant_vec: (r,m,p), r: number of RX antennas, m: number of measurements, p: dimension of the region
+        trx_unit_vec: (m,p), m: number of measurements, p: dimension of the region
         '''
 
+        n_rx = rx_ant_vec.shape[0]
+        n_tx = tx_ant_vec.shape[0]
+        n_meas = rx_ant_vec.shape[1]
+        p = rx_ant_vec.shape[-1]
+
+        if self.tau is not None:
+            tau = self.tau
+        if self.g is not None:
+            g = self.g
+
+        H = torch.zeros(n_rx, n_tx, n_meas, dtype=torch.complex64)
         # Sum the contributions from each path
-        path_sum = torch.zeros_like(input_vector)
         for i in range(self.n_path):
             rotation_mat = self.rotation_matrix(self.alpha[i])
-            if self.tau is not None:
-                tau = self.tau
-            dist_vec = rx_ant_vec - constants.c*tau[i] - tx_ant_vec
-            rotated_path = self.g[i] * torch.matmul(rotation_mat, input_vector)
-            path_sum += rotated_path
-        return path_sum
+            rot_tx_ant_vec = tx_ant_vec.reshape(-1, p) @ rotation_mat.T
+            rot_tx_ant_vec = rot_tx_ant_vec.reshape(tx_ant_vec.shape)
+
+            dist_vec = rx_ant_vec[:,None,:,:] - (constants.c*tau[i]*trx_unit_vec)[None,None,:,:] - (self.s[i]*rot_tx_ant_vec)[None,:,:,:]
+            dist = torch.linalg.norm(dist_vec, dim=-1)
+            H += g[i] * torch.exp(1j*2*np.pi*self.fc*dist/constants.c)
+
+        return H
     
 
 

@@ -187,8 +187,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         """
         self.nf_model.chan_td = h
         self.nf_model.chan_fd = fft(h, axis=0)
-        self.nf_model.sparse_dly_est = dly_est
-        self.nf_model.sparse_peaks = peaks
+        self.nf_model.sparse_dly_est = dly_est.copy()
+        self.nf_model.sparse_peaks_est = peaks.copy()
 
         self.nf_model.path_est_init()
         self.nf_model.locate_tx()
@@ -465,10 +465,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     self.nf_loc_idx = 0
                     self.nf_sep_idx = 0
                 else:
-                    self.h_nf.append(h_est_full[:,0])
-                    (h_tr, dly_est, peaks) = sparse_est_params
-                    self.dly_est_nf.append(dly_est[:,0])
-                    self.peaks_nf.append(peaks[:,0])
 
                     if self.nf_sep_idx==0:
                         if self.use_linear_track:
@@ -487,9 +483,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                                 
                         self.nf_sep_idx+=1
                         self.nf_loc_idx+=1
-                    elif self.nf_sep_idx==len(self.nf_rx_ant_sep):
+                    elif self.nf_sep_idx==len(self.nf_rx_ant_sep)+1:
                         self.nf_sep_idx = 0
                     else:
+                        self.h_nf.append(h_est_full[:,0])
+                        (h_tr, dly_est, peaks) = sparse_est_params
+                        self.dly_est_nf.append(dly_est[:,0])
+                        self.peaks_nf.append(peaks[:,0])
+
                         if self.use_linear_track:
                             distance = 1000*(self.nf_rx_ant_sep[self.nf_sep_idx]*self.wl - self.nf_rx_ant_sep[self.nf_sep_idx-1]*self.wl)
                             distance = np.round(distance, 2)

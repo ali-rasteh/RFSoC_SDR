@@ -105,7 +105,7 @@ class Params_Class(object):
             self.board='rfsoc_4x2'
             self.n_tx_ant=2
             self.n_rx_ant=2
-            self.ant_dy_m = 0.020
+            self.ant_dy_m = 0.015
             self.wb_bw_mode='sc'    # sc or freq
             self.wb_bw_range=[-250e6,250e6]
             self.tone_f_mode='sc'    # sc or freq
@@ -133,7 +133,10 @@ class Params_Class(object):
             self.piradio_port = '22'
             self.piradio_username = 'ubuntu'
             self.piradio_password = 'temppwd'
-            self.ant_dx_m = 0.020               # Antenna spacing in meters
+            self.ant_dx_m = 0.015               # Antenna spacing in meters
+            self.n_frame_rd=2
+            self.plt_frame_id = 0
+
             self.nf_walls = np.array([[-5,4], [-1,6]])
             self.nf_rx_sep_dir = np.array([1,0])
             self.nf_tx_sep_dir = np.array([1,0])
@@ -145,22 +148,19 @@ class Params_Class(object):
             self.nf_rx_loc_sep = np.array([0,0.3,0.6])
             self.nf_tx_ant_sep = 0.5
             self.nf_rx_ant_sep = 0.5 * np.array([1,2,4])
-            self.nf_param_estimate = True
-            self.n_frame_rd=2
-
 
             # self.freq_hop_list = [6.0e9, 8.0e9, 10.0e9, 12.0e9]
             self.freq_hop_list = [10.0e9]
+            self.nf_param_estimate = False
             self.use_linear_track=False
             self.n_rx_ch_eq=1
             self.wb_sc_range=[-250,250]
             self.plt_tx_ant_id = 0
             self.plt_rx_ant_id = 0
-            self.plt_frame_id = 0
             self.channel_limit = True
             self.n_rd_rep=8
-            self.animate_plot_mode=['h01', 'rxfd', 'aoa_gauge']
-            self.save_list = ['signal', 'channel']           # signal or channel
+            self.animate_plot_mode=['h01', 'rxfd', 'IQ']
+            self.save_list = ['', '']           # signal or channel
 
 
             self.rx_chain=[]        # filter, integrate, sync_time, sync_freq, pilot_separate, channel_est, channel_eq
@@ -355,7 +355,8 @@ def rfsoc_run(params):
                     client_rfsoc.set_rx_gain()
 
             signals_inst.calibrate_rx_phase_offset(client_rfsoc)
-            signals_inst.create_near_field_model()
+            if params.nf_param_estimate:
+                signals_inst.create_near_field_model()
 
             if 'channel' in params.save_list or 'signal' in params.save_list:
                 signals_inst.save_signal_channel(client_rfsoc, txtd_base, save_list=params.save_list)
