@@ -490,7 +490,7 @@ class Sim(Signal_Utils):
                 d_diff = np.sum(np.abs(self.dtest[:,:,:] - dist_rel[:,:,None]), axis=(0,1))
                 im = np.argmin(d_diff)
 
-                done = (np.max(self.sparse_peaks_est[ipath]) == 0)
+                done = (np.min(np.abs(self.sparse_dly_est[ipath])) == 0)
 
             if done:
                 break
@@ -565,7 +565,7 @@ class Sim(Signal_Utils):
 
 
 
-    def nf_channel_param_est(self, ch_gt=None, n_epochs=1000, lr_init=0.01):
+    def nf_channel_param_est(self, n_epochs=1000, lr_init=0.01, ch_gt=None, tx_ant_vec=None, rx_ant_vec=None, trx_unit_vec=None, path_delay=None, path_gain=None, freq=None):
         # Initialize model, loss function, and optimizer
         self.nf_ch_model = NF_Channel_Model(n_path=self.npath_det, fc=self.fc)
         criterion = nn.MSELoss()
@@ -574,8 +574,9 @@ class Sim(Signal_Utils):
         # Training loop
         for epoch in range(n_epochs):  # Number of epochs
             optimizer.zero_grad()
-            output = self.nf_ch_model(tx_ant_vec=None, rx_ant_vec=None, trx_unit_vec=None, tau=None, g=None)
-            loss = criterion(output, ch_gt)
+            output = self.nf_ch_model(tx_ant_vec=tx_ant_vec, rx_ant_vec=rx_ant_vec, trx_unit_vec=trx_unit_vec, path_delay=path_delay, path_gain=path_gain, freq=freq)
+            # output = output[:,:,0,:]
+            loss = criterion(output[:,:,0,:], ch_gt[:,:,0,:])
             loss.backward()
             optimizer.step()
             
@@ -675,20 +676,26 @@ class Sim(Signal_Utils):
 
 
 class NF_Channel_Model(nn.Module):
-    def __init__(self, n_path=1, fc=10e9):
+    def __init__(self, n_path=1, n_rx=1, n_tx=1, n_meas=1, fc=10e9):
         super(NF_Channel_Model, self).__init__()
 
         # Initialize learnable parameters for angles of arrival and path coefficients
         self.fc = fc
         self.n_path = n_path
+        self.n_rx = n_rx
+        self.n_tx = n_tx
+        self.n_meas = n_meas
 
         self.alpha = nn.Parameter(torch.randn(self.n_path))  # Rotation angles
         self.s = nn.Parameter(torch.randn(self.n_path))  # parameter S, the parity of number of reflections
-        
-        # self.g = nn.Parameter(torch.randn(self.n_path))  # parameter G, the gain of the path
-        self.g = None
-        # self.tau = nn.Parameter(torch.randn(self.n_path))  # parameter tau, the delay of the path
-        self.tau = None
+
+        self.path_gain = torch.complex(torch.randn(self.n_path, self.n_rx, self.n_tx, self.n_meas), torch.randn(self.n_path, self.n_rx, self.n_tx, self.n_meas))      # parameter G, the gain of the path
+        self.path_gain = nn.Parameter(self.path_gain)  
+        # self.path_gain = None
+
+        self.path_delay = torch.complex(torch.randn(self.n_path, self.n_rx, self.n_tx, self.n_meas), torch.randn(self.n_path, self.n_rx, self.n_tx, self.n_meas))  # parameter tau, the delay of the path
+        self.path_delay = nn.Parameter(self.path_delay)
+        # self.path_delay = None
 
 
     def rotation_matrix(self, angle):
@@ -698,39 +705,41 @@ class NF_Channel_Model(nn.Module):
         return torch.tensor([[cos_a, -sin_a], [sin_a, cos_a]])
 
 
-    def forward(self, tx_ant_vec=None, rx_ant_vec=None, trx_unit_vec=None, tau=None, g=None):
+    def forward(self, tx_ant_vec=None, rx_ant_vec=None, trx_unit_vec=None, path_delay=None, path_gain=None, freq=None):
         '''
         Compute the channel response for a given TX and RX antenna vector.
         tx_ant_vec: (t,m,p), t: number of TX antennas, m: number of measurements, p: dimension of the region
         rx_ant_vec: (r,m,p), r: number of RX antennas, m: number of measurements, p: dimension of the region
-        trx_unit_vec: (m,p), m: number of measurements, p: dimension of the region
+        trx_unit_vec: (np,m,p), np:number of estimated paths, m: number of measurements, p: dimension of the region
         '''
 
         n_rx = rx_ant_vec.shape[0]
         n_tx = tx_ant_vec.shape[0]
         n_meas = rx_ant_vec.shape[1]
+        n_fft = freq.shape[0]
         p = rx_ant_vec.shape[-1]
 
-        if self.tau is not None:
-            tau = self.tau
-        if self.g is not None:
-            g = self.g
+        if self.path_delay is not None:
+            path_delay = self.path_delay
+        if self.path_gain is not None:
+            path_gain = self.path_gain
 
-        H = torch.zeros(n_rx, n_tx, n_meas, dtype=torch.complex64)
+        H = torch.zeros(n_fft, n_rx, n_tx, n_meas, dtype=torch.complex64)
         # Sum the contributions from each path
         for i in range(self.n_path):
             rotation_mat = self.rotation_matrix(self.alpha[i])
             rot_tx_ant_vec = tx_ant_vec.reshape(-1, p) @ rotation_mat.T
             rot_tx_ant_vec = rot_tx_ant_vec.reshape(tx_ant_vec.shape)
 
-            dist_vec = rx_ant_vec[:,None,:,:] - (constants.c*tau[i]*trx_unit_vec)[None,None,:,:] - (self.s[i]*rot_tx_ant_vec)[None,:,:,:]
+            tanh_scale = 1
+            dist_vec = rx_ant_vec[:,None,:,:] - (constants.c*(path_delay[i])[:,:,:,None]*(trx_unit_vec[i])[None,None,:,:]) - (torch.tanh(tanh_scale*self.s[i])*rot_tx_ant_vec)[None,:,:,:]
             dist = torch.linalg.norm(dist_vec, dim=-1)
-            H += g[i] * torch.exp(1j*2*np.pi*self.fc*dist/constants.c)
+            f = self.fc + freq
+            H += (path_gain[i])[None,:,:,:] * torch.exp(1j*2*np.pi/constants.c * f[:,None,None,None] * dist[None,:,:,:])
 
         return H
-    
 
 
 
 
-    
+

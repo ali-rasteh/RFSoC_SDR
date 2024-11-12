@@ -13,8 +13,8 @@
 - In the `backend.py` script, change `import_pynq` to True. Also if you're planning to use the Sivers antenna, please change `import_sivers` to True.
 - Put the clock configurations files from [this folder in the Repo](https://github.com/ali-rasteh/RFSoC_SDR/tree/main/rfsoc/rfsoc4x2_clock_configs) in this folder on RFSoC4x2: `/usr/local/share/pynq-venv/lib/python3.10/site-packages/xrfclk/`
 - Provide internet connection to the board by connecting it to a server/PC and routing the traffic or by any other methods you like. 
-- Install RFSoC-MTS package according to instructions in [this linke](https://github.com/Xilinx/RFSoC-MTS/tree/main)
-- Put the latest version of the RFSoC4x2 FPGA image files from [here](https://github.com/ali-rasteh/RFSoC_SDR/tree/main/vivado/sounder_fr3_if_ddr4_mimo_4x2/builds) in your project folder beside the python scritps. You only need to transfer `.bit` and `.hwh` files.
+- Install the RFSoC-MTS package on the RFSoC4x2 according to instructions in [this linke](https://github.com/Xilinx/RFSoC-MTS/tree/main)
+- Put the latest version of the RFSoC4x2 FPGA image files from [here](https://github.com/ali-rasteh/RFSoC_SDR/tree/main/vivado/sounder_fr3_if_ddr4_mimo_4x2/builds) in your project folder beside the python scritps. You only need to transfer `.bit` and `.hwh` files. Please don't transfer the `.xsa` along with the other two files because it causes a kind of conflict in loading the image.
 
 
 ## Steps to do measurements on FR3 using Pi-Radio FR3 Transceiver:
@@ -30,7 +30,7 @@
 - Connect the RFSoC4x2 to your laptop/PC using a USB cable.
 - Open the RFSoC web interface using a web browser on [This Link](http://192.168.3.1:9090/lab/)
 - Run the rfsoc_test.py script on the RFSoC4x2 using a jupyter notebook or using `python rfsoc_test.py`. When you see `Waiting for a connection` in the log, the RFSoC4x2 is ready.
-- refine the configurations in the `rfsoc_test.py` file on your system/PC and run the script using `python rfsoc_test.py`.
+- refine the configurations in the `rfsoc_test.py` file on your system/PC and run the script using `python rfsoc_test.py`. You need to run the code in an envioronment with capability of showing plots which means the backednd to show the matplotlib figures should be cofigured propoerly. I suggest you use VScode as your IDE.
 - First time you run the system you need to do phase calibration on the receiver, so when the script shows a message about the calibration, follow the instructions to run the calibration.
 - Finally the script should receive the measurements, do the needed processing and show the animation plots.
 - You can also save the signal and channel responses by adding appropriate elements to the save_list parameter.

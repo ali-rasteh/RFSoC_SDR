@@ -60,6 +60,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.nf_walls = params.nf_walls
         self.nf_rx_sep_dir = params.nf_rx_sep_dir
         self.nf_stop_thr = params.nf_stop_thr
+        self.nf_rx_ant_loc = params.nf_rx_ant_loc
+        self.nf_tx_ant_loc = params.nf_tx_ant_loc
         self.n_rd_rep = params.n_rd_rep
         self.saved_sig_plot = params.saved_sig_plot
         self.figs_save_path = params.figs_save_path
@@ -153,9 +155,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         # # Create all the transmitters
         # xtx =  np.vstack((xsrc, xref))
 
-        room_width = self.nf_walls[0,1] - self.nf_walls[0,0]
-        room_length = self.nf_walls[1,1] - self.nf_walls[1,0]
         self.nf_region = self.nf_walls.copy()
+        # room_width = self.nf_walls[0,1] - self.nf_walls[0,0]
+        # room_length = self.nf_walls[1,1] - self.nf_walls[1,0]
         # self.nf_region[0,0] -= room_width
         # self.nf_region[0,1] += room_width
         # # self.nf_region[1,0] -= room_length
@@ -178,21 +180,43 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.print("Near field model created", thr=1)
     
 
-    def nf_locate_tx(self, h, dly_est, peaks):
+    def est_nf_param(self, h, dly_est, peaks, npaths):
         """
         Parameters
         -------
         h : np.array of shape (nfft,n_rx,n_meas)
             The channel frequency response.
         """
-        self.nf_model.chan_td = h
-        self.nf_model.chan_fd = fft(h, axis=0)
-        self.nf_model.sparse_dly_est = dly_est.copy()
-        self.nf_model.sparse_peaks_est = peaks.copy()
+
+        h = np.transpose(h.copy(), (3,1,2,0))
+        dly_est = np.transpose(dly_est.copy(), (3,1,2,0))
+        peaks = np.transpose(peaks.copy(), (3,1,2,0))
+        npaths = np.transpose(npaths.copy(), (1,2,0))
+        n_paths_min = np.min(npaths)
+
+        self.nf_model.chan_td = h[:,:,0,:]
+        self.nf_model.chan_fd = fft(h[:,:,0,:], axis=0)
+        self.nf_model.sparse_dly_est = dly_est[:,:,0,:]
+        self.nf_model.sparse_peaks_est = peaks[:,:,0,:]
+        self.nf_model.npath_est = n_paths_min
+        print("Number of paths estimated: ", self.nf_model.npath_est)
 
         self.nf_model.path_est_init()
         self.nf_model.locate_tx()
         # self.nf_model.plot_results(RoomModel=self.RoomModel, plot_type='')
+
+        n_epochs = 100
+        lr_init = 0.01
+        ch_gt = h.copy()
+        tx_ant_vec = None
+        rx_ant_vec = None
+        phase_diff = peaks[:n_paths_min,1,0,:]-peaks[:n_paths_min,0,0,:]        # TODO: Maybe 0-1 instead of 1-0
+        aoa = self.phase_to_aoa(phase_diff, wl=self.wl, ant_dim=self.ant_dim, ant_dx_m=self.ant_dx_m, ant_dy_m=self.ant_dy_m)
+        trx_unit_vec = np.stack((np.sin(aoa), np.cos(aoa)), axis=-1)
+        path_delay = dly_est.copy()
+        path_gain = peaks.copy()
+        freq = self.freq_trx.copy()
+        # self.nf_model.nf_channel_param_est(n_epochs=n_epochs, lr_init=lr_init, ch_gt=ch_gt, tx_ant_vec=tx_ant_vec, rx_ant_vec=rx_ant_vec, trx_unit_vec=trx_unit_vec, path_delay=path_delay, path_gain=path_gain, freq=freq)
 
 
     def calibrate_rx_phase_offset(self, client_rfsoc):
@@ -443,7 +467,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     if self.use_linear_track:
                         client_lintrack.return2home(lin_track_id=0)
                         client_lintrack.return2home(lin_track_id=1)
-                        time.sleep(1.0)
+                        time.sleep(0.5)
                         # distance = -1000*(len(self.nf_rx_loc)-1)
                         # distance = np.round(distance, 2)
                         # client_lintrack.move(lin_track_id=0, distance=distance)
@@ -451,17 +475,16 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     self.h_nf = []
                     self.dly_est_nf = []
                     self.peaks_nf = []
+                    self.npaths_nf = []
                     self.nf_loc_idx+=1
                     self.nf_sep_idx+=1
 
                 elif self.nf_loc_idx==len(self.nf_rx_loc)+1:
                     self.h_nf = np.array(self.h_nf)
-                    self.h_nf = np.transpose(self.h_nf, (2,1,0))
                     self.dly_est_nf = np.array(self.dly_est_nf)
-                    self.dly_est_nf = np.transpose(self.dly_est_nf, (2,1,0))
                     self.peaks_nf = np.array(self.peaks_nf)
-                    self.peaks_nf = np.transpose(self.peaks_nf, (2,1,0))
-                    self.nf_locate_tx(self.h_nf, self.dly_est_nf, self.peaks_nf)
+                    self.npaths_nf = np.array(self.npaths_nf)
+                    self.est_nf_param(self.h_nf, self.dly_est_nf, self.peaks_nf, self.npaths_nf)
                     self.nf_loc_idx = 0
                     self.nf_sep_idx = 0
                 else:
@@ -471,7 +494,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                             distance = 1000*(self.nf_rx_ant_sep[0]*self.wl - self.nf_rx_ant_sep[-1]*self.wl)
                             distance = np.round(distance, 2)
                             client_lintrack.move(lin_track_id=1, distance=distance)
-                            time.sleep(1.0)
+                            time.sleep(0.5)
                             self.ant_dx = self.nf_rx_ant_sep[0]
 
                             if self.nf_loc_idx < len(self.nf_rx_loc):
@@ -479,23 +502,24 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                                 distance = np.round(distance, 2)
                                 client_lintrack.move(lin_track_id=1, distance=distance)
                                 client_lintrack.move(lin_track_id=0, distance=distance)
-                                time.sleep(1.0)
+                                time.sleep(0.5)
                                 
                         self.nf_sep_idx+=1
                         self.nf_loc_idx+=1
                     elif self.nf_sep_idx==len(self.nf_rx_ant_sep)+1:
                         self.nf_sep_idx = 0
                     else:
-                        self.h_nf.append(h_est_full[:,0])
-                        (h_tr, dly_est, peaks) = sparse_est_params
-                        self.dly_est_nf.append(dly_est[:,0])
-                        self.peaks_nf.append(peaks[:,0])
+                        self.h_nf.append(h_est_full)
+                        (h_tr, dly_est, peaks, npath_est) = sparse_est_params
+                        self.dly_est_nf.append(dly_est)
+                        self.peaks_nf.append(peaks)
+                        self.npaths_nf.append(npath_est)
 
                         if self.use_linear_track:
                             distance = 1000*(self.nf_rx_ant_sep[self.nf_sep_idx]*self.wl - self.nf_rx_ant_sep[self.nf_sep_idx-1]*self.wl)
                             distance = np.round(distance, 2)
                             client_lintrack.move(lin_track_id=1, distance=distance)
-                            time.sleep(1)
+                            time.sleep(0.5)
                             self.ant_dx = self.nf_rx_ant_sep[self.nf_sep_idx]
                         
                         self.nf_sep_idx+=1
@@ -530,7 +554,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ax[i][j].set_ylim(0.5, 1)
                     ax[i][j].axis('off')
                 elif plot_mode[i]=='h_sparse':
-                    (h_tr, dly_est, peaks) = sigs[i]
+                    (h_tr, dly_est, peaks, npath_est) = sigs[i]
                     h_tr = h_tr[rx_ant_id, tx_ant_id]
                     dly_est = dly_est[rx_ant_id, tx_ant_id]
                     peaks = peaks[rx_ant_id, tx_ant_id]
@@ -554,15 +578,16 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ymin = -10
 
                     # Plot the locations of the detected peaks
-                    peaks  = self.lin_to_db(peaks, mode='pow')-yshift
+                    peaks_ = np.abs(peaks)**2
+                    peaks_  = self.lin_to_db(peaks_, mode='pow')-yshift
                     dly_est = dly_est*1e9
                     dly_est = dly_est[dly_est<=np.max(dlyr[:n_samp_ch_sp])]
-                    line[line_id][j].set_data(dly_est, peaks)
+                    line[line_id][j].set_data(dly_est, peaks_)
                     line_id+=1
-                    # for dly, peak in zip(dly_est, peaks):
+                    # for dly, peak in zip(dly_est, peaks_):
                     #     # line[line_id][j].set_ydata([dly, peak])
                     #     line[line_id][j].set_segments([[[dly, ymin], [dly, peak]]])
-                    line[line_id][j].set_segments([[[i,ymin], [i,j]] for i,j in zip(dly_est, peaks)])
+                    line[line_id][j].set_segments([[[i,ymin], [i,j]] for i,j in zip(dly_est, peaks_)])
                     line_id+=1
                     ax[i][j].set_ylim([ymin, ymax])
                 elif plot_mode[i]=='nf_loc':
