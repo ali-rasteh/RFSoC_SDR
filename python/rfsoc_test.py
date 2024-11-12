@@ -146,7 +146,7 @@ class Params_Class(object):
             # self.nf_tx_loc = None
             self.nf_tx_loc = np.array([[0.3,0.9]])
             # self.nf_rx_loc_sep = np.array([0,0.1,0.2,0.3,0.4,0.5])
-            self.nf_rx_loc_sep = np.array([0,0.3,0.6])
+            self.nf_rx_loc_sep = np.array([0,0.2,0.4])
             self.nf_tx_ant_sep = 0.5
             self.nf_rx_ant_sep = 0.5 * np.array([1,2,4])
 
@@ -298,6 +298,27 @@ class Params_Class(object):
             self.sc_range_ch = [-1*self.n_samples_trx//2, self.n_samples_trx//2-1]
             self.n_samples_ch = self.n_samples_trx
             self.nfft_ch = self.nfft_trx
+
+
+
+        self.nf_n_rx_loc_sep = len(self.nf_rx_loc_sep)
+        self.nf_n_ant_sep = len(self.nf_rx_ant_sep)
+        self.nf_n_meas = self.nf_n_rx_loc_sep * self.nf_n_ant_sep
+        p = len(self.nf_rx_sep_dir)
+        # Generate the RX antenna positions
+        self.nf_rx_ant_loc = np.zeros((self.n_rx_ant, self.nf_n_meas, p))
+        self.nf_tx_ant_loc = np.zeros((self.n_tx_ant, self.nf_n_meas, p))
+        for k in range(self.nf_n_rx_loc_sep):
+            for i in range(self.nf_n_ant_sep):
+                m = k*self.nf_n_ant_sep + i
+                # Linear distance of the RX antennas from the origin
+                t = self.nf_rx_loc_sep[k] + self.nf_rx_ant_sep[i]*np.arange(self.n_rx_ant)*self.wl
+                # Position of the RX antennas
+                self.nf_rx_ant_loc[:,m,:] = t[:,None]*self.nf_rx_sep_dir[None,:]
+
+                t = self.ant_dx_m * np.arange(self.n_tx_ant)
+                self.nf_tx_ant_loc[:,m,:] = self.nf_tx_loc + t[:,None]*self.nf_tx_sep_dir[None,:]
+
 
 
         
