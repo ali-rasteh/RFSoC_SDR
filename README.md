@@ -1,6 +1,6 @@
 # RFSoC_SDR
 
-## Steps to bring up a RFSoC4x2:
+## Steps to bring up a RFSoC4x2
 
 - A very good source of information is provided in [This Link](https://github.com/nyu-wireless/mmwsdr) and [This Link](https://github.com/nyu-wireless/mmwsdr/tree/main/Lessons%20for%20RFSoC)
 
@@ -9,7 +9,7 @@
 - Put the SD-card in RFSoC4x2 and power it on. Wait until you see the IP address information shown on the LCD.
 - Connect the RFSoC4x2 to your laptop/PC using a USB cable.
 - Open the RFSoC web interface using a web browser on [This Link](http://192.168.3.1:9090/lab/)
-- Put all the python scripts from [here](https://github.com/ali-rasteh/RFSoC_SDR/tree/main/python) in the corresponding project folder on the board. you can create a folder for your project at `/home/xilinx/jupyter_notebooks/`.
+- Put all the python scripts from [here](https://github.com/ali-rasteh/RFSoC_SDR/tree/main/python) in the corresponding project folder on the board. you can create a folder for your project at `/home/xilinx/jupyter_notebooks/YOURFOLDER/`. You only need to copy the `.py` scripts not all other folders in the provided link.
 - In the `backend.py` script, change `import_pynq` to True. Also if you're planning to use the Sivers antenna, please change `import_sivers` to True.
 - Put the clock configurations files from [this folder in the Repo](https://github.com/ali-rasteh/RFSoC_SDR/tree/main/rfsoc/rfsoc4x2_clock_configs) in this folder on RFSoC4x2: `/usr/local/share/pynq-venv/lib/python3.10/site-packages/xrfclk/`
 - Provide internet connection to the board by connecting it to a server/PC and routing the traffic or by any other methods you like. 
@@ -17,7 +17,70 @@
 - Put the latest version of the RFSoC4x2 FPGA image files from [here](https://github.com/ali-rasteh/RFSoC_SDR/tree/main/vivado/sounder_fr3_if_ddr4_mimo_4x2/builds) in your project folder beside the python scritps. You only need to transfer `.bit` and `.hwh` files. Please don't transfer the `.xsa` along with the other two files because it causes a kind of conflict in loading the image.
 
 
-## Steps to do measurements on FR3 using Pi-Radio FR3 Transceiver:
+## Steps to prepare the host computer for the experiments
+*  First, clone the repository in your host computer.
+*  Then, we create a virtual environment.  The command below will
+create an environment named `env`,
+but any other environment name can be used.
+
+
+    ~~~bash
+    python -m venv env
+    ~~~
+    The command may take several minutes, and it may not indicate
+    its progress.
+    After completion, the virtual environment files will be in a
+    directory `env`.  This directory may be large.
+* Activate the virtual environment:
+
+    ~~~bash
+    .\env\Scripts\Activate.ps1  [Windows]
+    source active env [MAC/Linux]
+    ~~~
+   On Windows Powershell, you may get the error message
+   *“...Activate.ps1 is not digitally signed. The script will not execute on the system.”*
+   In this case, you will want to run:
+   ~~~bash
+   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+   ~~~
+   
+* The first time you activate the environment, install the
+package requirements:
+
+    ~~~bash
+    (env) pip install -r requirements.txt
+    ~~~
+
+*  You can exit the virtual environment with:
+    
+    ~~~bash
+    (env) deactivate
+    ~~~
+
+
+To use the package later, you will need to activate the
+virtual environment and run any commands in that environment.
+
+### Creating a requirements file
+If you update the installation in the package, you may need to re-create the
+`requirements.txt` file with:
+
+~~~bash
+   python -m pip freeze > requirements.txt
+~~~
+
+If you do this on Windows, you should edit the file `requirements.txt`
+as follows:
+
+* In `requirements.txt`, you may have a line like:
+
+    ~~~
+    pywin32==306
+    ~~~
+    Delete this line since it is only needed for Windows.
+
+
+## Steps to do measurements on FR3 using Pi-Radio FR3 Transceiver
 
 - Assemble Vivaldi antennas using appropriate spacers to tune the antenna spacing needed for the target frequency.
 - Install Vivaldi antennas on a fixed structure.
