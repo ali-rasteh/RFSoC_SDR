@@ -10,10 +10,11 @@
 - Connect the RFSoC4x2 to your laptop/PC using a USB cable.
 - Open the RFSoC web interface using a web browser on [This Link](http://192.168.3.1:9090/lab/)
 - Put all the python scripts from [here](https://github.com/ali-rasteh/RFSoC_SDR/tree/main/python) in the corresponding project folder on the board. you can create a folder for your project at `/home/xilinx/jupyter_notebooks/`.
+- In the `backend.py` script, change `import_pynq` to True. Also if you're planning to use the Sivers antenna, please change `import_sivers` to True.
 - Put the clock configurations files from [this folder in the Repo](https://github.com/ali-rasteh/RFSoC_SDR/tree/main/rfsoc/rfsoc4x2_clock_configs) in this folder on RFSoC4x2: `/usr/local/share/pynq-venv/lib/python3.10/site-packages/xrfclk/`
 - Provide internet connection to the board by connecting it to a server/PC and routing the traffic or by any other methods you like. 
 - Install RFSoC-MTS package according to instructions in [this linke](https://github.com/Xilinx/RFSoC-MTS/tree/main)
-- Put the latest version of the RFSoC4x2 FPGA image files from [here](https://github.com/ali-rasteh/RFSoC_SDR/tree/main/vivado/sounder_fr3_if_ddr4_mimo_4x2/builds) in your project folder beside the python scritps. You only need to transfer the `.bit` and `.hwh` files.
+- Put the latest version of the RFSoC4x2 FPGA image files from [here](https://github.com/ali-rasteh/RFSoC_SDR/tree/main/vivado/sounder_fr3_if_ddr4_mimo_4x2/builds) in your project folder beside the python scritps. You only need to transfer `.bit` and `.hwh` files.
 
 
 ## Steps to do measurements on FR3 using Pi-Radio FR3 Transceiver:

@@ -168,7 +168,6 @@ desktop.ini
 # other/
 python/channels
 python/sigs
-python/other/test.py
+python/other
 python/calib
 python/figs
-
