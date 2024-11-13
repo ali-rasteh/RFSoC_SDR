@@ -6,7 +6,7 @@ except:
     pass
 from signal_utilsrfsoc import Signal_Utils_Rfsoc
 from signal_utils import Signal_Utils
-from tcp_comm import Tcp_Comm_RFSoC, Tcp_Comm_LinTrack, ssh_Com_Piradio
+from tcp_comm import Tcp_Comm_RFSoC, Tcp_Comm_LinTrack, ssh_Com_Piradio, REST_Com_Piradio
 
 
 
@@ -113,9 +113,11 @@ class Params_Class(object):
             # self.lintrack_server_ip='10.18.242.48'
             self.lintrack_server_ip='192.168.137.100'
             self.piradio_host = '192.168.137.51'
-            self.piradio_port = '22'
+            self.piradio_ssh_port = '22'
+            self.piradio_rest_port = '5111'
             self.piradio_username = 'ubuntu'
             self.piradio_password = 'temppwd'
+            self.piradio_rest_protocol = 'http'
             
             # Signals information
             self.freq_hop_list = [10.0e9]
@@ -187,7 +189,8 @@ class Params_Class(object):
 
 
             # FR3 measurements parameters (overwritten)
-            self.freq_hop_list = [10.0e9]
+            self.control_piradio=True
+            self.freq_hop_list = [6.5e9, 10.0e9]
             self.ant_dx_m = 0.02               # Antenna spacing in meters
             self.n_rx_ch_eq=1
             self.wb_sc_range=[-250,250]
@@ -197,7 +200,7 @@ class Params_Class(object):
             self.plt_rx_ant_id = 0
             self.save_list = ['', '']           # signal or channel
             self.animate_plot_mode=['h01', 'rxfd', 'IQ']
-            # self.anim_interval=100
+            self.anim_interval=100
 
             # Chain or operations to perform (overwritten)
             self.rx_chain=[]
@@ -214,10 +217,7 @@ class Params_Class(object):
 
 
 
-        for f in [self.calib_params_dir, self.sig_dir, self.channel_dir, self.figs_dir]:
-            if not os.path.exists(f):
-                os.makedirs(f)
-                
+
         if 'h_sparse' in self.animate_plot_mode and 'sparse_est' not in self.rx_chain:
             self.rx_chain.append('sparse_est')
 
@@ -361,7 +361,18 @@ class Params_Class(object):
                 t = self.ant_dx_m * np.arange(self.n_tx_ant)
                 self.nf_tx_ant_loc[:,m,:] = self.nf_tx_loc + t[:,None]*self.nf_tx_sep_dir[None,:]
 
+
+        for f in [self.calib_params_dir, self.sig_dir, self.channel_dir, self.figs_dir]:
+            if not os.path.exists(f):
+                os.makedirs(f)
         
+
+
+
+    def copy(self):
+        return copy.deepcopy(self)
+    
+
 
 
 
@@ -382,9 +393,11 @@ def rfsoc_run(params):
         # client_lintrack.go2end()
 
     if params.control_piradio:
-        client_piradio = ssh_Com_Piradio(params)
-        client_piradio.init_ssh_client()
-        client_piradio.initialize()
+        # client_piradio = ssh_Com_Piradio(params)
+        # client_piradio.init_ssh_client()
+        # client_piradio.initialize()
+        client_piradio = REST_Com_Piradio(params)
+        client_piradio.set_frequency(params.fc)
 
     if params.mode=='server':
         rfsoc_inst = RFSoC(params)

@@ -215,12 +215,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         phase_diff = np.mean(phase_diff, axis=-1)
         aoa = self.phase_to_aoa(phase_diff, wl=self.wl, ant_dim=self.ant_dim, ant_dx_m=self.ant_dx_m, ant_dy_m=self.ant_dy_m)
         trx_unit_vec = np.stack((np.sin(aoa), np.cos(aoa)), axis=-1)
-        path_delay = dly_est.copy()
-        path_gain = peaks.copy()
+        path_delay = dly_est.copy()[:n_paths_min]
+        path_gain = peaks.copy()[:n_paths_min]
+        print("path_delay: ", path_delay[:,0,0,0])
+        print("path_gain: ", np.abs(path_gain[:,0,0,0]))
         # path_delay = None
         # path_gain = None
         freq = self.freq_ch.copy()
-        self.nf_model.nf_channel_param_est(n_epochs=n_epochs, lr_init=lr_init, ch_gt=ch_gt, tx_ant_vec=tx_ant_vec, rx_ant_vec=rx_ant_vec, trx_unit_vec=trx_unit_vec, path_delay=path_delay, path_gain=path_gain, freq=freq)
+        self.nf_model.nf_channel_param_est(n_paths=n_paths_min, n_epochs=n_epochs, lr_init=lr_init, ch_gt=ch_gt, tx_ant_vec=tx_ant_vec, rx_ant_vec=rx_ant_vec, trx_unit_vec=trx_unit_vec, path_delay=path_delay, path_gain=path_gain, freq=freq)
 
 
     def calibrate_rx_phase_offset(self, client_rfsoc):
@@ -347,12 +349,15 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             if channels_save is None:
                 while True:
                     (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd)
-                    (h_tr, dly_est, peaks, npath_est) = sparse_est_params
-                    if np.min(npath_est) > 0:
-                        break
+                    if sparse_est_params is not None:
+                        (h_tr, dly_est, peaks, npath_est) = sparse_est_params
+                        if np.min(npath_est) > 0:
+                            break
+                        else:
+                            self.print("Re-estimating channel due to zero paths", thr=0)
+                            rxtd = self.receive_data(client_rfsoc, n_rd_rep=self.n_rd_rep, mode='once')
                     else:
-                        self.print("Re-estimating channel due to zero paths", thr=0)
-                        rxtd = self.receive_data(client_rfsoc, n_rd_rep=self.n_rd_rep, mode='once')
+                        break
                     H_est_full = fft(h_est_full, axis=-1)
             else:
                 h_est_full = channels_save['h_est_full']

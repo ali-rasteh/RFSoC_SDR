@@ -105,6 +105,7 @@ class Tcp_Comm(General):
 
 class Tcp_Comm_RFSoC(Tcp_Comm):
     def __init__(self, params):
+        params = params.copy()
         params.server_ip = params.rfsoc_server_ip
         super().__init__(params)
 
@@ -192,6 +193,7 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
 
 class Tcp_Comm_LinTrack(Tcp_Comm):
     def __init__(self, params):
+        params = params.copy()
         params.server_ip = params.lintrack_server_ip
         super().__init__(params)
 
@@ -288,8 +290,9 @@ class ssh_Com(General):
 
 class ssh_Com_Piradio(ssh_Com):
     def __init__(self, params):
+        params = params.copy()
         params.host = params.piradio_host
-        params.port = params.piradio_port
+        params.port = params.piradio_ssh_port
         params.username = params.piradio_username
         params.password = params.piradio_password
         super().__init__(params)
@@ -312,6 +315,86 @@ class ssh_Com_Piradio(ssh_Com):
     def set_frequency(self, fc=6.0e9, verif_keyword=''):
         command = f"ls"
         result = self.exec_command(command, verif_keyword=verif_keyword)
+        if result:
+            time.sleep(0.1)
+            self.print(f"Frequency set to {fc/1e9} GHz", thr=3)
+        else:
+            self.print(f"Failed to set frequency to {fc/1e9} GHz", thr=0)
+
+
+
+
+
+class REST_Com(General):
+    def __init__(self, params):
+        super().__init__(params)
+
+        self.host = getattr(params, 'host', '0.0.0.0')
+        self.port = getattr(params, 'port', 5000)
+        self.protocol = getattr(params, 'protocol', 'http')
+
+        self.print("REST_Com object init done", thr=1)
+
+
+    def init_rest_client(self):
+        self.print("REST_Com client init done", thr=1)
+
+
+    def close(self):
+        self.print("REST_Com object closed", thr=1)
+
+
+    def __del__(self):
+        self.close()
+        self.print("REST_Com object deleted", thr=1)
+
+
+    def call_rest_api(self, command, verif_keyword=''):
+        url = f"{self.protocol}://{self.host}:{self.port}/{command}"
+
+        try:
+            response = requests.get(url)
+            response.raise_for_status()  # Raise an HTTPError for bad responses
+            self.print("Successfully called the REST API:{}".format(response.json()), thr=3)
+            response =  response.json()
+            if type(response) == int or type(response) == float:
+                response = str(response)
+        except requests.exceptions.RequestException as e:
+            self.print(f"Error executing REST API: {e}", thr=0)
+            response = None
+
+
+        # Search for the keyword in the output
+        if verif_keyword in response:
+            self.print(f"Keyword '{verif_keyword}' found in the output.", thr=3)
+            result = True
+        else:
+            self.print(f"Keyword '{verif_keyword}' not found in the output.", thr=3)
+            result = False
+
+        return result, response
+    
+
+
+class REST_Com_Piradio(REST_Com):
+    def __init__(self, params):
+        params = params.copy()
+        params.host = params.piradio_host
+        params.port = params.piradio_rest_port
+        params.protocol = getattr(params, 'piradio_rest_protocol', 'http')
+        super().__init__(params)
+
+        self.print("REST_Com_Piradio object init done", thr=1)
+
+
+    def initialize(self, verif_keyword='done'):
+        self.print("Pi-Radio REST Comm Initialization done", thr=3)
+
+
+    def set_frequency(self, fc=6.0e9, verif_keyword=''):
+        command = f'high_lo?freq={fc}'
+        result, response = self.call_rest_api(command, verif_keyword=verif_keyword)
+        result = (float(response) == fc)
         if result:
             time.sleep(0.1)
             self.print(f"Frequency set to {fc/1e9} GHz", thr=3)

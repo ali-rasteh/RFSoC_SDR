@@ -569,11 +569,13 @@ class Sim(Signal_Utils):
 
 
 
-    def nf_channel_param_est(self, n_epochs=1000, lr_init=0.1, ch_gt=None, tx_ant_vec=None, rx_ant_vec=None, trx_unit_vec=None, path_delay=None, path_gain=None, freq=None):
+    def nf_channel_param_est(self, n_paths=0, n_epochs=1000, lr_init=0.1, ch_gt=None, tx_ant_vec=None, rx_ant_vec=None, trx_unit_vec=None, path_delay=None, path_gain=None, freq=None):
         # Initialize model, loss function, and optimizer
         self.t_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        self.nf_ch_model = NF_Channel_Model(n_path=self.npath_det, fc=self.fc, device=self.t_device)
+        if n_paths == 0:
+            n_paths = self.npath_det
+        self.nf_ch_model = NF_Channel_Model(n_path=n_paths, fc=self.fc, device=self.t_device)
         self.nf_ch_model = self.nf_ch_model.to(self.t_device)
 
         criterion = nn.MSELoss()
@@ -760,6 +762,7 @@ class NF_Channel_Model(nn.Module):
         # print("path_delay: ", path_delay)
         # print("path_gain: ", path_gain)
         H = torch.zeros(n_fft, n_rx, n_tx, n_meas, dtype=torch.complex64)
+
         # Sum the contributions from each path
         for i in range(self.n_path):
 

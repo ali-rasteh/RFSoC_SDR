@@ -18,6 +18,8 @@ be_scp = None
 if import_general:
     import importlib
     import os
+    import copy
+    import requests
     import platform
     import argparse
     import time
