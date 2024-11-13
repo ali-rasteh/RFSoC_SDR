@@ -1,6 +1,6 @@
 # RFSoC_SDR
 
-## Steps to bring up a RFSoC4x2
+## Steps to bring up an RFSoC4x2
 
 - A very good source of information is provided in [This Link](https://github.com/nyu-wireless/mmwsdr) and [This Link](https://github.com/nyu-wireless/mmwsdr/tree/main/Lessons%20for%20RFSoC)
 
@@ -17,7 +17,7 @@
 - Put the latest version of the RFSoC4x2 FPGA image files from [here](https://github.com/ali-rasteh/RFSoC_SDR/tree/main/vivado/sounder_fr3_if_ddr4_mimo_4x2/builds) in your project folder beside the python scritps. You only need to transfer `.bit` and `.hwh` files. Please don't transfer the `.xsa` along with the other two files because it causes a kind of conflict in loading the image.
 
 
-## Steps to prepare the host computer for the experiments
+## Steps to prepare the host computer for doing experiments
 *  First, clone the repository in your host computer.
 *  Then, we create a virtual environment.  The command below will
 create an environment named `env`,

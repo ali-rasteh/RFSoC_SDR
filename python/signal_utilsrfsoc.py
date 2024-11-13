@@ -19,7 +19,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.wb_bw_range = params.wb_bw_range
         self.wb_sc_range = params.wb_sc_range
         self.sc_range = params.sc_range
-        self.sc_range_ch = params.sc_range_ch
         self.null_sc_range = params.null_sc_range
         self.tone_f_mode = params.tone_f_mode
         self.f_tone = params.f_tone
@@ -194,29 +193,34 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         npaths = np.transpose(npaths.copy(), (1,2,0))
         n_paths_min = np.min(npaths)
 
-        self.nf_model.chan_td = h[:,:,0,:]
-        self.nf_model.chan_fd = fft(h[:,:,0,:], axis=0)
-        self.nf_model.sparse_dly_est = dly_est[:,:,0,:]
-        self.nf_model.sparse_peaks_est = peaks[:,:,0,:]
-        self.nf_model.npath_est = n_paths_min
-        print("Number of paths estimated: ", self.nf_model.npath_est)
+        txid = 0
+
+        self.nf_model.chan_td = h[:,:,txid,:]
+        self.nf_model.chan_fd = fft(h[:,:,txid,:], axis=0)
+        self.nf_model.sparse_dly_est = dly_est[:,:,txid,:]
+        self.nf_model.sparse_peaks_est = peaks[:,:,txid,:]
+        # self.nf_model.npath_est = n_paths_min
+        self.print("Number of paths estimated: {}".format(n_paths_min), thr=0)
 
         self.nf_model.path_est_init()
-        self.nf_model.locate_tx()
+        self.nf_model.locate_tx(npath_est=n_paths_min)
         # self.nf_model.plot_results(RoomModel=self.RoomModel, plot_type='')
 
-        n_epochs = 100
-        lr_init = 0.01
+        n_epochs = 10000
+        lr_init = 0.1
         ch_gt = h.copy()
-        tx_ant_vec = None
-        rx_ant_vec = None
+        tx_ant_vec = self.nf_tx_ant_loc[:,:,:] - (self.nf_tx_ant_loc[0,0,:])[None,None,:] + 0.01
+        rx_ant_vec = self.nf_rx_ant_loc[:,:,:] - (self.nf_rx_ant_loc[0,0,:])[None,None,:]
         phase_diff = peaks[:n_paths_min,1,0,:]-peaks[:n_paths_min,0,0,:]        # TODO: Maybe 0-1 instead of 1-0
+        phase_diff = np.mean(phase_diff, axis=-1)
         aoa = self.phase_to_aoa(phase_diff, wl=self.wl, ant_dim=self.ant_dim, ant_dx_m=self.ant_dx_m, ant_dy_m=self.ant_dy_m)
         trx_unit_vec = np.stack((np.sin(aoa), np.cos(aoa)), axis=-1)
         path_delay = dly_est.copy()
         path_gain = peaks.copy()
-        freq = self.freq_trx.copy()
-        # self.nf_model.nf_channel_param_est(n_epochs=n_epochs, lr_init=lr_init, ch_gt=ch_gt, tx_ant_vec=tx_ant_vec, rx_ant_vec=rx_ant_vec, trx_unit_vec=trx_unit_vec, path_delay=path_delay, path_gain=path_gain, freq=freq)
+        # path_delay = None
+        # path_gain = None
+        freq = self.freq_ch.copy()
+        self.nf_model.nf_channel_param_est(n_epochs=n_epochs, lr_init=lr_init, ch_gt=ch_gt, tx_ant_vec=tx_ant_vec, rx_ant_vec=rx_ant_vec, trx_unit_vec=trx_unit_vec, path_delay=path_delay, path_gain=path_gain, freq=freq)
 
 
     def calibrate_rx_phase_offset(self, client_rfsoc):
@@ -292,6 +296,16 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.rx_chain = rx_chain_main.copy()
     
 
+    def receive_data(self, client_rfsoc, n_rd_rep=1, mode='once'):
+        rxtd=[]
+        for i in range(n_rd_rep):
+            rxtd_ = client_rfsoc.receive_data(mode=mode)
+            rxtd_ = rxtd_.squeeze(axis=0)
+            rxtd.append(rxtd_)
+        rxtd = np.array(rxtd)
+        return rxtd
+
+
     def animate_plot(self, client_rfsoc, client_lintrack, client_piradio, txtd_base, plot_mode=['h', 'rxtd', 'rxfd'], plot_level=0):
         if self.plot_level<plot_level:
             return
@@ -312,7 +326,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         n_samp_ch_sp = n_samples_ch // 2
 
 
-        def receive_data(txtd_base):
+        def receive_data_anim(txtd_base):
             self.read_id+=1
             sigs_save = None
             channels_save = None
@@ -323,12 +337,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
             if sigs_save is None:
                 if channels_save is None:
-                    rxtd=[]
-                    for i in range(self.n_rd_rep):
-                        rxtd_ = client_rfsoc.receive_data(mode='once')
-                        rxtd_ = rxtd_.squeeze(axis=0)
-                        rxtd.append(rxtd_)
-                    rxtd = np.array(rxtd)
+                    rxtd = self.receive_data(client_rfsoc, n_rd_rep=self.n_rd_rep, mode='once')
                 else:
                     rxtd = None
             else:
@@ -336,8 +345,15 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 txtd_base = sigs_save['txtd'][0]
 
             if channels_save is None:
-                (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd)
-                H_est_full = fft(h_est_full, axis=-1)
+                while True:
+                    (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd)
+                    (h_tr, dly_est, peaks, npath_est) = sparse_est_params
+                    if np.min(npath_est) > 0:
+                        break
+                    else:
+                        self.print("Re-estimating channel due to zero paths", thr=0)
+                        rxtd = self.receive_data(client_rfsoc, n_rd_rep=self.n_rd_rep, mode='once')
+                    H_est_full = fft(h_est_full, axis=-1)
             else:
                 h_est_full = channels_save['h_est_full']
                 H_est = channels_save['H_est']
@@ -449,7 +465,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         def update(frame):
             if self.anim_paused:
                 return line
-            sigs, h_est_full, sparse_est_params = receive_data(txtd_base)
+            sigs, h_est_full, sparse_est_params = receive_data_anim(txtd_base)
 
 
             if self.control_piradio:
@@ -516,11 +532,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         self.npaths_nf.append(npath_est)
 
                         if self.use_linear_track:
-                            distance = 1000*(self.nf_rx_ant_sep[self.nf_sep_idx]*self.wl - self.nf_rx_ant_sep[self.nf_sep_idx-1]*self.wl)
-                            distance = np.round(distance, 2)
-                            client_lintrack.move(lin_track_id=1, distance=distance)
-                            time.sleep(0.5)
-                            self.ant_dx = self.nf_rx_ant_sep[self.nf_sep_idx]
+                            if self.nf_sep_idx < len(self.nf_rx_ant_sep):
+                                distance = 1000*(self.nf_rx_ant_sep[self.nf_sep_idx]*self.wl - self.nf_rx_ant_sep[self.nf_sep_idx-1]*self.wl)
+                                distance = np.round(distance, 2)
+                                client_lintrack.move(lin_track_id=1, distance=distance)
+                                time.sleep(0.5)
+                                self.ant_dx = self.nf_rx_ant_sep[self.nf_sep_idx]
                         
                         self.nf_sep_idx+=1
                 
@@ -617,7 +634,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
         # Set up the figure and plot
-        sigs, _, _ = receive_data(txtd_base)
+        sigs, _, _ = receive_data_anim(txtd_base)
         line = [[None for j in range(n_plots_col)] for i in range(3*n_plots_row)]
         fig, ax = plt.subplots(n_plots_row, n_plots_col)
         if type(ax) is not np.ndarray:

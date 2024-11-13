@@ -61,111 +61,146 @@ class Params_Class(object):
         params.overwrite_configs=True
 
         if params.overwrite_configs:
+
+            # Constant parameters
             self.c = constants.c
+            self.seed=100
+
+            # Board and RFSoC FPGA project parameters
+            self.project='sounder_if_ddr4'
+            self.board='rfsoc_4x2'
+            self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-58_20241001-150336.bit')       # Without DAC MTS
+            # self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-62_20241019-173825.bit')         # With DAC MTS
+            self.mode='server'
+            self.run_tcp_server=True
+            self.send_signal=True
+            self.recv_signal=True
+
+            # Plots and logs parameters
+            self.plt_frame_id = 0
+            self.overwrite_level=True
+            self.plot_level=0
+            self.verbose_level=0
+            self.plt_tx_ant_id = 0
+            self.plt_rx_ant_id = 0
+            self.anim_interval=500
+            self.animate_plot_mode=['h01', 'rxfd', 'IQ']
+
+            # Mixer parameters
+            self.mixer_mode='analog'
+            self.mix_freq=1000e6
+            self.mix_phase_off=0.0
+            self.do_mixer_settings=False
+            self.do_pll_settings=False
+            self.lmk_freq_mhz=122.88
+            self.lmx_freq_mhz=3932.16
+
+            # RFFE and antennas parameters
+            self.RFFE='piradio'
+            self.ant_dim = 1
+            self.n_tx_ant=2
+            self.n_rx_ant=2
+            self.ant_dx_m = 0.02
+            self.ant_dy_m = 0.02
+
+            # Connections parameters
+            self.control_piradio=False
+            self.tcp_localIP = "0.0.0.0"
+            self.tcp_bufferSize=2**10
+            self.TCP_port_Cmd=8080
+            self.TCP_port_Data=8081
+            self.rfsoc_server_ip='192.168.3.1'
+            # self.lintrack_server_ip='10.18.242.48'
+            self.lintrack_server_ip='192.168.137.100'
+            self.piradio_host = '192.168.137.51'
+            self.piradio_port = '22'
+            self.piradio_username = 'ubuntu'
+            self.piradio_password = 'temppwd'
+            
+            # Signals information
+            self.freq_hop_list = [10.0e9]
             self.fs=245.76e6 * 4
             self.fs_tx=self.fs
             self.fs_rx=self.fs
             self.fs_trx=self.fs
             self.n_samples=1024
             self.nfft=self.n_samples
-            self.mix_phase_off=0.0
-            self.calib_params_path=os.path.join(os.getcwd(), 'calib/calib_params.npz')
-            self.sig_path=os.path.join(os.getcwd(), 'sigs/txtd.npz')
-            self.sig_save_path=os.path.join(os.getcwd(), 'sigs/trx.npz')
-            self.channel_save_path=os.path.join(os.getcwd(), 'channels/channel.npz')
-            self.figs_dir=os.path.join(os.getcwd(), 'figs/')
-            self.figs_save_path=os.path.join(self.figs_dir, 'plot.pdf')
-            self.sys_response_path=os.path.join(os.getcwd(), 'channels/sys_response.npz')
-            self.wb_null_sc=0
-            self.tcp_localIP = "0.0.0.0"
-            self.tcp_bufferSize=2**10
-            self.TCP_port_Cmd=8080
-            self.TCP_port_Data=8081
-            self.lmk_freq_mhz=122.88
-            self.lmx_freq_mhz=3932.16
-            self.filter_bw_range=[-450e6,450e6]
-            self.seed=100
-            self.mixer_mode='analog'
-            self.RFFE='piradio'
-
-            self.mix_freq=1000e6
-            self.do_mixer_settings=False
-            self.do_pll_settings=False
+            self.sig_gen_mode = 'fft'
+            self.sig_mode='wideband_null'
+            self.sig_modulation = '4qam'
+            self.tx_sig_sim = 'same'        # same or orthogonal
+            self.sig_gain_db=0
             self.n_frame_wr=1
-            self.run_tcp_server=True
-            self.send_signal=True
-            self.recv_signal=True
-            self.rfsoc_server_ip='192.168.3.1'
-            # self.lintrack_server_ip='10.18.242.48'
-            self.lintrack_server_ip='192.168.137.100'
-            self.ant_dim = 1
-            self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-58_20241001-150336.bit')       # Without DAC MTS
-            # self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-62_20241019-173825.bit')         # With DAC MTS
-            self.project='sounder_if_ddr4'
-            self.board='rfsoc_4x2'
-            self.n_tx_ant=2
-            self.n_rx_ant=2
-            self.ant_dy_m = 0.015
+            self.n_frame_rd=2
+            self.n_rd_rep=8
+            self.snr_est_db=40
             self.wb_bw_mode='sc'    # sc or freq
+            self.wb_sc_range=[-250,250]
             self.wb_bw_range=[-250e6,250e6]
+            self.wb_null_sc=0
             self.tone_f_mode='sc'    # sc or freq
             self.sc_tone=10
             self.f_tone=10.0 * self.fs_tx / self.nfft
-            self.mode='server'
-            self.steer_theta_deg = 0        # Desired steering elevation in degrees
-            self.n_save = 100
-            self.sig_gain_db=0
-            self.beamforming=False
-            self.steer_phi_deg = 30        # Desired steering azimuth in degrees
-            self.anim_interval=500
-            self.sig_modulation = '4qam'
-            self.sig_mode='wideband_null'
-            self.calib_iter = 100
-            self.overwrite_level=True
-            self.plot_level=0
-            self.verbose_level=0
-            self.snr_est_db=40
-            self.sig_gen_mode = 'fft'
-            self.saved_sig_plot = []
-            self.control_piradio=False
-            self.tx_sig_sim = 'same'        # same or orthogonal
-            self.piradio_host = '192.168.137.51'
-            self.piradio_port = '22'
-            self.piradio_username = 'ubuntu'
-            self.piradio_password = 'temppwd'
-            self.n_frame_rd=2
-            self.plt_frame_id = 0
+            self.filter_bw_range=[-450e6,450e6]
+            self.n_rx_ch_eq=1
+            self.rx_chain=['sync_time', 'channel_est']        # filter, integrate, sync_time, sync_freq, pilot_separate, channel_est, channel_eq
+            self.channel_limit = True
 
+            # Save parameters
+            self.calib_params_dir=os.path.join(os.getcwd(), 'calib/')
+            self.calib_params_path=os.path.join(os.getcwd(), 'calib/calib_params.npz')
+            self.sig_dir=os.path.join(os.getcwd(), 'sigs/')
+            self.sig_path=os.path.join(os.getcwd(), 'sigs/txtd.npz')
+            self.sig_save_path=os.path.join(os.getcwd(), 'sigs/trx.npz')
+            self.channel_dir=os.path.join(os.getcwd(), 'channels/')
+            self.channel_save_path=os.path.join(os.getcwd(), 'channels/channel.npz')
+            self.sys_response_path=os.path.join(os.getcwd(), 'channels/sys_response.npz')
+            self.figs_dir=os.path.join(os.getcwd(), 'figs/')
+            self.figs_save_path=os.path.join(self.figs_dir, 'plot.pdf')
+            self.n_save = 100
+            self.save_list = ['', '']           # signal or channel
+            self.saved_sig_plot = []
+
+            # Calibration parameters
+            self.calib_iter = 100
+
+            # Beamforming parameters
+            self.beamforming=False
+            self.steer_theta_deg = 0        # Desired steering elevation in degrees
+            self.steer_phi_deg = 30        # Desired steering azimuth in degrees
+
+            # Near field measurements parameters
             self.nf_param_estimate = False
-            self.use_linear_track=False
+            self.use_linear_track = False
             self.nf_walls = np.array([[-5,4], [-1,6]])
             self.nf_rx_sep_dir = np.array([1,0])
             self.nf_tx_sep_dir = np.array([1,0])
             self.nf_npath_max = 5
             self.nf_stop_thr = 0.03
             # self.nf_tx_loc = None
-            self.nf_tx_loc = np.array([[0.3,0.9]])
-            # self.nf_rx_loc_sep = np.array([0,0.1,0.2,0.3,0.4,0.5])
+            self.nf_tx_loc = np.array([[0.3,1.0]])
             self.nf_rx_loc_sep = np.array([0,0.2,0.4])
             self.nf_tx_ant_sep = 0.5
             self.nf_rx_ant_sep = 0.5 * np.array([1,2,4])
 
 
-            # FR3 measurements parameters
-            # self.freq_hop_list = [6.0e9, 8.0e9, 10.0e9, 12.0e9]
+
+
+            # FR3 measurements parameters (overwritten)
             self.freq_hop_list = [10.0e9]
             self.ant_dx_m = 0.02               # Antenna spacing in meters
             self.n_rx_ch_eq=1
             self.wb_sc_range=[-250,250]
-            self.plt_tx_ant_id = 0
-            self.plt_rx_ant_id = 0
             self.channel_limit = True
             self.n_rd_rep=8
-            self.animate_plot_mode=['h01', 'rxfd', 'IQ']
+            self.plt_tx_ant_id = 0
+            self.plt_rx_ant_id = 0
             self.save_list = ['', '']           # signal or channel
+            self.animate_plot_mode=['h01', 'rxfd', 'IQ']
+            # self.anim_interval=100
 
-
-            self.rx_chain=[]        # filter, integrate, sync_time, sync_freq, pilot_separate, channel_est, channel_eq
+            # Chain or operations to perform (overwritten)
+            self.rx_chain=[]
             # self.rx_chain.append('filter')
             # self.rx_chain.append('integrate')
             self.rx_chain.append('sync_time')
@@ -179,6 +214,10 @@ class Params_Class(object):
 
 
 
+        for f in [self.calib_params_dir, self.sig_dir, self.channel_dir, self.figs_dir]:
+            if not os.path.exists(f):
+                os.makedirs(f)
+                
         if 'h_sparse' in self.animate_plot_mode and 'sparse_est' not in self.rx_chain:
             self.rx_chain.append('sparse_est')
 
@@ -250,10 +289,11 @@ class Params_Class(object):
         self.nfft_tx = self.n_frame_wr*self.nfft
         self.nfft_rx = self.n_frame_rd*self.nfft
         self.nfft_trx = min(self.nfft_tx, self.nfft_rx)
-        self.freq = ((np.arange(0, self.nfft) / self.nfft) - 0.5) * self.fs / 1e6
-        self.freq_tx = ((np.arange(0, self.nfft_tx) / self.nfft_tx) - 0.5) * self.fs_tx / 1e6
-        self.freq_rx = ((np.arange(0, self.nfft_rx) / self.nfft_rx) - 0.5) * self.fs_rx / 1e6
-        self.freq_trx = ((np.arange(0, self.nfft_trx) / self.nfft_trx) - 0.5) * self.fs_trx / 1e6
+        self.freq = np.linspace(-0.5, 0.5, self.nfft, endpoint=True) * self.fs / 1e6
+        self.freq_tx = np.linspace(-0.5, 0.5, self.nfft_tx, endpoint=True) * self.fs_tx / 1e6
+        self.freq_rx = np.linspace(-0.5, 0.5, self.nfft_rx, endpoint=True) * self.fs_rx / 1e6
+        self.freq_trx = np.linspace(-0.5, 0.5, self.nfft_trx, endpoint=True) * self.fs_trx / 1e6
+
         self.beam_test = np.array([1, 5, 9, 13, 17, 21, 25, 29, 32, 35, 39, 43, 47, 51, 55, 59, 63])
         self.DynamicPLLConfig = (0, self.lmk_freq_mhz, self.lmx_freq_mhz)
 
@@ -294,10 +334,12 @@ class Params_Class(object):
             self.sc_range_ch = self.sc_range
             self.n_samples_ch = self.sc_range_ch[1] - self.sc_range_ch[0] + 1
             self.nfft_ch = self.n_samples_ch
+            self.freq_ch = self.freq_trx[(self.sc_range_ch[0]+self.nfft_trx//2):(self.sc_range_ch[1]+self.nfft_trx//2+1)]
         else:
-            self.sc_range_ch = [-1*self.n_samples_trx//2, self.n_samples_trx//2-1]
+            self.sc_range_ch = [-1*self.nfft_trx//2, self.nfft_trx//2-1]
             self.n_samples_ch = self.n_samples_trx
             self.nfft_ch = self.nfft_trx
+            self.freq_ch = self.freq_trx
 
 
 
@@ -318,8 +360,6 @@ class Params_Class(object):
 
                 t = self.ant_dx_m * np.arange(self.n_tx_ant)
                 self.nf_tx_ant_loc[:,m,:] = self.nf_tx_loc + t[:,None]*self.nf_tx_sep_dir[None,:]
-
-
 
         
 

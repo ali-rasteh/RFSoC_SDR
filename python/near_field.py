@@ -438,19 +438,23 @@ class Sim(Signal_Utils):
         self.coeffs_est = np.zeros((self.nmeas, self.npath_est), dtype=np.complex64)
 
 
-    def locate_tx(self):
+    def locate_tx(self, npath_est=None):
         """
         Iteratively locates the TX image points
         """
 
+        if npath_est is None:
+            npath_est = self.npath_est
+
         # Initialize the correlation estimates for each iteration
         ntest = self.dtest.shape[-1]
-        self.rho = np.zeros((ntest, self.npath_est))
+        self.rho = np.zeros((ntest, npath_est))
 
         # Compute the phase difference
         dexp = np.exp(2*np.pi*1j/self.lam*self.dtest)
 
-        for ipath in range(self.npath_est):
+        
+        for ipath in range(npath_est):
         
             if ipath == 0:
 
@@ -565,24 +569,49 @@ class Sim(Signal_Utils):
 
 
 
-    def nf_channel_param_est(self, n_epochs=1000, lr_init=0.01, ch_gt=None, tx_ant_vec=None, rx_ant_vec=None, trx_unit_vec=None, path_delay=None, path_gain=None, freq=None):
+    def nf_channel_param_est(self, n_epochs=1000, lr_init=0.1, ch_gt=None, tx_ant_vec=None, rx_ant_vec=None, trx_unit_vec=None, path_delay=None, path_gain=None, freq=None):
         # Initialize model, loss function, and optimizer
-        self.nf_ch_model = NF_Channel_Model(n_path=self.npath_det, fc=self.fc)
+        self.t_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+        self.nf_ch_model = NF_Channel_Model(n_path=self.npath_det, fc=self.fc, device=self.t_device)
+        self.nf_ch_model = self.nf_ch_model.to(self.t_device)
+
         criterion = nn.MSELoss()
         optimizer = optim.Adam(self.nf_ch_model.parameters(), lr=lr_init)
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=n_epochs//5, gamma=0.1)
+
+        ch_gt = torch.tensor(ch_gt, dtype=torch.complex64, requires_grad=True).to(self.t_device)
+        tx_ant_vec = torch.tensor(tx_ant_vec, dtype=torch.float32, requires_grad=True).to(self.t_device)
+        rx_ant_vec = torch.tensor(rx_ant_vec, dtype=torch.float32, requires_grad=True).to(self.t_device)
+        trx_unit_vec = torch.tensor(trx_unit_vec, dtype=torch.float32, requires_grad=True).to(self.t_device)
+        if path_delay is not None:
+            path_delay = torch.tensor(path_delay, dtype=torch.float32, requires_grad=True).to(self.t_device)
+        if path_gain is not None:
+            path_gain = torch.tensor(path_gain, dtype=torch.complex64, requires_grad=True).to(self.t_device)
+        freq = torch.tensor(freq, dtype=torch.float32, requires_grad=True).to(self.t_device)
+
+        txid = 1
 
         # Training loop
+        print("alpha: ", self.nf_ch_model.alpha)
+        print("s: ", self.nf_ch_model.s)
+
         for epoch in range(n_epochs):  # Number of epochs
-            optimizer.zero_grad()
             output = self.nf_ch_model(tx_ant_vec=tx_ant_vec, rx_ant_vec=rx_ant_vec, trx_unit_vec=trx_unit_vec, path_delay=path_delay, path_gain=path_gain, freq=freq)
-            # output = output[:,:,0,:]
-            loss = criterion(output[:,:,0,:], ch_gt[:,:,0,:])
+            loss = criterion(output[:,:,txid,:].real, ch_gt[:,:,txid,:].real) + criterion(output[:,:,txid,:].imag, ch_gt[:,:,txid,:].imag)
+            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             
-            if epoch % 100 == 0:
-                print(f'Epoch {epoch}, Loss: {loss.item()}')
+            if epoch % (n_epochs//20) == 0:
+                print(f'Epoch {epoch+1}/{n_epochs}, Loss: {loss.item()}, LR: {scheduler.get_last_lr()}')
+                # print("alpha: ", self.nf_ch_model.alpha)
+                # print("s: ", self.nf_ch_model.s)
 
+            scheduler.step()
+
+        print("alpha: ", self.nf_ch_model.alpha)
+        print("s: ", self.nf_ch_model.s)
 
 
     def plot_results(self, ax=None, RoomModel=None, plot_type='init_est'):
@@ -676,7 +705,7 @@ class Sim(Signal_Utils):
 
 
 class NF_Channel_Model(nn.Module):
-    def __init__(self, n_path=1, n_rx=1, n_tx=1, n_meas=1, fc=10e9):
+    def __init__(self, n_path=1, n_rx=2, n_tx=2, n_meas=1, fc=10e9, device='cpu'):
         super(NF_Channel_Model, self).__init__()
 
         # Initialize learnable parameters for angles of arrival and path coefficients
@@ -685,15 +714,16 @@ class NF_Channel_Model(nn.Module):
         self.n_rx = n_rx
         self.n_tx = n_tx
         self.n_meas = n_meas
+        self.device = device
 
-        self.alpha = nn.Parameter(torch.randn(self.n_path))  # Rotation angles
-        self.s = nn.Parameter(torch.randn(self.n_path))  # parameter S, the parity of number of reflections
+        self.alpha = nn.Parameter(0.1 * torch.randn(self.n_path), requires_grad=True)  # Rotation angles
+        self.s = nn.Parameter(0.1 * torch.randn(self.n_path), requires_grad=True)  # parameter S, the parity of number of reflections
 
         self.path_gain = torch.complex(torch.randn(self.n_path, self.n_rx, self.n_tx, self.n_meas), torch.randn(self.n_path, self.n_rx, self.n_tx, self.n_meas))      # parameter G, the gain of the path
-        self.path_gain = nn.Parameter(self.path_gain)  
+        self.path_gain = nn.Parameter(self.path_gain)
         # self.path_gain = None
 
-        self.path_delay = torch.complex(torch.randn(self.n_path, self.n_rx, self.n_tx, self.n_meas), torch.randn(self.n_path, self.n_rx, self.n_tx, self.n_meas))  # parameter tau, the delay of the path
+        self.path_delay = torch.randn(self.n_path, self.n_rx, self.n_tx, self.n_meas)  # parameter tau, the delay of the path
         self.path_delay = nn.Parameter(self.path_delay)
         # self.path_delay = None
 
@@ -702,7 +732,7 @@ class NF_Channel_Model(nn.Module):
         # Define the 2D rotation matrix
         cos_a = torch.cos(angle)
         sin_a = torch.sin(angle)
-        return torch.tensor([[cos_a, -sin_a], [sin_a, cos_a]])
+        return torch.stack([torch.stack([cos_a, -sin_a]), torch.stack([sin_a, cos_a])])
 
 
     def forward(self, tx_ant_vec=None, rx_ant_vec=None, trx_unit_vec=None, path_delay=None, path_gain=None, freq=None):
@@ -719,20 +749,26 @@ class NF_Channel_Model(nn.Module):
         n_fft = freq.shape[0]
         p = rx_ant_vec.shape[-1]
 
-        if self.path_delay is not None:
+        if path_delay is None:
             path_delay = self.path_delay
-        if self.path_gain is not None:
+        if path_gain is None:
             path_gain = self.path_gain
 
+        # print("tx_ant_vec: ", tx_ant_vec)
+        # print("rx_ant_vec: ", rx_ant_vec)
+        # print("trx_unit_vec: ", trx_unit_vec)
+        # print("path_delay: ", path_delay)
+        # print("path_gain: ", path_gain)
         H = torch.zeros(n_fft, n_rx, n_tx, n_meas, dtype=torch.complex64)
         # Sum the contributions from each path
         for i in range(self.n_path):
+
             rotation_mat = self.rotation_matrix(self.alpha[i])
-            rot_tx_ant_vec = tx_ant_vec.reshape(-1, p) @ rotation_mat.T
-            rot_tx_ant_vec = rot_tx_ant_vec.reshape(tx_ant_vec.shape)
+            rot_tx_ant_vec = torch.matmul(tx_ant_vec.reshape(-1, p), rotation_mat.T)
+            rot_tx_ant_vec = rot_tx_ant_vec.reshape(tx_ant_vec.size())
 
             tanh_scale = 1
-            dist_vec = rx_ant_vec[:,None,:,:] - (constants.c*(path_delay[i])[:,:,:,None]*(trx_unit_vec[i])[None,None,:,:]) - (torch.tanh(tanh_scale*self.s[i])*rot_tx_ant_vec)[None,:,:,:]
+            dist_vec = rx_ant_vec[:,None,:,:] - (constants.c*(path_delay[i])[:,:,:,None]*(trx_unit_vec[i])[None,None,None,:]) - (torch.tanh(tanh_scale*self.s[i])*rot_tx_ant_vec)[None,:,:,:]
             dist = torch.linalg.norm(dist_vec, dim=-1)
             f = self.fc + freq
             H += (path_gain[i])[None,:,:,:] * torch.exp(1j*2*np.pi/constants.c * f[:,None,None,None] * dist[None,:,:,:])
