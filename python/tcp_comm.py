@@ -361,7 +361,7 @@ class REST_Com(General):
                 response = str(response)
         except requests.exceptions.RequestException as e:
             self.print(f"Error executing REST API: {e}", thr=0)
-            response = None
+            response = ''
 
 
         # Search for the keyword in the output
@@ -394,7 +394,10 @@ class REST_Com_Piradio(REST_Com):
     def set_frequency(self, fc=6.0e9, verif_keyword=''):
         command = f'high_lo?freq={fc}'
         result, response = self.call_rest_api(command, verif_keyword=verif_keyword)
-        result = (float(response) == fc)
+        if response == '':
+            result = False
+        else:
+            result = (float(response) == fc)
         if result:
             time.sleep(0.1)
             self.print(f"Frequency set to {fc/1e9} GHz", thr=3)

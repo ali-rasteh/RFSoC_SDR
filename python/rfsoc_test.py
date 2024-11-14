@@ -145,7 +145,8 @@ class Params_Class(object):
             self.f_tone=10.0 * self.fs_tx / self.nfft
             self.filter_bw_range=[-450e6,450e6]
             self.n_rx_ch_eq=1
-            self.rx_chain=['sync_time', 'channel_est']        # filter, integrate, sync_time, sync_freq, pilot_separate, channel_est, channel_eq
+            self.rx_same_delay=False            # If True, all applies the same time shift to all RX antennas
+            self.rx_chain=['sync_time', 'channel_est']        # filter, integrate, sync_time, sync_time_frac, sync_freq, pilot_separate, channel_est, channel_eq
             self.channel_limit = True
 
             # Save parameters
@@ -177,10 +178,11 @@ class Params_Class(object):
             self.nf_walls = np.array([[-5,4], [-1,6]])
             self.nf_rx_sep_dir = np.array([1,0])
             self.nf_tx_sep_dir = np.array([1,0])
-            self.nf_npath_max = 5
+            self.nf_npath_max = [20,5]      # Dirst number is the maximum number to extract at the 1st round, 2nd number is the maximum number to extract at the 2nd round
             self.nf_stop_thr = 0.03
             # self.nf_tx_loc = None
-            self.nf_tx_loc = np.array([[0.3,1.0]])
+            # self.nf_tx_loc = np.array([[0.3,1.0]])
+            self.nf_tx_loc = np.array([[6,4]])
             self.nf_rx_loc_sep = np.array([0,0.2,0.4])
             self.nf_tx_ant_sep = 0.5
             self.nf_rx_ant_sep = 0.5 * np.array([1,2,4])
@@ -190,23 +192,25 @@ class Params_Class(object):
 
             # FR3 measurements parameters (overwritten)
             self.control_piradio=True
-            self.freq_hop_list = [6.5e9, 10.0e9]
+            self.freq_hop_list = [6e9]
             self.ant_dx_m = 0.02               # Antenna spacing in meters
             self.n_rx_ch_eq=1
             self.wb_sc_range=[-250,250]
+            self.rx_same_delay=True
             self.channel_limit = True
             self.n_rd_rep=8
             self.plt_tx_ant_id = 0
             self.plt_rx_ant_id = 0
             self.save_list = ['', '']           # signal or channel
             self.animate_plot_mode=['h01', 'rxfd', 'IQ']
-            self.anim_interval=100
+            self.anim_interval=200
 
             # Chain or operations to perform (overwritten)
             self.rx_chain=[]
             # self.rx_chain.append('filter')
             # self.rx_chain.append('integrate')
             self.rx_chain.append('sync_time')
+            # self.rx_chain.append('sync_time_frac')
             # self.rx_chain.append('sync_freq')
             # self.rx_chain.append('pilot_separate')
             # self.rx_chain.append('sys_res_deconv')
@@ -215,8 +219,11 @@ class Params_Class(object):
             # self.rx_chain.append('channel_eq')
 
 
+        self.initialize()
 
 
+
+    def initialize(self):
 
         if 'h_sparse' in self.animate_plot_mode and 'sparse_est' not in self.rx_chain:
             self.rx_chain.append('sparse_est')

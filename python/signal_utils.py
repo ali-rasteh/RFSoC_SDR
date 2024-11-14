@@ -946,7 +946,7 @@ class Signal_Utils(General):
         return rxtd
     
 
-    def sync_time(self, rxtd, txtd, sc_range=[0,0]):
+    def sync_time(self, rxtd, txtd, sc_range=[0,0], rx_same_delay=False, sync_frac=False):
         n_samples_rx = rxtd.shape[-1]
         n_samples = min(txtd.shape[-1], rxtd.shape[-1])
         txtd_ = txtd.copy()[:,:n_samples]
@@ -957,17 +957,22 @@ class Signal_Utils(General):
 
         for tx_ant_id in range(n_tx_ant):
             for rx_ant_id in range(n_rx_ant):
-                delay = self.extract_delay(rxtd_[rx_ant_id], txtd_[tx_ant_id])
+                if rx_same_delay:
+                    rx_id = 0
+                else:
+                    rx_id = rx_ant_id
+                delay = self.extract_delay(rxtd_[rx_id], txtd_[tx_ant_id])
                 rxtd_sync[rx_ant_id,tx_ant_id], _, _, _ = self.time_adjust(rxtd[rx_ant_id], txtd_[tx_ant_id], delay)
 
-                frac_delay = self.extract_frac_delay(rxtd_sync[rx_ant_id,tx_ant_id,:n_samples], txtd_[tx_ant_id], sc_range=sc_range)
-                # print(f"Fractional delay: {frac_delay}")
-                rxtd_sync[rx_ant_id,tx_ant_id], _ = self.adjust_frac_delay(rxtd_sync[rx_ant_id,tx_ant_id], txtd_[tx_ant_id], frac_delay)
+                if sync_frac:
+                    frac_delay = self.extract_frac_delay(rxtd_sync[rx_ant_id,tx_ant_id,:n_samples], txtd_[tx_ant_id], sc_range=sc_range)
+                    # print(f"Fractional delay: {frac_delay}")
+                    rxtd_sync[rx_ant_id,tx_ant_id], _ = self.adjust_frac_delay(rxtd_sync[rx_ant_id,tx_ant_id], txtd_[tx_ant_id], frac_delay)
 
         return rxtd_sync
 
 
-    def sparse_est(self, h, g=None, sc_range_ch=[0,0], npaths=1, nframe_avg=1, ndly=10000, drange=[-6,20], cv=False):
+    def sparse_est(self, h, g=None, sc_range_ch=[0,0], npaths=[1,1], nframe_avg=1, ndly=10000, drange=[-6,20], cv=False, n_ignore=-1):
         """
         Estimates the sparse channel using Orthogonal Matching Pursuit (OMP).
         Parameters:
@@ -976,8 +981,8 @@ class Signal_Utils(General):
             The time-domain channel estimate.
         g : np.array of shape (nfft, nrx, ntx)
             The system response in the time-domain.
-        npaths : int, optional
-            Maximum number of paths to estimate. Default is 1.
+        npaths : list of ints, optional
+            Maximum number of paths to estimate in each round. Default is [1,1].
         nframe_avg : int, optional
             Number of frames to average for channel estimation. Default is 1.
         ndly : int, optional
@@ -1043,6 +1048,7 @@ class Signal_Utils(General):
                     if (nframe < nframe_avg):
                         raise ValueError('Not enough frames for averaging')
                     H_tr = H[:,irx,itx,:nframe_avg]
+                    H_tr = np.mean(H_tr, axis=1)
                 h_tr = np.fft.ifft(H_tr, axis=0)
 
                 # Set the delays to test around the peak
@@ -1054,16 +1060,16 @@ class Signal_Utils(General):
                 B = G[:,irx,itx,None]*np.exp(-2*np.pi*1j*freq[:,None] * dly_test[None,:])
 
                 # Use OMP to find the sparse solution
-                coeff_est = np.zeros(npaths)
+                coeff_est = np.zeros(npaths[0])
                 
                 resid = H_tr
                 indices = []
                 indices1 = []
-                mse_tr = np.zeros(npaths)
-                mse_ts = np.zeros(npaths)
+                mse_tr = np.zeros(npaths[0])
+                mse_ts = np.zeros(npaths[0])
 
                 npaths_est = 0
-                for i in range(npaths):
+                for i in range(npaths[0]):
                     
                     # Compute the correlation
                     cor = np.abs(B.conj().T.dot(resid))
@@ -1100,9 +1106,15 @@ class Signal_Utils(General):
                     npaths_est = i+1
                     indices.append(idx)
 
-                # dly_est = dly_test[indices]
-                # dly_est = np.array(list(dly_test[indices]) + [0]*(npaths-npaths_est))
-                dly_est = np.pad(dly_test[indices], (0, npaths - npaths_est), constant_values=0)
+                indices1 = indices.copy()
+                for index in indices1[1:]:
+                    if index <= indices[0]+n_ignore and index >= indices[0]-n_ignore:
+                        indices.remove(index)
+                indices = indices[:npaths[1]]
+                npaths_est = len(indices)
+
+                dly_est = dly_test[indices]
+                dly_est = np.pad(dly_est, (0, npaths[1] - npaths_est), constant_values=0)
 
                 # Use least squares to estimate the coefficients
                 coeffs_est = np.linalg.lstsq(B[:,indices], H_tr, rcond=None)[0]
@@ -1114,20 +1126,19 @@ class Signal_Utils(General):
                 scale = np.mean(np.abs(G))**2
                 # peaks  = np.abs(coeffs_est)**2 * scale
                 peaks  = coeffs_est.copy() * np.sqrt(scale)
-                # peaks = np.array(list(peaks) + [0]*(npaths-npaths_est))
-                peaks = np.pad(peaks, (0, npaths - npaths_est), constant_values=0)
+                peaks = np.pad(peaks, (0, npaths[1] - npaths_est), constant_values=0)
 
                 h_tr_mat[irx][itx] = h_tr.copy()
-                if len(dly_est) == npaths:
+                if len(dly_est) == npaths[1]:
                     dly_est_mat[irx][itx] = dly_est.copy()
                 else:
                     # dly_est_mat[irx][itx] = dly_est.copy().extend([0]*(npaths-npaths_est))
-                    dly_est_mat[irx][itx] = np.array([0] * npaths)
-                if len(peaks) == npaths:
+                    dly_est_mat[irx][itx] = np.array([0] * npaths[1])
+                if len(peaks) == npaths[1]:
                     peaks_mat[irx][itx] = peaks.copy()
                 else:
                     # peaks_mat[irx][itx] = peaks.copy() + [0]*(npaths-npaths_est)
-                    peaks_mat[irx][itx] = np.array([0] * npaths)
+                    peaks_mat[irx][itx] = np.array([0] * npaths[1])
 
                 npaths_est_mat[irx][itx] = npaths_est
         

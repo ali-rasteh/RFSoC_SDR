@@ -153,7 +153,7 @@ class Sim(Signal_Utils):
         # self.path_est_init()
 
         # self.locate_tx()
-       
+
     def gen_tx_pos(self):
         """
         Generate random TX image positions and reflection losses
@@ -327,6 +327,8 @@ class Sim(Signal_Utils):
         plt.grid()
         plt.ylim([ymin, ymax])
 
+        plt.show()
+
 
     def mpath_chan(self, dist, coeffs=None, basis_fn=False):
         """
@@ -384,7 +386,7 @@ class Sim(Signal_Utils):
         plt.plot(self.tx[:,0], self.tx[:,1], 'bo')
 
         #plt.grid(True)
-        #plt.show()
+        # plt.show()
 
 
     def create_tx_test_points(self):
@@ -436,6 +438,7 @@ class Sim(Signal_Utils):
         self.tx_est = np.zeros((self.npath_est, self.p))
         self.dist_est = np.zeros((self.nantrx, self.nmeas, self.npath_est))
         self.coeffs_est = np.zeros((self.nmeas, self.npath_est), dtype=np.complex64)
+        self.abs_delay = np.zeros((self.npath_est, self.nantrx, self.nmeas))
 
 
     def locate_tx(self, npath_est=None):
@@ -452,7 +455,6 @@ class Sim(Signal_Utils):
 
         # Compute the phase difference
         dexp = np.exp(2*np.pi*1j/self.lam*self.dtest)
-
         
         for ipath in range(npath_est):
         
@@ -478,23 +480,32 @@ class Sim(Signal_Utils):
 
             else:
                 
-                # aresp = np.zeros((self.nantrx, self.nmeas, ntest), dtype=np.complex64)
-                # for i in range(ntest):
-                #     for m in range(self.nmeas):
+                aresp = np.zeros((self.nantrx, self.nmeas, ntest), dtype=np.complex64)
+                for i in range(ntest):
+                    for m in range(self.nmeas):
                 
-                #         # Get the array response from the appropriate sample offset
-                #         isamp = self.samp_offset[m,i]
-                #         aresp[:,m,i] = self.resid[isamp,:,m]
+                        # Get the array response from the appropriate sample offset
+                        isamp = self.samp_offset[m,i]
+                        aresp[:,m,i] = self.resid[isamp,:,m]
 
-                # # Compute the correlation
-                # self.rho[:,ipath] = np.sum( np.abs(np.sum(aresp*dexp, axis=0))**2, axis=0 )
+                # Compute the correlation
+                self.rho[:,ipath] = np.sum( np.abs(np.sum(aresp*dexp, axis=0))**2, axis=0 )
 
-                dly = self.sparse_dly_est[ipath] - self.sparse_dly_est[0]
-                dist_rel = dly * self.c
-                d_diff = np.sum(np.abs(self.dtest[:,:,:] - dist_rel[:,:,None]), axis=(0,1))
-                im = np.argmin(d_diff)
+                # Find the location that maximizes the correlation
+                im = np.argmax(self.rho[:,ipath])
 
-                done = (np.min(np.abs(self.sparse_dly_est[ipath])) == 0)
+                # Check stopping condition
+                done = np.max(self.rho[:,ipath]) < self.stop_thresh*rho_max
+
+
+
+                # dly = self.sparse_dly_est[ipath] - self.sparse_dly_est[0]
+                # dist_rel = dly * self.c
+                # d_diff = np.sum(np.abs(self.dtest[:,:,:] - dist_rel[:,:,None]), axis=(0,1))
+                # im = np.argmin(d_diff)
+
+                # done = (np.min(np.abs(self.sparse_dly_est[ipath])) == 0)
+
 
             if done:
                 break
@@ -513,6 +524,8 @@ class Sim(Signal_Utils):
 
             # Fit the coefficients and find the residual
             self.fit_coeffs(npath_fit=ipath+1)
+
+            self.abs_delay[ipath] = self.dist_est[:,:,ipath] / self.c
             
 
     def set_ref_distances(self):
@@ -529,7 +542,8 @@ class Sim(Signal_Utils):
 
         # Compute the sample offset for all other distances
         dtest_mean = np.mean(self.dtest, axis=0)
-        self.samp_offset = (dtest_mean - self.distref_est[:,None])/self.c*self.fsamp
+        self.abs_delay_offset = (dtest_mean - self.distref_est[:,None])/self.c
+        self.samp_offset = self.abs_delay_offset * self.fsamp
         self.samp_offset = np.round(self.samp_offset).astype(int)
         self.samp_offset = np.maximum(0, self.samp_offset)
         self.samp_offset = np.minimum(self.nfft-1, self.samp_offset)
@@ -777,6 +791,170 @@ class NF_Channel_Model(nn.Module):
             H += (path_gain[i])[None,:,:,:] * torch.exp(1j*2*np.pi/constants.c * f[:,None,None,None] * dist[None,:,:,:])
 
         return H
+
+
+
+
+if __name__ == '__main__':
+    # Parameters
+    fc = 12e9  # Carrier frequency   
+    fsamp = 1e9 # Sample freq in Hz
+    nantrx=2  # Number of antennas per array
+    antsep=np.array([0.5,1,2,4]) # Separation between antennas in wavelengths
+    rxlocsep = np.array([0,1])    # Separation between RX locations
+    npath=4   # Number of paths
+    npath_est = [20, 5]  # Maximum number of paths to estimate
+    plot_type = 'init_est' 
+
+
+
+    from rfsoc_test import Params_Class
+    from signal_utilsrfsoc import Signal_Utils_Rfsoc
+    params = Params_Class()
+    params.channel_limit = False
+    params.sc_range_ch = [-1*params.nfft_trx//2, params.nfft_trx//2-1]
+    params.freq_hop_list = [fsamp]
+    params.fs = fsamp
+    params.fs_tx=params.fs
+    params.fs_rx=params.fs
+    params.fs_trx=params.fs
+
+    params.nf_npath_max = npath_est
+    params.nf_rx_loc_sep = rxlocsep
+    params.nf_tx_ant_sep = 0.5
+    params.nf_rx_ant_sep = antsep
+    params.n_rx_ant = nantrx
+
+    # Construct the room
+    rm = RoomModel()
+
+    # Place a source
+    xsrc = np.array([6,4])
+    params.nf_tx_loc = xsrc
+
+    # Find the reflections
+    xref = rm.find_reflection(xsrc)
+
+    # Create all the transmitters
+    xtx =  np.vstack((xsrc, xref))
+
+    params.initialize()
+    signals_inst = Signal_Utils_Rfsoc(params)
+
+    # Create the simulation object and run the simulation
+    sim = Sim(fc=fc, fsamp=fsamp, nantrx=nantrx,
+            rxlocsep=rxlocsep, antsep=antsep, npath=npath,
+            tx=xtx,npath_est=npath_est[1])
+
+
+    # Generate the TX positions and search region
+    sim.gen_tx_pos()
+
+    # Compute the RX locations and antenna positions
+    sim.compute_rx_pos()
+
+    # Compute the channel frequency response
+    sim.compute_freq_resp()
+
+    # Create the test points for the TX locations
+    sim.create_tx_test_points()
+
+    #================================================================================================
+    h = np.expand_dims(sim.chan_td, axis=2)
+    h = np.repeat(h, 2, axis=2)
+
+    dly_est_nf = []
+    peaks_nf = []
+    npaths_nf = []
+    for i in range(h.shape[-1]):
+        h_ = h[:,:,:,i]
+        h_ = np.expand_dims(h_, axis=3)
+        h_ = np.repeat(h_, params.n_rd_rep, axis=3)
+        sparse_est_params = signals_inst.sparse_est(h=h_, g=None, sc_range_ch=signals_inst.sc_range_ch, npaths=signals_inst.nf_npath_max, nframe_avg=1, ndly=5000, drange=[-1,100], cv=True, n_ignore=200)
+        (h_tr, dly_est, peaks, npath_est) = sparse_est_params
+        dly_est_nf.append(dly_est)
+        peaks_nf.append(peaks)
+        npaths_nf.append(npath_est)
+    dly_est = np.array(dly_est_nf)
+    peaks = np.array(peaks_nf)
+    npaths = np.array(npaths_nf)
+    
+
+    #================================================================================================
+    signals_inst.nf_model = sim
+    h = h.transpose((3,1,2,0))
+    sim.plot_chan_td(slice(0,100))
+    signals_inst.est_nf_param(h, dly_est, peaks, npaths)
+
+    # dly_est = np.transpose(dly_est.copy(), (3,1,2,0))
+    # peaks = np.transpose(peaks.copy(), (3,1,2,0))
+    # npaths = np.transpose(npaths.copy(), (1,2,0))
+    # n_paths_min = np.min(npaths)
+    
+    # txid = 0
+
+    # sim.sparse_dly_est = dly_est[:,:,txid,:]
+    # sim.sparse_peaks_est = peaks[:,:,txid,:]
+    # # sim.npath_est = n_paths_min
+    # signals_inst.print("Number of paths estimated: {}".format(n_paths_min), thr=0)
+
+    # sim.path_est_init()
+    # sim.locate_tx(npath_est=n_paths_min)
+    # # sim.plot_results(RoomModel=signals_inst.RoomModel, plot_type='')
+
+    # n_epochs = 10000
+    # lr_init = 0.1
+    # ch_gt = h.copy()
+    # tx_ant_vec = signals_inst.nf_tx_ant_loc[:,:,:] - (signals_inst.nf_tx_ant_loc[0,0,:])[None,None,:] + 0.01
+    # rx_ant_vec = signals_inst.nf_rx_ant_loc[:,:,:] - (signals_inst.nf_rx_ant_loc[0,0,:])[None,None,:]
+    # phase_diff = peaks[:n_paths_min,1,0,:]-peaks[:n_paths_min,0,0,:]        # TODO: Maybe 0-1 instead of 1-0
+    # phase_diff = np.mean(phase_diff, axis=-1)
+    # aoa = signals_inst.phase_to_aoa(phase_diff, wl=signals_inst.wl, ant_dim=signals_inst.ant_dim, ant_dx_m=signals_inst.ant_dx_m, ant_dy_m=signals_inst.ant_dy_m)
+    # trx_unit_vec = np.stack((np.sin(aoa), np.cos(aoa)), axis=-1)
+    # path_delay = sim.abs_delay.copy()[:n_paths_min,:,None,:] * np.ones(dly_est.shape)
+    # path_gain = peaks.copy()[:n_paths_min]
+    # # path_delay = None
+    # # path_gain = None
+    # freq = signals_inst.freq_ch.copy()
+    # sim.nf_channel_param_est(n_paths=n_paths_min, n_epochs=n_epochs, lr_init=lr_init, ch_gt=ch_gt, tx_ant_vec=tx_ant_vec, rx_ant_vec=rx_ant_vec, trx_unit_vec=trx_unit_vec, path_delay=path_delay, path_gain=path_gain, freq=freq)
+    #================================================================================================
+
+    
+    if (plot_type == 'init_est') or (plot_type == 'iter_est'):
+        """
+        Plots the heatmaps of the estimated TX locations in each iteration
+        """
+        if plot_type == 'init_est':
+            nplots = 1
+        else:
+            nplots = sim.npath_det
+
+        fig, ax = plt.subplots(1, nplots)
+        if nplots == 1:
+            ax = [ax]
+        for i in range(nplots):
+        
+            # Plot the estimated heatmap
+            rho1 = sim.rho[:,i].reshape(sim.npoints,sim.npoints)
+            ax[i].contourf(sim.xtest0, sim.xtest1, rho1)
+
+            # Draw the room walls
+            rm.draw_walls(ax[i])
+                
+            
+            # Plot the TX locations as blue circles
+            ax[i].plot(sim.tx[:,0], sim.tx[:,1], 'ro')
+            ax[i].plot(sim.tx_est[i,0], sim.tx_est[i,1], 'gx')
+            ax[i].set_xlim(sim.region[0])
+            ax[i].set_ylim(sim.region[1])
+            if (nplots > 1):
+                ax[i].set_title(f'Iter {i}')
+            if (i > 0):
+                ax[i].set_yticks([])
+            
+            
+        plt.tight_layout()
+        plt.show()
 
 
 

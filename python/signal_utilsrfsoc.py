@@ -62,6 +62,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.nf_rx_ant_loc = params.nf_rx_ant_loc
         self.nf_tx_ant_loc = params.nf_tx_ant_loc
         self.n_rd_rep = params.n_rd_rep
+        self.rx_same_delay = params.rx_same_delay
         self.saved_sig_plot = params.saved_sig_plot
         self.figs_save_path = params.figs_save_path
 
@@ -162,7 +163,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         # # self.nf_region[1,0] -= room_length
         # self.nf_region[1,1] += room_length
         self.nf_model = Near_Field_Model(fc=self.fc, fsamp=self.fs_rx, nfft=self.nfft_ch, nantrx=self.n_rx_ant,
-                        rxlocsep=self.nf_rx_loc_sep, sepdir=self.nf_rx_sep_dir, antsep=self.nf_rx_ant_sep, npath_est=self.nf_npath_max, 
+                        rxlocsep=self.nf_rx_loc_sep, sepdir=self.nf_rx_sep_dir, antsep=self.nf_rx_ant_sep, npath_est=self.nf_npath_max[1], 
                         stop_thresh=self.nf_stop_thr, region=self.nf_region, tx=self.nf_tx_loc)
         
         self.nf_model.gen_tx_pos()
@@ -193,6 +194,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         npaths = np.transpose(npaths.copy(), (1,2,0))
         n_paths_min = np.min(npaths)
 
+        # self.plot_signal(self.t_trx[:100], np.abs(h[:100,0,0,0]), scale='dB20')
+        print("dly_est: ", dly_est[:,0,0,0])
+        print("peaks: ", peaks[:,0,0,0])
+        print("npaths: ", npaths[0,0,0])
+
         txid = 0
 
         self.nf_model.chan_td = h[:,:,txid,:]
@@ -215,7 +221,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         phase_diff = np.mean(phase_diff, axis=-1)
         aoa = self.phase_to_aoa(phase_diff, wl=self.wl, ant_dim=self.ant_dim, ant_dx_m=self.ant_dx_m, ant_dy_m=self.ant_dy_m)
         trx_unit_vec = np.stack((np.sin(aoa), np.cos(aoa)), axis=-1)
-        path_delay = dly_est.copy()[:n_paths_min]
+        path_delay = self.nf_model.abs_delay.copy()[:n_paths_min,:,None,:] * np.ones(dly_est.shape)
         path_gain = peaks.copy()[:n_paths_min]
         print("path_delay: ", path_delay[:,0,0,0])
         print("path_gain: ", np.abs(path_gain[:,0,0,0]))
@@ -265,12 +271,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         for i in range(self.n_save):
             time.sleep(0.01)
             print("Save Iteration: ", i+1)
-            rxtd = []
-            for i in range(n_rd_rep):
-                rxtd_ = client_rfsoc.receive_data(mode='once')
-                rxtd_ = rxtd_.squeeze(axis=0)
-                rxtd.append(rxtd_)
-            rxtd = np.array(rxtd)
+            rxtd = self.receive_data(client_rfsoc, n_rd_rep=n_rd_rep, mode='once')
             # to handle the dimenstion needed for read repeat
             (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd)
             txtd_save.append(txtd_base)
@@ -474,8 +475,10 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
             if self.control_piradio:
-                self.fc = self.freq_hop_list[int(self.fc_id)]
-                client_piradio.set_frequency(fc=self.fc)
+                fc = self.freq_hop_list[int(self.fc_id)]
+                if self.fc != fc:
+                    self.fc = fc
+                    client_piradio.set_frequency(fc=self.fc)
                 self.fc_id = (self.fc_id + 1) % len(self.freq_hop_list)
             else:
                 self.fc_id = 0
@@ -909,7 +912,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         if 'sync_time' in self.rx_chain:
             rxtd_base_s = []
             for frm_id in range(n_rd_rep):
-                rxtd_base_s_ = self.sync_time(rxtd_base[frm_id], txtd_base, sc_range=self.sc_range)
+                if 'sync_time_frac' in self.rx_chain:
+                    sync_frac = True
+                else:
+                    sync_frac = False
+                rxtd_base_s_ = self.sync_time(rxtd_base[frm_id], txtd_base, sc_range=self.sc_range, rx_same_delay=self.rx_same_delay, sync_frac=sync_frac)
                 rxtd_base_s.append(rxtd_base_s_)
             rxtd_base_s = np.array(rxtd_base_s)
         else:
