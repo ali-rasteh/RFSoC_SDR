@@ -287,6 +287,7 @@ class Sim(Signal_Utils):
         # Compute the time-domain channel response
         self.chan_td = np.fft.ifft(self.chan_fd, axis=0)
 
+
     def plot_chan_td(self, indsamp=None, indrx=0, indmeas=0):
         """
         Plots the channel response in the time domain.
@@ -327,7 +328,7 @@ class Sim(Signal_Utils):
         plt.grid()
         plt.ylim([ymin, ymax])
 
-        plt.show()
+        # plt.show()
 
 
     def mpath_chan(self, dist, coeffs=None, basis_fn=False):
@@ -480,31 +481,32 @@ class Sim(Signal_Utils):
 
             else:
                 
-                aresp = np.zeros((self.nantrx, self.nmeas, ntest), dtype=np.complex64)
-                for i in range(ntest):
-                    for m in range(self.nmeas):
+                # aresp = np.zeros((self.nantrx, self.nmeas, ntest), dtype=np.complex64)
+                # for i in range(ntest):
+                #     for m in range(self.nmeas):
                 
-                        # Get the array response from the appropriate sample offset
-                        isamp = self.samp_offset[m,i]
-                        aresp[:,m,i] = self.resid[isamp,:,m]
+                #         # Get the array response from the appropriate sample offset
+                #         isamp = self.samp_offset[m,i]
+                #         aresp[:,m,i] = self.resid[isamp,:,m]
 
-                # Compute the correlation
-                self.rho[:,ipath] = np.sum( np.abs(np.sum(aresp*dexp, axis=0))**2, axis=0 )
+                # # Compute the correlation
+                # self.rho[:,ipath] = np.sum( np.abs(np.sum(aresp*dexp, axis=0))**2, axis=0 )
 
-                # Find the location that maximizes the correlation
-                im = np.argmax(self.rho[:,ipath])
+                # # Find the location that maximizes the correlation
+                # im = np.argmax(self.rho[:,ipath])
 
-                # Check stopping condition
-                done = np.max(self.rho[:,ipath]) < self.stop_thresh*rho_max
+                # # Check stopping condition
+                # done = np.max(self.rho[:,ipath]) < self.stop_thresh*rho_max
 
 
 
-                # dly = self.sparse_dly_est[ipath] - self.sparse_dly_est[0]
-                # dist_rel = dly * self.c
-                # d_diff = np.sum(np.abs(self.dtest[:,:,:] - dist_rel[:,:,None]), axis=(0,1))
-                # im = np.argmin(d_diff)
+                dly = self.sparse_dly_est[ipath] - self.sparse_dly_est[0] + self.abs_delay[0]
+                # print(dly)
+                dist_rel = dly * self.c
+                d_diff = np.sum(np.abs(self.dtest[:,:,:] - dist_rel[:,:,None])**2, axis=(0,1))
+                im = np.argmin(d_diff)
 
-                # done = (np.min(np.abs(self.sparse_dly_est[ipath])) == 0)
+                done = (np.min(np.abs(self.sparse_dly_est[ipath])) == 0)
 
 
             if done:
@@ -525,7 +527,11 @@ class Sim(Signal_Utils):
             # Fit the coefficients and find the residual
             self.fit_coeffs(npath_fit=ipath+1)
 
-            self.abs_delay[ipath] = self.dist_est[:,:,ipath] / self.c
+            if ipath == 0:
+                self.abs_delay[ipath] = self.dist_est[:,:,ipath] / self.c
+            else:
+                # self.abs_delay[ipath] = self.dist_est[:,:,ipath] / self.c
+                self.abs_delay[ipath] = self.abs_delay[0] + dly
             
 
     def set_ref_distances(self):
@@ -785,7 +791,7 @@ class NF_Channel_Model(nn.Module):
             rot_tx_ant_vec = rot_tx_ant_vec.reshape(tx_ant_vec.size())
 
             tanh_scale = 1
-            dist_vec = rx_ant_vec[:,None,:,:] - (constants.c*(path_delay[i])[:,:,:,None]*(trx_unit_vec[i])[None,None,None,:]) - (torch.tanh(tanh_scale*self.s[i])*rot_tx_ant_vec)[None,:,:,:]
+            dist_vec = rx_ant_vec[:,None,:,:] - (constants.c*(path_delay[i])[:,:,:,None]*(trx_unit_vec[i])[None,None,:,:]) - (torch.tanh(tanh_scale*self.s[i])*rot_tx_ant_vec)[None,:,:,:]
             dist = torch.linalg.norm(dist_vec, dim=-1)
             f = self.fc + freq
             H += (path_gain[i])[None,:,:,:] * torch.exp(1j*2*np.pi/constants.c * f[:,None,None,None] * dist[None,:,:,:])
@@ -804,7 +810,8 @@ if __name__ == '__main__':
     rxlocsep = np.array([0,1])    # Separation between RX locations
     npath=4   # Number of paths
     npath_est = [20, 5]  # Maximum number of paths to estimate
-    plot_type = 'init_est' 
+    # plot_type = 'init_est' 
+    plot_type = 'iter_est' 
 
 
 
@@ -860,6 +867,7 @@ if __name__ == '__main__':
     sim.create_tx_test_points()
 
     #================================================================================================
+    # Repeat the estimated channel for each TX as the code doesn't support multiple TX
     h = np.expand_dims(sim.chan_td, axis=2)
     h = np.repeat(h, 2, axis=2)
 
@@ -867,10 +875,11 @@ if __name__ == '__main__':
     peaks_nf = []
     npaths_nf = []
     for i in range(h.shape[-1]):
-        h_ = h[:,:,:,i]
+        h_ = h[:,:,:,i].copy()
         h_ = np.expand_dims(h_, axis=3)
         h_ = np.repeat(h_, params.n_rd_rep, axis=3)
-        sparse_est_params = signals_inst.sparse_est(h=h_, g=None, sc_range_ch=signals_inst.sc_range_ch, npaths=signals_inst.nf_npath_max, nframe_avg=1, ndly=5000, drange=[-1,100], cv=True, n_ignore=200)
+        ndly = 5000
+        sparse_est_params = signals_inst.sparse_est(h=h_, g=None, sc_range_ch=signals_inst.sc_range_ch, npaths=signals_inst.nf_npath_max, nframe_avg=1, ndly=ndly, drange=signals_inst.sparse_ch_samp_range, cv=True, n_ignore=signals_inst.sparse_ch_n_ignore)
         (h_tr, dly_est, peaks, npath_est) = sparse_est_params
         dly_est_nf.append(dly_est)
         peaks_nf.append(peaks)
@@ -880,81 +889,20 @@ if __name__ == '__main__':
     npaths = np.array(npaths_nf)
     
 
-    #================================================================================================
     signals_inst.nf_model = sim
+    # Make the shape of h appropriate for the destination function
     h = h.transpose((3,1,2,0))
-    sim.plot_chan_td(slice(0,100))
+
+    sim.plot_chan_td(indsamp=slice(0,100), indrx=0, indmeas=0)
+    dly_est_ = dly_est.copy()
+    peaks_ = np.abs(peaks)**2
+    peaks_  = signals_inst.lin_to_db(peaks_, mode='pow')
+    plt.stem(dly_est_[0, 0, 0]*signals_inst.fs_rx, peaks_[0, 0, 0], 'g-', bottom=np.min(peaks_)-100, basefmt=' ')
+
     signals_inst.est_nf_param(h, dly_est, peaks, npaths)
-
-    # dly_est = np.transpose(dly_est.copy(), (3,1,2,0))
-    # peaks = np.transpose(peaks.copy(), (3,1,2,0))
-    # npaths = np.transpose(npaths.copy(), (1,2,0))
-    # n_paths_min = np.min(npaths)
-    
-    # txid = 0
-
-    # sim.sparse_dly_est = dly_est[:,:,txid,:]
-    # sim.sparse_peaks_est = peaks[:,:,txid,:]
-    # # sim.npath_est = n_paths_min
-    # signals_inst.print("Number of paths estimated: {}".format(n_paths_min), thr=0)
-
-    # sim.path_est_init()
-    # sim.locate_tx(npath_est=n_paths_min)
-    # # sim.plot_results(RoomModel=signals_inst.RoomModel, plot_type='')
-
-    # n_epochs = 10000
-    # lr_init = 0.1
-    # ch_gt = h.copy()
-    # tx_ant_vec = signals_inst.nf_tx_ant_loc[:,:,:] - (signals_inst.nf_tx_ant_loc[0,0,:])[None,None,:] + 0.01
-    # rx_ant_vec = signals_inst.nf_rx_ant_loc[:,:,:] - (signals_inst.nf_rx_ant_loc[0,0,:])[None,None,:]
-    # phase_diff = peaks[:n_paths_min,1,0,:]-peaks[:n_paths_min,0,0,:]        # TODO: Maybe 0-1 instead of 1-0
-    # phase_diff = np.mean(phase_diff, axis=-1)
-    # aoa = signals_inst.phase_to_aoa(phase_diff, wl=signals_inst.wl, ant_dim=signals_inst.ant_dim, ant_dx_m=signals_inst.ant_dx_m, ant_dy_m=signals_inst.ant_dy_m)
-    # trx_unit_vec = np.stack((np.sin(aoa), np.cos(aoa)), axis=-1)
-    # path_delay = sim.abs_delay.copy()[:n_paths_min,:,None,:] * np.ones(dly_est.shape)
-    # path_gain = peaks.copy()[:n_paths_min]
-    # # path_delay = None
-    # # path_gain = None
-    # freq = signals_inst.freq_ch.copy()
-    # sim.nf_channel_param_est(n_paths=n_paths_min, n_epochs=n_epochs, lr_init=lr_init, ch_gt=ch_gt, tx_ant_vec=tx_ant_vec, rx_ant_vec=rx_ant_vec, trx_unit_vec=trx_unit_vec, path_delay=path_delay, path_gain=path_gain, freq=freq)
     #================================================================================================
-
     
-    if (plot_type == 'init_est') or (plot_type == 'iter_est'):
-        """
-        Plots the heatmaps of the estimated TX locations in each iteration
-        """
-        if plot_type == 'init_est':
-            nplots = 1
-        else:
-            nplots = sim.npath_det
-
-        fig, ax = plt.subplots(1, nplots)
-        if nplots == 1:
-            ax = [ax]
-        for i in range(nplots):
-        
-            # Plot the estimated heatmap
-            rho1 = sim.rho[:,i].reshape(sim.npoints,sim.npoints)
-            ax[i].contourf(sim.xtest0, sim.xtest1, rho1)
-
-            # Draw the room walls
-            rm.draw_walls(ax[i])
-                
-            
-            # Plot the TX locations as blue circles
-            ax[i].plot(sim.tx[:,0], sim.tx[:,1], 'ro')
-            ax[i].plot(sim.tx_est[i,0], sim.tx_est[i,1], 'gx')
-            ax[i].set_xlim(sim.region[0])
-            ax[i].set_ylim(sim.region[1])
-            if (nplots > 1):
-                ax[i].set_title(f'Iter {i}')
-            if (i > 0):
-                ax[i].set_yticks([])
-            
-            
-        plt.tight_layout()
-        plt.show()
+    sim.plot_results(ax=None, RoomModel=rm, plot_type=plot_type)
 
 
 

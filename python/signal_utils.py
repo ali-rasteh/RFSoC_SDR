@@ -988,7 +988,7 @@ class Signal_Utils(General):
         ndly : int, optional
             Number of delay points to test around the peak. Default is 10000.
         drange : list, optional
-            Range of delays to test around the peak. Default is [-6, 20].
+            Range of sample delays to test around the peak. Default is [-6, 20].
         cv : bool, optional
             Whether to use cross-validation to stop the path estimation. Default is True.
         Raises:
@@ -1062,7 +1062,7 @@ class Signal_Utils(General):
                 # Use OMP to find the sparse solution
                 coeff_est = np.zeros(npaths[0])
                 
-                resid = H_tr
+                resid = H_tr.copy()
                 indices = []
                 indices1 = []
                 mse_tr = np.zeros(npaths[0])
@@ -1106,9 +1106,11 @@ class Signal_Utils(General):
                     npaths_est = i+1
                     indices.append(idx)
 
+                # Ignore the paths that are too close to the first path
+                n_ignore_ = n_ignore * (ndly//(drange[1]-drange[0]))
                 indices1 = indices.copy()
                 for index in indices1[1:]:
-                    if index <= indices[0]+n_ignore and index >= indices[0]-n_ignore:
+                    if index <= indices[0]+n_ignore_ and index >= indices[0]-n_ignore_:
                         indices.remove(index)
                 indices = indices[:npaths[1]]
                 npaths_est = len(indices)

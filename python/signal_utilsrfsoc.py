@@ -63,6 +63,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.nf_tx_ant_loc = params.nf_tx_ant_loc
         self.n_rd_rep = params.n_rd_rep
         self.rx_same_delay = params.rx_same_delay
+        self.sparse_ch_samp_range = params.sparse_ch_samp_range
+        self.sparse_ch_n_ignore = params.sparse_ch_n_ignore
         self.saved_sig_plot = params.saved_sig_plot
         self.figs_save_path = params.figs_save_path
 
@@ -194,10 +196,19 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         npaths = np.transpose(npaths.copy(), (1,2,0))
         n_paths_min = np.min(npaths)
 
-        # self.plot_signal(self.t_trx[:100], np.abs(h[:100,0,0,0]), scale='dB20')
+        # Sort delay and peaks of each measurement based on the paths delays
+        dly_sort_idx = np.argsort(dly_est, axis=0)
+        dly_est = np.take_along_axis(dly_est, dly_sort_idx, axis=0)
+        peaks = np.take_along_axis(peaks, dly_sort_idx, axis=0)
+
+
+        # self.plot_signal(self.t_trx[:100], np.abs(h[:100,1,1,0]), scale='dB20')
         print("dly_est: ", dly_est[:,0,0,0])
-        print("peaks: ", peaks[:,0,0,0])
-        print("npaths: ", npaths[0,0,0])
+        print("dly_est: ", dly_est[:,1,1,0])
+        print("dly_est: ", dly_est[:,0,0,7])
+        print("dly_est: ", dly_est[:,1,1,7])
+        print("peaks: ", np.abs(peaks[:,0,0,0]))
+        print("npaths: ", npaths)
 
         txid = 0
 
@@ -212,19 +223,23 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.nf_model.locate_tx(npath_est=n_paths_min)
         # self.nf_model.plot_results(RoomModel=self.RoomModel, plot_type='')
 
-        n_epochs = 10000
+        n_epochs = 1000
         lr_init = 0.1
         ch_gt = h.copy()
         tx_ant_vec = self.nf_tx_ant_loc[:,:,:] - (self.nf_tx_ant_loc[0,0,:])[None,None,:] + 0.01
         rx_ant_vec = self.nf_rx_ant_loc[:,:,:] - (self.nf_rx_ant_loc[0,0,:])[None,None,:]
         phase_diff = peaks[:n_paths_min,1,0,:]-peaks[:n_paths_min,0,0,:]        # TODO: Maybe 0-1 instead of 1-0
-        phase_diff = np.mean(phase_diff, axis=-1)
-        aoa = self.phase_to_aoa(phase_diff, wl=self.wl, ant_dim=self.ant_dim, ant_dx_m=self.ant_dx_m, ant_dy_m=self.ant_dy_m)
+        # phase_diff = np.mean(phase_diff, axis=-1)
+        aoa = np.zeros(phase_diff.shape)
+        for m in range(phase_diff.shape[-1]):
+            ant_dx_m = np.linalg.norm(self.nf_rx_ant_loc[1,m,:] - self.nf_rx_ant_loc[0,m,:], axis=-1)
+            aoa[:,m] = self.phase_to_aoa(phase_diff[:,m], wl=self.wl, ant_dim=self.ant_dim, ant_dx_m=ant_dx_m, ant_dy_m=self.ant_dy_m)
+            # aoa = self.phase_to_aoa(phase_diff, wl=self.wl, ant_dim=self.ant_dim, ant_dx_m=self.ant_dx_m, ant_dy_m=self.ant_dy_m)
         trx_unit_vec = np.stack((np.sin(aoa), np.cos(aoa)), axis=-1)
         path_delay = self.nf_model.abs_delay.copy()[:n_paths_min,:,None,:] * np.ones(dly_est.shape)
         path_gain = peaks.copy()[:n_paths_min]
-        print("path_delay: ", path_delay[:,0,0,0])
-        print("path_gain: ", np.abs(path_gain[:,0,0,0]))
+        # print("path_delay: ", path_delay[:,0,0,0])
+        # print("path_gain: ", np.abs(path_gain[:,0,0,0]))
         # path_delay = None
         # path_gain = None
         freq = self.freq_ch.copy()
@@ -368,7 +383,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 h = h_est_full.copy()[self.read_id*self.n_rd_rep:(self.read_id+1)*self.n_rd_rep]
                 h = h.transpose(3,1,2,0)
                 g = None
-                sparse_est_params = self.sparse_est(h=h, g=g, sc_range_ch=self.sc_range_ch, npaths=1, nframe_avg=1, ndly=5000, drange=[-6,20], cv=True)
+                ndly = 5000
+                sparse_est_params = self.sparse_est(h=h, g=g, sc_range_ch=self.sc_range_ch, npaths=1, nframe_avg=1, ndly=ndly, drange=self.sparse_ch_samp_range, cv=True, n_ignore=self.sparse_ch_n_ignore)
 
                 h_est_full = h_est_full[self.read_id]
                 H_est_full = fft(h_est_full, axis=-1)
@@ -957,7 +973,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 g = sys_response
                 if g is not None:
                     g = g.copy().transpose(2,0,1)
-                sparse_est_params = self.sparse_est(h=h, g=g, sc_range_ch=self.sc_range_ch, npaths=self.nf_npath_max, nframe_avg=1, ndly=5000, drange=[-6,20], cv=True)
+                ndly = 5000
+                sparse_est_params = self.sparse_est(h=h, g=g, sc_range_ch=self.sc_range_ch, npaths=self.nf_npath_max, nframe_avg=1, ndly=ndly, drange=self.sparse_ch_samp_range, cv=True, n_ignore=self.sparse_ch_n_ignore)
             else:
                 h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_pilot_s, sys_response=sys_response, sc_range_ch=self.sc_range_ch, snr_est=snr_est)
             
