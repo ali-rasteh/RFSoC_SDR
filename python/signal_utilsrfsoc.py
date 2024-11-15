@@ -1,7 +1,10 @@
 from backend import *
 from backend import be_np as np, be_scp as scipy
 from signal_utils import Signal_Utils
-from near_field import Sim as Near_Field_Model, RoomModel
+try:
+    from near_field import Sim as Near_Field_Model, RoomModel
+except:
+    pass
 
 
 
@@ -143,7 +146,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             txtd_base = self.beam_form(txtd_base)
             txtd = self.beam_form(txtd)
 
-        print("Dot product of transmitted signals: ", np.dot(txtd_base[0], txtd_base[1]))
+        # print("Dot product of transmitted signals: ", np.dot(txtd_base[0], np.conj(txtd_base[1])))
+        print("Correlation of transmitted signals: ", np.max(np.abs(np.correlate(txtd_base[0], txtd_base[1], mode='full'))))
 
         return (txtd_base, txtd)
 
@@ -158,12 +162,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         # xtx =  np.vstack((xsrc, xref))
 
         self.nf_region = self.nf_walls.copy()
-        # room_width = self.nf_walls[0,1] - self.nf_walls[0,0]
-        # room_length = self.nf_walls[1,1] - self.nf_walls[1,0]
-        # self.nf_region[0,0] -= room_width
-        # self.nf_region[0,1] += room_width
-        # # self.nf_region[1,0] -= room_length
-        # self.nf_region[1,1] += room_length
+        room_width = self.nf_walls[0,1] - self.nf_walls[0,0]
+        room_length = self.nf_walls[1,1] - self.nf_walls[1,0]
+        self.nf_region[0,0] -= room_width
+        self.nf_region[0,1] += room_width
+        # self.nf_region[1,0] -= room_length
+        self.nf_region[1,1] += room_length
         self.nf_model = Near_Field_Model(fc=self.fc, fsamp=self.fs_rx, nfft=self.nfft_ch, nantrx=self.n_rx_ant,
                         rxlocsep=self.nf_rx_loc_sep, sepdir=self.nf_rx_sep_dir, antsep=self.nf_rx_ant_sep, npath_est=self.nf_npath_max[1], 
                         stop_thresh=self.nf_stop_thr, region=self.nf_region, tx=self.nf_tx_loc)
@@ -203,11 +207,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
         # self.plot_signal(self.t_trx[:100], np.abs(h[:100,1,1,0]), scale='dB20')
-        print("dly_est: ", dly_est[:,0,0,0])
-        print("dly_est: ", dly_est[:,1,1,0])
-        print("dly_est: ", dly_est[:,0,0,7])
-        print("dly_est: ", dly_est[:,1,1,7])
-        print("peaks: ", np.abs(peaks[:,0,0,0]))
         print("npaths: ", npaths)
 
         txid = 0
@@ -228,7 +227,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         ch_gt = h.copy()
         tx_ant_vec = self.nf_tx_ant_loc[:,:,:] - (self.nf_tx_ant_loc[0,0,:])[None,None,:] + 0.01
         rx_ant_vec = self.nf_rx_ant_loc[:,:,:] - (self.nf_rx_ant_loc[0,0,:])[None,None,:]
-        phase_diff = peaks[:n_paths_min,1,0,:]-peaks[:n_paths_min,0,0,:]        # TODO: Maybe 0-1 instead of 1-0
+        phase_diff = np.angle(peaks[:n_paths_min,0,0,:] * np.conj(peaks[:n_paths_min,1,0,:]))
         # phase_diff = np.mean(phase_diff, axis=-1)
         aoa = np.zeros(phase_diff.shape)
         for m in range(phase_diff.shape[-1]):
@@ -236,10 +235,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             aoa[:,m] = self.phase_to_aoa(phase_diff[:,m], wl=self.wl, ant_dim=self.ant_dim, ant_dx_m=ant_dx_m, ant_dy_m=self.ant_dy_m)
             # aoa = self.phase_to_aoa(phase_diff, wl=self.wl, ant_dim=self.ant_dim, ant_dx_m=self.ant_dx_m, ant_dy_m=self.ant_dy_m)
         trx_unit_vec = np.stack((np.sin(aoa), np.cos(aoa)), axis=-1)
-        path_delay = self.nf_model.abs_delay.copy()[:n_paths_min,:,None,:] * np.ones(dly_est.shape)
+        # print("phase_diff: ", phase_diff[:,0])
+        # print("aoa: ", aoa[:,0])
+        # print("trx_unit_vec: ", trx_unit_vec[:,0,:])
+        path_delay = self.nf_model.abs_delay.copy()[:n_paths_min,:,None,:] * np.ones(dly_est[:n_paths_min].shape)
         path_gain = peaks.copy()[:n_paths_min]
         # print("path_delay: ", path_delay[:,0,0,0])
-        # print("path_gain: ", np.abs(path_gain[:,0,0,0]))
         # path_delay = None
         # path_gain = None
         freq = self.freq_ch.copy()

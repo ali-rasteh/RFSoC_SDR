@@ -18,6 +18,8 @@ be_scp = None
 if import_general:
     import importlib
     import os
+    from scp import SCPClient
+    import nbformat
     import copy
     import requests
     import platform

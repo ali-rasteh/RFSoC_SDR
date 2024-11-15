@@ -325,6 +325,35 @@ class ssh_Com_Piradio(ssh_Com):
 
 
 
+class Scp_Com(ssh_Com):
+    def __init__(self, params):
+        super().__init__(params)
+
+        self.init_ssh_client()
+        self.scp_clinet = SCPClient(self.client.get_transport())
+        self.print("Scp_Com object init done", thr=1)
+
+
+    # SCP files from the remote host
+    def download_files(self, remote_files, local_dir):
+        try:
+            for remote_file in remote_files:
+                try:
+                    self.scp_clinet.get(remote_file, local_path=os.path.join(local_dir, os.path.basename(remote_file)))
+                except:
+                    self.print(f"Failed to download {remote_file}", thr=0)
+            self.print("Files downloaded successfully!", thr=3)
+        except:
+            self.print("Files download failed!", thr=0)
+
+
+    def close(self):
+        self.scp_clinet.close()
+        self.client.close()
+        self.print("SCP Client object closed", thr=1)
+
+
+
 class REST_Com(General):
     def __init__(self, params):
         super().__init__(params)

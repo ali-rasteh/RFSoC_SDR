@@ -188,7 +188,8 @@ class Sim(Signal_Utils):
         # Generate the reflection losses in dB
         # The first path has zero loss since it is LOS
         # The exponential should be in linear TODO
-        self.loss = np.random.exponential(self.lossavg, (self.npath,))
+        self.loss = np.random.exponential(10**(self.lossavg/10), (self.npath,))
+        self.loss = 10*np.log10(self.loss)
         self.loss[0] = 0
 
 
@@ -503,7 +504,7 @@ class Sim(Signal_Utils):
                 dly = self.sparse_dly_est[ipath] - self.sparse_dly_est[0] + self.abs_delay[0]
                 # print(dly)
                 dist_rel = dly * self.c
-                d_diff = np.sum(np.abs(self.dtest[:,:,:] - dist_rel[:,:,None])**2, axis=(0,1))
+                d_diff = np.sum(np.abs(self.dtest[:,:,:] - dist_rel[:,:,None]), axis=(0,1))
                 im = np.argmin(d_diff)
 
                 done = (np.min(np.abs(self.sparse_dly_est[ipath])) == 0)
@@ -531,7 +532,7 @@ class Sim(Signal_Utils):
                 self.abs_delay[ipath] = self.dist_est[:,:,ipath] / self.c
             else:
                 # self.abs_delay[ipath] = self.dist_est[:,:,ipath] / self.c
-                self.abs_delay[ipath] = self.abs_delay[0] + dly
+                self.abs_delay[ipath] = dly.copy()
             
 
     def set_ref_distances(self):
@@ -776,11 +777,6 @@ class NF_Channel_Model(nn.Module):
         if path_gain is None:
             path_gain = self.path_gain
 
-        # print("tx_ant_vec: ", tx_ant_vec)
-        # print("rx_ant_vec: ", rx_ant_vec)
-        # print("trx_unit_vec: ", trx_unit_vec)
-        # print("path_delay: ", path_delay)
-        # print("path_gain: ", path_gain)
         H = torch.zeros(n_fft, n_rx, n_tx, n_meas, dtype=torch.complex64)
 
         # Sum the contributions from each path
@@ -809,7 +805,7 @@ if __name__ == '__main__':
     antsep=np.array([0.5,1,2,4]) # Separation between antennas in wavelengths
     rxlocsep = np.array([0,1])    # Separation between RX locations
     npath=4   # Number of paths
-    npath_est = [20, 5]  # Maximum number of paths to estimate
+    npath_est = [20, 4]  # Maximum number of paths to estimate
     # plot_type = 'init_est' 
     plot_type = 'iter_est' 
 
@@ -820,7 +816,7 @@ if __name__ == '__main__':
     params = Params_Class()
     params.channel_limit = False
     params.sc_range_ch = [-1*params.nfft_trx//2, params.nfft_trx//2-1]
-    params.freq_hop_list = [fsamp]
+    params.freq_hop_list = [fc]
     params.fs = fsamp
     params.fs_tx=params.fs
     params.fs_rx=params.fs
@@ -889,16 +885,19 @@ if __name__ == '__main__':
     npaths = np.array(npaths_nf)
     
 
-    signals_inst.nf_model = sim
-    # Make the shape of h appropriate for the destination function
-    h = h.transpose((3,1,2,0))
 
     sim.plot_chan_td(indsamp=slice(0,100), indrx=0, indmeas=0)
     dly_est_ = dly_est.copy()
     peaks_ = np.abs(peaks)**2
     peaks_  = signals_inst.lin_to_db(peaks_, mode='pow')
-    plt.stem(dly_est_[0, 0, 0]*signals_inst.fs_rx, peaks_[0, 0, 0], 'g-', bottom=np.min(peaks_)-100, basefmt=' ')
+    plt.stem(dly_est_[0, 0, 0]*signals_inst.fs_trx, peaks_[0, 0, 0], 'g-', bottom=np.min(peaks_)-100, basefmt=' ')
+    plt.show()
+    sim.plot_chan_td(indsamp=slice(0,100), indrx=1, indmeas=0)
+    plt.show()
 
+    signals_inst.nf_model = sim
+    # Make the shape of h appropriate for the destination function
+    h = h.transpose((3,1,2,0))
     signals_inst.est_nf_param(h, dly_est, peaks, npaths)
     #================================================================================================
     

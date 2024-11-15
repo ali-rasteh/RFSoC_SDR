@@ -58,6 +58,29 @@ class General(object):
         self.print('\n',thr=0)
 
 
+    # Modify a parameter in the Python script
+    def modify_text_file(self, file_path, param_name, new_value):
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
+        with open(file_path, 'w') as file:
+            for line in lines:
+                if param_name in line and '=' in line:
+                    line = f"{param_name} = {repr(new_value)}\n"
+                file.write(line)
+        self.print(f"Parameter '{param_name}' updated to '{new_value}' in {file_path}.", thr=3)
+
+
+    # Convert .py to .ipynb
+    def convert_file_format(self, file_1_path, file_2_path):
+        with open(file_1_path, 'r') as file:
+            code = file.read()
+        notebook = nbformat.v4.new_notebook()
+        notebook.cells.append(nbformat.v4.new_code_cell(code))
+        with open(file_2_path, 'w') as file:
+            nbformat.write(notebook, file)
+        self.print(f"Converted {file_1_path} to {file_2_path}.", thr=3)
+
+
     def init_device_torch(self):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.print('Torch device: {}'.format(self.device),thr=0)
