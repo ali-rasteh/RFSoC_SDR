@@ -193,7 +193,6 @@ class Params_Class(object):
             # self.nf_param_estimate = True
             # self.use_linear_track = True
             self.control_piradio=True
-            self.freq_hop_list = [10.0e9]
             self.ant_dx_m = 0.02               # Antenna spacing in meters
             self.n_rx_ch_eq=1
             self.wb_sc_range=[-250,250]
@@ -204,9 +203,15 @@ class Params_Class(object):
             self.n_rd_rep=8
             self.plt_tx_ant_id = 0
             self.plt_rx_ant_id = 0
-            self.save_list = ['', '']           # signal or channel
             self.animate_plot_mode=['h01', 'rxfd', 'IQ']
             self.anim_interval=200
+            self.freq_hop_list = [10.0e9]
+            self.save_list = ['', '']           # signal or channel
+            self.n_save = 500
+            save_name = f'{self.freq_hop_list[0]/1e9}GHz_A_alpha'
+            self.sig_save_path=os.path.join(os.getcwd(), 'sigs/' + save_name + '.npz')
+            self.channel_save_path=os.path.join(os.getcwd(), 'channels/' + save_name + '.npz')
+
 
             # Chain or operations to perform (overwritten)
             self.rx_chain=[]
@@ -219,7 +224,7 @@ class Params_Class(object):
             # self.rx_chain.append('sys_res_deconv')
             self.rx_chain.append('channel_est')
             # self.rx_chain.append('sparse_est')
-            self.rx_chain.append('channel_eq')
+            # self.rx_chain.append('channel_eq')
 
 
         self.initialize()
