@@ -698,17 +698,23 @@ class Signal_Utils(General):
             wb_td = ifft(wb_fd, axis=0)
 
         elif gen_mode == 'ZadoffChu':
-            prime_nums = [3, 5, 7, 11, 13, 17]
+            # prime_nums = [1, 3, 5, 7, 11, 13, 17] #, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97]
+            prime_nums = [1]
             cf = self.nfft_tx % 2
             q = 0.5
             # u = 3
             u = np.random.choice(prime_nums)
             print(f"u={u}")
-            wb_fd = np.exp(-1j * np.pi * u * np.arange(self.nfft_tx) * (np.arange(self.nfft_tx) + cf + 2*q) / self.nfft_tx)
-            # cf = 0
-            # q = 0
-            # u = 3
-            # wb_fd = np.exp(2j * np.pi * u * np.arange(self.nfft_tx) * (np.arange(self.nfft_tx) + cf + 2*q) / self.nfft_tx)
+
+            # N = self.nfft_tx
+            N = self.sc_range[1] - self.sc_range[0] + 1
+            n = np.arange(N)
+            zc = np.exp(-1j * np.pi * u * n * (n + cf + 2*q) / N)
+            # zc = np.exp(2j * np.pi * u * n * (n + cf + 2*q) / N)
+
+            wb_fd = np.zeros((self.nfft_tx,), dtype='complex')
+            wb_fd[(self.nfft_tx >> 1) + sc_range[0]:(self.nfft_tx >> 1) + sc_range[1] + 1] = zc.copy()
+
             wb_td = ifft(wb_fd, axis=0)
 
         elif gen_mode == 'ofdm':
@@ -1420,7 +1426,7 @@ class Signal_Utils(General):
 
 
     # plot_signal(self, x, sig, mode='time_IQ', scale='linear', title='Custom Title', xlabel='Time', ylabel='Amplitude', plot_args={'color': 'red', 'linestyle': '--'}, xlim=(0, 10), ylim=(-1, 1), legend=True)
-    def plot_signal(self, x, sigs, mode='time', scale='linear', plot_level=0, **kwargs):
+    def plot_signal(self, x=None, sigs=None, mode='time', scale='linear', plot_level=0, **kwargs):
         if self.plot_level<plot_level:
             return
         
@@ -1435,6 +1441,9 @@ class Signal_Utils(General):
         plot_args = kwargs.get('plot_args', {})
 
         for i, sig_name in enumerate(sigs_dict.keys()):
+            if x is None:
+                x = np.arange(len(sigs_dict[sig_name]))
+
             if mode=='time' or mode=='time_IQ':
                 sig_plot = sigs_dict[sig_name].copy()
             elif mode=='fft':

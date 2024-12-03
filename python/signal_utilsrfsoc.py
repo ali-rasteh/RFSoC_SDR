@@ -28,6 +28,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.sc_tone = params.sc_tone
         self.sig_modulation = params.sig_modulation
         self.sig_gen_mode = params.sig_gen_mode
+        self.tx_sig_sim = params.tx_sig_sim
         self.sig_path = params.sig_path
         self.sig_save_path = params.sig_save_path
         self.calib_params_path = params.calib_params_path
@@ -126,6 +127,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         txtd_base = np.array(txtd_base)
 
+        if self.tx_sig_sim == 'shifted':
+            txtd_base[1,:] = np.roll(txtd_base[0,:], shift=self.nfft_tx//4, axis=-1)
+
         if self.mixer_mode=='digital' and self.mix_freq!=0:
             for ant_id in range(self.n_tx_ant):
                 txtd_s = self.freq_shift(txtd_base[ant_id], shift=self.mix_freq, fs=self.fs_tx)
@@ -148,6 +152,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         # print("Dot product of transmitted signals: ", np.dot(txtd_base[0], np.conj(txtd_base[1])))
         print("Correlation of transmitted signals: ", np.max(np.abs(np.correlate(txtd_base[0], txtd_base[1], mode='full'))))
+        self.plot_signal(sigs = np.abs(np.correlate(txtd_base[1,:], txtd_base[0,:], mode='full')))
 
         return (txtd_base, txtd)
 

@@ -127,7 +127,7 @@ class Params_Class(object):
             self.sig_gen_mode = 'fft'
             self.sig_mode='wideband_null'
             self.sig_modulation = '4qam'
-            self.tx_sig_sim = 'same'        # same or orthogonal
+            self.tx_sig_sim = 'same'        # same or orthogonal or shifted
             self.sig_gain_db=0
             self.n_frame_wr=1
             self.n_frame_rd=2
@@ -203,12 +203,19 @@ class Params_Class(object):
             self.n_rd_rep=8
             self.plt_tx_ant_id = 0
             self.plt_rx_ant_id = 0
-            self.animate_plot_mode=['h01', 'rxfd', 'IQ']
+            self.animate_plot_mode=['h01', 'rxfd']
             self.anim_interval=200
             self.freq_hop_list = [10.0e9]
             self.save_list = ['', '']           # signal or channel
             self.n_save = 500
-            save_name = f'{self.freq_hop_list[0]/1e9}GHz_A_alpha'
+            self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
+            self.sig_gen_mode = 'ZadoffChu'
+
+            # self.freq_hop_list = [6.5e9]
+            # self.freq_hop_list = [8.75e9]
+            self.freq_hop_list = [10.0e9]
+            save_name = f'{self.freq_hop_list[0]/1e9}_B_gamma_gamma_n'
+            
             self.sig_save_path=os.path.join(os.getcwd(), 'sigs/' + save_name + '.npz')
             self.channel_save_path=os.path.join(os.getcwd(), 'channels/' + save_name + '.npz')
 
@@ -294,6 +301,8 @@ class Params_Class(object):
             self.seed = [self.seed for i in range(self.n_tx_ant)]
         elif self.tx_sig_sim=='orthogonal':
             self.seed = [self.seed*i+i for i in range(self.n_tx_ant)]
+        elif self.tx_sig_sim=='shifted':
+            self.seed = [self.seed for i in range(self.n_tx_ant)]
 
         self.server_ip = None
         self.steer_phi_rad = np.deg2rad(self.steer_phi_deg)

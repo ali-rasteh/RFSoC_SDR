@@ -171,3 +171,6 @@ python/sigs
 python/other
 python/calib
 python/figs
+*.npz
+*.npy
+*.7z

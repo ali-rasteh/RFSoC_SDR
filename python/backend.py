@@ -44,7 +44,7 @@ if import_matplotlib:
     from matplotlib.colors import LogNorm
     from matplotlib.patches import Wedge, Circle, FancyArrow
     # matplotlib.use('TkAgg')
-    # matplotlib.use('WebAgg')
+    matplotlib.use('WebAgg')
     # matplotlib.use('Agg')
 
 if import_numpy:
