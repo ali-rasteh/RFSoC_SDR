@@ -36,6 +36,7 @@ but any other environment name can be used.
     ~~~bash
     .\env\Scripts\Activate.ps1  [Windows]
     source active env [MAC/Linux]
+        or source bin/activate
     ~~~
    On Windows Powershell, you may get the error message
    *“...Activate.ps1 is not digitally signed. The script will not execute on the system.”*
