@@ -26,7 +26,7 @@ class RoomModel(Signal_Utils):
         if ax is None:
             ax = plt.gca()
         for i in range(self.walls.shape[0]):
-            ax.plot(self.walls[i,[0,2]], self.walls[i,[1,3]], 'b-', linewidth=2)
+            ax.plot(self.walls[i,[0,2]], self.walls[i,[1,3]], 'w-', linewidth=2)
 
         return ax
     
@@ -87,7 +87,7 @@ class Sim(Signal_Utils):
     npath : int
         Number of paths from the TX which is assumed to be the 
         same for all RX locations.
-    lossavg : float
+    lossavg_dB : float
         Average loss of the paths in dB.
     tx : (npath, p) array or None
         List of the TX locations.  If None, the TX locations are randomly
@@ -102,7 +102,7 @@ class Sim(Signal_Utils):
     """
     def __init__(self, fc=6e9, fsamp=1e9, bw=0.8, nfft=1024, snr=20, nantrx=2,
                 antsep=None, rxlocsep=None, sepdir=None, npath=4,
-                lossavg=10, tx=None, npath_est=4, stop_thresh=0.03, region=None):
+                lossavg_dB=10, tx=None, npath_est=4, stop_thresh=0.03, region=None):
         # Parameters
         self.fc = fc  # Carrier frequency
         self.c = constants.c  # Speed of light
@@ -126,7 +126,7 @@ class Sim(Signal_Utils):
         self.nrxlocsep = len(self.rxlocsep)
         self.nantsep = len(self.antsep)
         self.nmeas = self.nrxlocsep * self.nantsep
-        self.lossavg = lossavg
+        self.lossavg_dB = lossavg_dB
         self.tx = tx
         self.npath_est = npath_est
         self.stop_thresh = stop_thresh
@@ -188,9 +188,11 @@ class Sim(Signal_Utils):
         # Generate the reflection losses in dB
         # The first path has zero loss since it is LOS
         # The exponential should be in linear TODO
-        self.loss = np.random.exponential(10**(self.lossavg/10), (self.npath,))
-        self.loss = 10*np.log10(self.loss)
+        self.loss = np.random.exponential(self.lossavg_dB, (self.npath,))
+        # self.loss = np.random.exponential(10**(self.lossavg_dB/20), (self.npath,))
+        # self.loss = 20*np.log10(self.loss)
         self.loss[0] = 0
+        # print("Extra exponential path loss: ", self.loss)
 
 
 
@@ -257,6 +259,7 @@ class Sim(Signal_Utils):
 
         # Add the reflection losses
         self.pathloss += self.loss[None,None,:]
+        print("Total path loss: ", self.pathloss[0,0,:])
 
         # Compute the channel coefficients from the path loss values
         self.coeffs = 10**(-self.pathloss/20)
@@ -323,11 +326,15 @@ class Sim(Signal_Utils):
         ymin = np.percentile(chan_pow1.flatten(), 25)-5
        
         # Plot the channel power
-        plt.plot(samp_ind[indsamp], chan_pow1)
-        plt.stem(path_samp1.flatten(), path_pow1.flatten(), 
+        plt.plot(samp_ind[indsamp]/self.fsamp*1e9, chan_pow1)
+        plt.stem(path_samp1.flatten()/self.fsamp*1e9, path_pow1.flatten(), 
                  'r-', bottom=ymin, basefmt=' ')
         plt.grid()
         plt.ylim([ymin, ymax])
+        # plt.xlabel('Sample Index')
+        plt.xlabel('Time (ns)', fontsize=15)
+        plt.ylabel('Power (dB)', fontsize=15)
+        # plt.title('Channel Power (dB)', fontsize=18)
 
         # plt.show()
 
@@ -500,9 +507,7 @@ class Sim(Signal_Utils):
                 # done = np.max(self.rho[:,ipath]) < self.stop_thresh*rho_max
 
 
-
                 dly = self.sparse_dly_est[ipath] - self.sparse_dly_est[0] + self.abs_delay[0]
-                # print(dly)
                 dist_rel = dly * self.c
                 d_diff = np.sum(np.abs(self.dtest[:,:,:] - dist_rel[:,:,None]), axis=(0,1))
                 im = np.argmin(d_diff)
@@ -590,7 +595,7 @@ class Sim(Signal_Utils):
 
 
 
-    def nf_channel_param_est(self, n_paths=0, n_epochs=1000, lr_init=0.1, ch_gt=None, tx_ant_vec=None, rx_ant_vec=None, trx_unit_vec=None, path_delay=None, path_gain=None, freq=None):
+    def nf_channel_param_est(self, n_paths=0, n_epochs=1000, lr_init=0.1, H_gt=None, tx_ant_vec=None, rx_ant_vec=None, trx_unit_vec=None, path_delay=None, path_gain=None, freq=None):
         # Initialize model, loss function, and optimizer
         self.t_device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -603,7 +608,7 @@ class Sim(Signal_Utils):
         optimizer = optim.Adam(self.nf_ch_model.parameters(), lr=lr_init)
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=n_epochs//5, gamma=0.1)
 
-        ch_gt = torch.tensor(ch_gt, dtype=torch.complex64, requires_grad=True).to(self.t_device)
+        H_gt = torch.tensor(H_gt, dtype=torch.complex64, requires_grad=True).to(self.t_device)
         tx_ant_vec = torch.tensor(tx_ant_vec, dtype=torch.float32, requires_grad=True).to(self.t_device)
         rx_ant_vec = torch.tensor(rx_ant_vec, dtype=torch.float32, requires_grad=True).to(self.t_device)
         trx_unit_vec = torch.tensor(trx_unit_vec, dtype=torch.float32, requires_grad=True).to(self.t_device)
@@ -621,7 +626,8 @@ class Sim(Signal_Utils):
 
         for epoch in range(n_epochs):  # Number of epochs
             output = self.nf_ch_model(tx_ant_vec=tx_ant_vec, rx_ant_vec=rx_ant_vec, trx_unit_vec=trx_unit_vec, path_delay=path_delay, path_gain=path_gain, freq=freq)
-            loss = criterion(output[:,:,txid,:].real, ch_gt[:,:,txid,:].real) + criterion(output[:,:,txid,:].imag, ch_gt[:,:,txid,:].imag)
+            # loss = criterion(output[:,:,txid,:].real, H_gt[:,:,txid,:].real) + criterion(output[:,:,txid,:].imag, H_gt[:,:,txid,:].imag)
+            loss = criterion(torch.abs((output - H_gt)[:,:,txid,:]), torch.zeros_like(output[:,:,txid,:], dtype=torch.float32))
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -663,16 +669,21 @@ class Sim(Signal_Utils):
                     
                 
                 # Plot the TX locations as blue circles
-                ax[i].plot(self.tx[:,0], self.tx[:,1], 'ro')
-                ax[i].plot(self.tx_est[i,0], self.tx_est[i,1], 'bx')
+                ax[i].plot(self.tx[:,0], self.tx[:,1], 'ro', markersize=8)
+                ax[i].plot(self.tx_est[i,0], self.tx_est[i,1], 'cX', markersize=8)
                 ax[i].set_xlim(self.region[0])
                 ax[i].set_ylim(self.region[1])
                 if (nplots > 1):
-                    ax[i].set_title(f'Iter {i}')
+                    ax[i].set_title(f'Iter {i}', fontsize=14)
                 if (i > 0):
                     ax[i].set_yticks([])
                 
-                
+            # fig.text(0.5, 0.04, 'X (m)', ha='center', fontsize=15)
+            # fig.text(0.04, 0.5, 'Y (m)', va='center', rotation='vertical', fontsize=15)
+            fig.supxlabel('X (m)', fontsize=15)
+            fig.supylabel('Y (m)', fontsize=15)
+            # fig.suptitle('Heatmap of TX location probability\nand location of LOS/Image sources', fontsize=16)
+
             plt.tight_layout()
             plt.show()
 
@@ -700,7 +711,7 @@ class Sim(Signal_Utils):
                 if i_path == 0:
                     color = 'gx'
                 else:
-                    color = 'bx'
+                    color = 'cX'
                 point = ax.plot(self.tx_est[i_path, 0], self.tx_est[i_path, 1], color, markersize=15)  # Estimated TX
                 self.points.append(point[0])
 
@@ -799,13 +810,16 @@ class NF_Channel_Model(nn.Module):
 
 if __name__ == '__main__':
     # Parameters
-    fc = 12e9  # Carrier frequency   
+    fc = 10e9  # Carrier frequency   
     fsamp = 1e9 # Sample freq in Hz
     nantrx=2  # Number of antennas per array
-    antsep=np.array([0.5,1,2,4]) # Separation between antennas in wavelengths
-    rxlocsep = np.array([0,1])    # Separation between RX locations
+    antsep=np.array([0.5,1,2]) # Separation between antennas in wavelengths
+    rxlocsep = np.array([0,0.4,0.8])    # Separation between RX locations
+    snr = 20
     npath=4   # Number of paths
     npath_est = [20, 4]  # Maximum number of paths to estimate
+    stop_thresh=0.03
+    lossavg_dB=5
     # plot_type = 'init_est' 
     plot_type = 'iter_est' 
 
@@ -845,9 +859,9 @@ if __name__ == '__main__':
     signals_inst = Signal_Utils_Rfsoc(params)
 
     # Create the simulation object and run the simulation
-    sim = Sim(fc=fc, fsamp=fsamp, nantrx=nantrx,
+    sim = Sim(fc=fc, fsamp=fsamp, snr=snr, nantrx=nantrx,
             rxlocsep=rxlocsep, antsep=antsep, npath=npath,
-            tx=xtx,npath_est=npath_est[1])
+            lossavg_dB=lossavg_dB, tx=xtx, npath_est=npath_est[1], stop_thresh=stop_thresh)
 
 
     # Generate the TX positions and search region
@@ -892,8 +906,8 @@ if __name__ == '__main__':
     peaks_  = signals_inst.lin_to_db(peaks_, mode='pow')
     plt.stem(dly_est_[0, 0, 0]*signals_inst.fs_trx, peaks_[0, 0, 0], 'g-', bottom=np.min(peaks_)-100, basefmt=' ')
     plt.show()
-    sim.plot_chan_td(indsamp=slice(0,100), indrx=1, indmeas=0)
-    plt.show()
+    # sim.plot_chan_td(indsamp=slice(0,100), indrx=1, indmeas=0)
+    # plt.show()
 
     signals_inst.nf_model = sim
     # Make the shape of h appropriate for the destination function

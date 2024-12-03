@@ -207,7 +207,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
         # self.plot_signal(self.t_trx[:100], np.abs(h[:100,1,1,0]), scale='dB20')
-        print("npaths: ", npaths)
 
         txid = 0
 
@@ -224,7 +223,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         n_epochs = 1000
         lr_init = 0.1
-        ch_gt = h.copy()
+        H_gt = fft(h.copy(), axis=0)
         tx_ant_vec = self.nf_tx_ant_loc[:,:,:] - (self.nf_tx_ant_loc[0,0,:])[None,None,:] + 0.01
         rx_ant_vec = self.nf_rx_ant_loc[:,:,:] - (self.nf_rx_ant_loc[0,0,:])[None,None,:]
         phase_diff = np.angle(peaks[:n_paths_min,0,0,:] * np.conj(peaks[:n_paths_min,1,0,:]))
@@ -244,7 +243,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         # path_delay = None
         # path_gain = None
         freq = self.freq_ch.copy()
-        self.nf_model.nf_channel_param_est(n_paths=n_paths_min, n_epochs=n_epochs, lr_init=lr_init, ch_gt=ch_gt, tx_ant_vec=tx_ant_vec, rx_ant_vec=rx_ant_vec, trx_unit_vec=trx_unit_vec, path_delay=path_delay, path_gain=path_gain, freq=freq)
+        self.nf_model.nf_channel_param_est(n_paths=n_paths_min, n_epochs=n_epochs, lr_init=lr_init, H_gt=H_gt, tx_ant_vec=tx_ant_vec, rx_ant_vec=rx_ant_vec, trx_unit_vec=trx_unit_vec, path_delay=path_delay, path_gain=path_gain, freq=freq)
 
 
     def calibrate_rx_phase_offset(self, client_rfsoc):
