@@ -99,8 +99,69 @@ class Signal_Utils(General):
         elif ant_dim == 2:
             aoa = np.array([np.arcsin(phase * wl / (2 * np.pi * ant_dx_m)), np.arcsin(phase * wl / (2 * np.pi * ant_dy_m))])
         return aoa
-        
+    
+    
+    def sinc(self, x):
+        sinc = np.sinc(x)       # sin(pi.x)/(pi.x)
+        # sinc = np.sin(np.pi * x) / (np.pi * x)
+        return sinc
 
+    def rect(self, x):
+        rect = np.where(np.abs(x) <= 0.5, 1.0, 0.0)
+        return rect
+
+    def plot_rect_sync(self):
+        N = 1024  # Number of samples
+        # T = 10  # Sampling interval
+        # fs = N/T
+        # t = np.linspace(-T/2, T/2, N, endpoint=False)
+        # freq = fftshift(np.fft.fftfreq(N, T))
+        # freq = np.linspace(-fs/2, fs/2, N, endpoint=True)
+        n = np.arange(-N / 2, N / 2)
+        om = np.linspace(-np.pi, np.pi, N, endpoint=True)
+        omega = np.pi / 16
+        a = omega / np.pi
+        M = 20
+
+        sinc = self.sinc(a * n)
+        rect = self.rect(n / M)
+        self.plot_signal(n, {"sinc": np.abs(sinc)}, scale='linear', legend=True)
+        self.plot_signal(om / np.pi,
+                            {"sinc_fft": np.abs(fftshift(fft(sinc))), "rect": self.rect(om / (2 * np.pi * a)) / a},
+                            scale='linear', legend=True)
+        self.plot_signal(n, {"rect": np.abs(rect)}, scale='linear', legend=True)
+        self.plot_signal(om / np.pi, {"rect_fft": np.abs(fftshift(fft(rect))),"sinc": np.abs(self.sinc(om * (M + 1) / 2 / np.pi) * (M + 1))},
+                            scale='linear', legend=True)
+
+    def dft(self, x):
+        N = len(x)
+        n = np.arange(N)
+        k = n.reshape((N, 1))
+        # Create the twiddle factor matrix (N x N)
+        twiddle_factor = np.exp(-2j * np.pi * k * n / N)
+        # Perform matrix multiplication
+        X = np.dot(twiddle_factor, x)
+        return X
+
+    def psd(self, x):
+        freq, psd = welch(x, self.fs, nperseg=self.nfft)
+        return (freq, psd)
+
+    def rotation_matrix(self, dim=2, angles=[0]):
+        if dim==2:
+            theta = angles[0]
+            R = np.array([[np.cos(theta), -np.sin(theta)],
+                          [np.sin(theta), np.cos(theta)]])
+        elif dim==3:
+            phi = angles[0]
+            theta = angles[1]
+            # R = ???
+        return R
+    
+    def l2_norm(self, x):
+        return np.linalg.norm(x)
+    
+    
     def upsample(self, signal, up=2):
         """
         Upsample a signal by a factor of 2 by inserting zeros between the original samples.
@@ -409,7 +470,7 @@ class Signal_Utils(General):
             fil_sig = firwin(1001, sig_bw[i] / self.fs)
             # sigs[i, :] = np.exp(2 * np.pi * 1j * sig_cf[i] * t) * sig_psd[i] * np.convolve(noise, fil_sig, mode='same')
             sigs[i, :] = np.exp(2 * np.pi * 1j * sig_cf[i] * self.t) * np.sqrt(
-                sig_psd[i]*(self.fs/2)) * lfilter(fil_sig, np.array([1]), self.gen_noise(mode='complex'))
+                sig_psd[i]*self.fs/2) * lfilter(fil_sig, np.array([1]), self.gen_noise(mode='complex'))
             rx += np.outer(spatial_sig[:, i], sigs[i, :])
 
             if self.sig_noise:
@@ -419,10 +480,12 @@ class Signal_Utils(General):
 
         yvar = np.mean(np.abs(rx) ** 2, axis=1)
         wvar = yvar / self.snr
+        self.noise_psd = np.mean(wvar/self.fs).astype(complex)
+        # noise_rx = np.sqrt(wvar[:, None] / 2) * noise
+        # noise_rx = np.outer(np.sqrt(wvar / 2), self.gen_noise(mode='complex'))
         noise_rx = np.array([self.gen_noise(mode='complex') for _ in range(self.N_r)])
-        # rx += np.sqrt(wvar[:, None] / 2) * noise
-        # rx += np.outer(np.sqrt(wvar / 2), self.gen_noise(mode='complex'))
-        rx += np.sqrt(wvar[:, None] / 2) * noise_rx
+        noise_rx = np.sqrt(wvar[:, None] / 2) * noise_rx
+        rx += noise_rx
 
         if self.plot_level >= 2:
             plt.figure()
@@ -573,28 +636,36 @@ class Signal_Utils(General):
         return tuple(union)
 
 
-    def compute_slices_similarity(self, slice_1, slice_2):
-        if slice_1 is None and slice_2 is not None:
-            ratio = 0.0
-        if slice_2 is None and slice_1 is not None:
-            ratio = 0.0
-        if slice_1 is None and slice_2 is None:
-            ratio = 1.0
+    def compute_slices_similarity(self, predicted, target):
+        if predicted is None and target is not None:
+            det_rate = 0.0
+            missed = 1.0
+            false_alarm = 0.0
+        elif target is None and predicted is not None:
+            det_rate = 0.0
+            missed = 0.0
+            false_alarm = 1.0
+        elif predicted is None and target is None:
+            det_rate = 1.0
+            missed = 0.0
+            false_alarm = 0.0
         else:
-            intersection = self.slice_intersection(slice_1, slice_2)
-            union = self.slice_union(slice_1, slice_2)
+            intersection = self.slice_intersection(predicted, target)
+            union = self.slice_union(predicted, target)
             intersection_size = self.slice_size(intersection)
             union_size = self.slice_size(union)
 
             # max_size = max(self.slice_size(slice_1), self.slice_size(slice_2))
-            # ratio = intersection_size / max_size
-            ratio = intersection_size / union_size
+            # det_rate = intersection_size / max_size
+            det_rate = intersection_size / union_size
+            missed = 0.0
+            false_alarm = 0.0
 
-        return ratio
+        return (det_rate, missed, false_alarm)
     
 
     def generate_psd_dataset(self, dataset_path='./data/psd_dataset.npz', n_dataset=1000, shape=(1000,), n_sigs_min=1, n_sigs_max=1, n_sigs_p_dist=None, sig_size_min=None, sig_size_max=None, snr_range=np.array([10,10]), mask_mode='binary'): 
-        print("Starting to generate PSD dataset with n_dataset={}, shape={}, n_sigs={}-{}, n_sigs_p_dist:{}, sig_size={}-{}, snrs={:0.3f}-{:0.3f}...".format(n_dataset, shape, n_sigs_min, n_sigs_max, n_sigs_p_dist, sig_size_min, sig_size_max, snr_range[0], snr_range[1]))
+        self.print("Starting to generate PSD dataset with n_dataset={}, shape={}, n_sigs={}-{}, n_sigs_p_dist:{}, sig_size={}-{}, snrs={:0.3f}-{:0.3f}...".format(n_dataset, shape, n_sigs_min, n_sigs_max, n_sigs_p_dist, sig_size_min, sig_size_max, snr_range[0], snr_range[1]),thr=0)
         
         n_sigs_list = np.arange(n_sigs_min, n_sigs_max+1)
         data = []
@@ -625,7 +696,7 @@ class Signal_Utils(General):
         classes = np.array(classes)
         np.savez(dataset_path, data=data, masks=masks, bboxes=bboxes, objectnesses=objectnesses, classes=classes)
         
-        print(f"Dataset of data shape {data.shape} and mask shape {masks.shape} saved to {dataset_path}")
+        self.print(f"Dataset of data shape {data.shape} and mask shape {masks.shape} saved to {dataset_path}",thr=0)
 
 
     def generate_tone(self, freq_mode='sc', sc=None, f=None, sig_mode='tone_2', gen_mode='fft'):
@@ -860,6 +931,7 @@ class Signal_Utils(General):
 
 
     def filter(self, sig, center_freq=0, cutoff=50e6, fil_order=1000, plot=False):
+        self.print("Starting to filter the signal...", thr=2)
         filter_fir = firwin(fil_order, cutoff / self.fs_rx)
         filter_fir = self.freq_shift(filter_fir, shift=center_freq, fs=self.fs_rx)
 
@@ -879,6 +951,7 @@ class Signal_Utils(General):
 
 
     def freq_shift(self, sig, shift=0, fs=200e6):
+        self.print("Shifting the signal in frequency domain...", thr=2)
         t = np.arange(0, len(sig)) / fs
         sig_shift = np.exp(2 * np.pi * 1j * shift * t) * sig
 
@@ -1536,4 +1609,4 @@ class Signal_Utils(General):
             old_arrow.remove()
 
         ax.add_patch(arrow)
-
+        
