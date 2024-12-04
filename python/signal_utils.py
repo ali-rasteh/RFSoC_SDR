@@ -11,11 +11,11 @@ class Signal_Utils(General):
         super().__init__(params)
         
         self.fc=getattr(params, 'fc', None)
-        self.fs=getattr(params, 'fs', None)
+        self.fs=getattr(params, 'fs', 1e9)
         self.fs_tx=getattr(params, 'fs_tx', self.fs)
         self.fs_rx=getattr(params, 'fs_rx', self.fs)
         self.fs_trx=getattr(params, 'fs_trx', min(self.fs_tx, self.fs_rx))
-        self.n_samples=getattr(params, 'n_samples', None)
+        self.n_samples=getattr(params, 'n_samples', 1024)
         self.n_samples_tx=getattr(params, 'n_samples_tx', self.n_samples)
         self.n_samples_rx=getattr(params, 'n_samples_rx', self.n_samples)
         self.n_samples_trx=getattr(params, 'n_samples_trx', min(self.n_samples_tx, self.n_samples_rx))

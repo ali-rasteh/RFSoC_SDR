@@ -1,4 +1,5 @@
 import_general=True
+import_networking=True
 import_matplotlib=True
 import_numpy=True
 import_scipy=True
@@ -19,10 +20,8 @@ if import_general:
     import importlib
     import os
     import shutil
-    from scp import SCPClient
     import nbformat
     import copy
-    import requests
     import platform
     import argparse
     import time
@@ -30,12 +29,16 @@ if import_general:
     import subprocess
     import random
     import string
-    import socket
     import paramiko
     from types import SimpleNamespace
     import itertools
     import heapq
     import atexit
+
+if import_networking:
+    from scp import SCPClient
+    import requests
+    import socket
 
 if import_matplotlib:
     import matplotlib
