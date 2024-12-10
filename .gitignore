@@ -168,7 +168,7 @@ desktop.ini
 # other/
 python/channels
 python/sigs
-python/other
+python/arxiv/other
 python/calib
 python/figs
 *.npz
