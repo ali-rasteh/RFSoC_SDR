@@ -1,3 +1,19 @@
+"""
+This script is used to copy and modify files from a remote host to a local directory.
+It supports two targets: 'rfsoc' and 'raspi', each with its own set of files and parameters to modify.
+Functions:
+    main(params):
+        Main function to handle the file copying and modification process.
+        Args:
+            params (Params_Class): An instance of Params_Class containing configuration parameters.
+Usage:
+    Run this script directly to copy and modify files based on the specified target.
+    You can modify parameters at the beginning of the main function to customize the behavior.
+    Example:
+        python copy_files.py
+"""
+
+
 from backend import *
 from backend import be_np as np, be_scp as scipy
 from params import Params_Class

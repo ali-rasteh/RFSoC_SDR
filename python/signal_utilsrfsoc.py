@@ -150,7 +150,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             txtd_base = self.beam_form(txtd_base)
             txtd = self.beam_form(txtd)
 
-        print("Dot product of transmitted signals: ", np.abs(np.dot(txtd_base[0], np.conj(txtd_base[1]))))
+        print("Dot product of transmitted signals: ", np.abs(np.vdot(txtd_base[1], txtd_base[0])))
         # print("Correlation of transmitted signals: ", np.max(np.abs(np.correlate(txtd_base[0], txtd_base[1], mode='full'))))
         self.plot_signal(sigs = np.abs(np.correlate(txtd_base[1,:], txtd_base[0,:], mode='full')))
 

@@ -1,0 +1,3 @@
+[submodule "python/SigProc_Comm"]
+	path = python/SigProc_Comm
+	url = git@github.com:ali-rasteh/SigProc_Comm.git

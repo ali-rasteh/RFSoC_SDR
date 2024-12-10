@@ -764,28 +764,34 @@ class Signal_Utils(General):
             if sig_mode=='wideband_null':
                 wb_fd[((self.nfft_tx >> 1) - wb_null_sc):((self.nfft_tx >> 1) + wb_null_sc + 1)] = 0
 
-            wb_fd = fftshift(wb_fd, axes=0)
+            wb_fd = ifftshift(wb_fd, axes=0)
+
             # Convert the waveform to time-domain
             wb_td = ifft(wb_fd, axis=0)
 
         elif gen_mode == 'ZadoffChu':
-            # prime_nums = [1, 3, 5, 7, 11, 13, 17] #, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97]
-            prime_nums = [1]
+            prime_nums = [1, 3, 5, 7, 11, 13, 17] #, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97]
             cf = self.nfft_tx % 2
-            q = 0.5
-            # u = 3
-            u = np.random.choice(prime_nums)
-            print(f"u={u}")
+            q = 0
+            # q = 0.5
+            # u = np.random.choice(prime_nums)
+            u = 1
 
-            # N = self.nfft_tx
-            N = self.sc_range[1] - self.sc_range[0] + 1
-            n = np.arange(N)
+            N = self.nfft_tx
+            # N = self.sc_range[1] - self.sc_range[0] + 1
+            n = np.arange(0, N)
             zc = np.exp(-1j * np.pi * u * n * (n + cf + 2*q) / N)
-            # zc = np.exp(2j * np.pi * u * n * (n + cf + 2*q) / N)
 
-            wb_fd = np.zeros((self.nfft_tx,), dtype='complex')
-            wb_fd[(self.nfft_tx >> 1) + sc_range[0]:(self.nfft_tx >> 1) + sc_range[1] + 1] = zc.copy()
+            wb_fd = zc.copy()
+            index_zeros = np.arange(self.sc_range[1], self.nfft_tx + self.sc_range[0])
+            wb_fd[index_zeros] = 0
+            
+            # wb_td = zc.copy()
+            # wb_fd = fftshift(fft(wb_td, axis=0))
+            # wb_fd[:((self.nfft_tx >> 1) + sc_range[0])] = 0
+            # wb_fd[((self.nfft_tx >> 1) + sc_range[1] + 1):] = 0
 
+            # wb_fd = ifftshift(wb_fd, axes=0)
             wb_td = ifft(wb_fd, axis=0)
 
         elif gen_mode == 'ofdm':

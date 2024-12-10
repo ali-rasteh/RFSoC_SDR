@@ -1,3 +1,28 @@
+"""
+This module conditionally imports various libraries and modules based on the specified flags.
+It also sets up some common functions and constants for numerical and scientific computing.
+
+Flags:
+    import_general (bool): If True, imports general-purpose libraries.
+    import_networking (bool): If True, imports networking libraries.
+    import_matplotlib (bool): If True, imports matplotlib for plotting.
+    import_numpy (bool): If True, imports numpy for numerical computations.
+    import_scipy (bool): If True, imports scipy for scientific computations.
+    import_cupy (bool): If True, attempts to import cupy for GPU-accelerated numerical computations.
+    import_cupyx (bool): If True, attempts to import cupyx for GPU-accelerated scientific computations.
+    import_sklearn (bool): If True, imports scikit-learn for machine learning.
+    import_cv2 (bool): If True, imports OpenCV for computer vision.
+    import_torch (bool): If True, imports PyTorch for deep learning.
+    import_pynq (bool): If True, imports PYNQ libraries for FPGA development.
+    import_sivers (bool): If True, imports pyftdi for FTDI communication.
+    import_adafruit (bool): If True, imports Adafruit libraries for hardware control.
+
+Attributes:
+    be_np (module): Backend module for numerical computations (numpy or cupy).
+    be_scp (module): Backend module for scientific computations (scipy or cupyx.scipy).
+    be_scp_sig (module): Backend module for signal processing (scipy.signal or cupyx.scipy.signal).
+"""
+
 import_general=True
 import_networking=True
 import_matplotlib=True
