@@ -77,14 +77,15 @@ def rfsoc_run(params):
             client_controller = Tcp_Comm_Controller(params)
             client_controller.init_tcp_client()
             client_controller.set_frequency(params.fc)
-            signals_inst.animate_plot(client_rfsoc, client_lintrack, client_piradio, txtd_base, plot_mode=params.animate_plot_mode, plot_level=0)
         elif 'slave' in params.mode:
             controller = Tcp_Comm_Controller(params)
             controller.init_tcp_server()
             controller.obj_piradio = client_piradio
             controller.obj_rfsoc = client_rfsoc
             controller.run_tcp_server(controller.parse_and_execute)
-
+            
+        if not 'slave' in params.mode:
+            signals_inst.animate_plot(client_rfsoc, client_lintrack, client_piradio, txtd_base, plot_mode=params.animate_plot_mode, plot_level=0)
 
 
 if __name__ == '__main__':

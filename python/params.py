@@ -65,7 +65,7 @@ class Params_Class(object):
             self.board='rfsoc_4x2'
             self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-58_20241001-150336.bit')       # Without DAC MTS
             # self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-62_20241019-173825.bit')         # With DAC MTS
-            self.mode='server'
+            self.mode='client'
             self.run_tcp_server=True
             self.send_signal=True
             self.recv_signal=True
