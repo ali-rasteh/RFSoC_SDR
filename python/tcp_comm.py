@@ -20,6 +20,11 @@ class Tcp_Comm(General):
 
         self.nbytes = 2
 
+        self.invalidCommandMessage = "ERROR: Invalid command"
+        self.invalidNumberOfArgumentsMessage = "ERROR: Invalid number of arguments"
+        self.successMessage = "Successully executed"
+        self.droppedMessage = "Connection dropped?"
+
         self.print("Tcp_Comm object init done", thr=5)
 
     def close(self):
@@ -109,6 +114,8 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
         params.server_ip = params.rfsoc_server_ip
         super().__init__(params)
 
+        self.obj_rfsoc = None
+
         self.fc = params.fc
         self.beam_test = params.beam_test
         self.adc_bits = params.adc_bits
@@ -164,8 +171,22 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
         self.print("Result of set_rx_gain: {}".format(data),thr=1)
         return data
 
-    def transmit_data(self):
+    def transmit_data_default(self):
+        self.radio_control.sendall(b"transmitSamplesDefault")
+        data = self.radio_control.recv(1024)
+        self.print("Result of transmit_data_default: {}".format(data),thr=1)
+        return data
+    
+    def transmit_data(self, txtd):
+        txtd = txtd.copy()
+        txtd = np.array(txtd).flatten()
+        txtd = txtd * (2 ** (self.dac_bits + 1) - 1)
+        re = txtd.real.astype(np.int16)
+        im = txtd.imag.astype(np.int16)
+        txtd = np.concatenate((re, im))
+
         self.radio_control.sendall(b"transmitSamples")
+        self.radio_data.sendall(txtd.tobytes())
         data = self.radio_control.recv(1024)
         self.print("Result of transmit_data: {}".format(data),thr=1)
         return data
@@ -190,12 +211,184 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
         return rxtd
     
 
+    def parse_and_execute(self, receivedCMD):
+        clientMsg = receivedCMD.decode()
+        clientMsgParsed = clientMsg.split()
+
+        if clientMsgParsed[0] == "receiveSamplesOnce":
+            if len(clientMsgParsed) == 1:
+                iq_data = self.obj_rfsoc.recv_frame_one(n_frame=self.obj_rfsoc.n_frame_rd)
+                iq_data = np.array(iq_data).flatten()
+                iq_data = iq_data * (2 ** (self.obj_rfsoc.adc_bits + 1) - 1)
+                re = iq_data.real.astype(np.int16)
+                im = iq_data.imag.astype(np.int16)
+                iq_data = np.concatenate((re, im))
+                self.connectionData.sendall(iq_data.tobytes())
+                responseToCMD = "Success"
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage
+        elif clientMsgParsed[0] == "receiveSamples":
+            if len(clientMsgParsed) == 1:
+                iq_data = self.obj_rfsoc.recv_frame(n_frame=self.obj_rfsoc.n_frame_rd)
+                re = iq_data.real.astype(np.int16)
+                im = iq_data.imag.astype(np.int16)
+                iq_data = np.concatenate((re, im))
+                self.connectionData.sendall(iq_data.tobytes())
+                responseToCMD = "Success"
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage
+        elif clientMsgParsed[0] == "transmitSamplesDefault":
+            if len(clientMsgParsed) == 1:
+                self.obj_rfsoc.send_frame(txtd=self.obj_rfsoc.txtd)
+                responseToCMD = 'Success'
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage
+        elif clientMsgParsed[0] == "transmitSamples":
+            if len(clientMsgParsed) == 1:
+                nread = self.obj_rfsoc.n_tx_ant * self.obj_rfsoc.n_samples_tx
+                nbytes = self.nbytes * nread * 2
+                buf = bytearray()
+
+                while len(buf) < nbytes:
+                    data = self.connectionData.recv(nbytes)
+                    buf.extend(data)
+                data = np.frombuffer(buf, dtype=np.int16)
+                data = data/(2 ** (self.obj_rfsoc.dac_bits + 1) - 1)
+                txtd = data[:nread] + 1j*data[nread:]
+                txtd = txtd.reshape(self.obj_rfsoc.n_tx_ant, nread//self.obj_rfsoc.n_tx_ant)
+
+                self.obj_rfsoc.send_frame(txtd=txtd)
+                responseToCMD = 'Success'
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage
+        elif clientMsgParsed[0] == "getBeamIndexTX":
+            if len(clientMsgParsed) == 1:
+                responseToCMD = str(self.obj_rfsoc.siversControllerObj.getBeamIndexTX())
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage 
+        elif clientMsgParsed[0] == "setBeamIndexTX":
+            if len(clientMsgParsed) == 2:
+                beamIndex = int(clientMsgParsed[1])
+                success, status = self.obj_rfsoc.siversControllerObj.setBeamIndexTX(beamIndex)
+                if success == True:
+                    responseToCMD = self.successMessage 
+                else:
+                    responseToCMD = status 
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage  
+        elif clientMsgParsed[0] == "getBeamIndexRX":
+            if len(clientMsgParsed) == 1:
+                responseToCMD = str(self.obj_rfsoc.siversControllerObj.getBeamIndexRX())
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage 
+        elif clientMsgParsed[0] == "setBeamIndexRX":
+            if len(clientMsgParsed) == 2:
+                beamIndex = int(clientMsgParsed[1])
+                success, status = self.obj_rfsoc.siversControllerObj.setBeamIndexRX(beamIndex)
+                if success == True:
+                    responseToCMD = self.successMessage 
+                else:
+                    responseToCMD = status 
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage
+        elif clientMsgParsed[0] == "getModeSiver":
+            if len(clientMsgParsed) == 1:
+                responseToCMD = self.obj_rfsoc.siversControllerObj.getMode()
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage 
+        elif clientMsgParsed[0] == "setModeSiver":
+            if len(clientMsgParsed) == 2:
+                mode = clientMsgParsed[1]
+                success,status = self.obj_rfsoc.siversControllerObj.setMode(mode)
+                if success == True:
+                    responseToCMD = self.successMessage 
+                else:
+                    responseToCMD = status                  
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage    
+        elif clientMsgParsed[0] == "getGainRX":
+            if len(clientMsgParsed) == 1:
+                rx_gain_ctrl_bb1, rx_gain_ctrl_bb2, rx_gain_ctrl_bb3, rx_gain_ctrl_bfrf,agc_int_bfrf_gain_lvl, agc_int_bb3_gain_lvl = self.obj_rfsoc.siversControllerObj.getGainRX()
+                responseToCMD = 'rx_gain_ctrl_bb1:' + str(hex(rx_gain_ctrl_bb1)) + \
+                                ', rx_gain_ctrl_bb2:' +  str(hex(rx_gain_ctrl_bb2)) + \
+                                ', rx_gain_ctrl_bb3:' +   str(hex(rx_gain_ctrl_bb3)) + \
+                                ', rx_gain_ctrl_bfrf:' +   str(hex(rx_gain_ctrl_bfrf)) +\
+                                ', agc_int_bfrf_gain_lvl:' +   str(hex(agc_int_bfrf_gain_lvl)) +\
+                                ', agc_int_bb3_gain_lvl:' +   str(hex(agc_int_bb3_gain_lvl))
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage 
+        elif clientMsgParsed[0] == "setGainRX":
+            if len(clientMsgParsed) == 5:
+                rx_gain_ctrl_bb1 = int(clientMsgParsed[1])
+                rx_gain_ctrl_bb2 = int(clientMsgParsed[2])
+                rx_gain_ctrl_bb3 = int(clientMsgParsed[3])
+                rx_gain_ctrl_bfrf = int(clientMsgParsed[4])
+                
+                success,status = self.obj_rfsoc.siversControllerObj.setGainRX(rx_gain_ctrl_bb1, rx_gain_ctrl_bb2, rx_gain_ctrl_bb3, rx_gain_ctrl_bfrf)
+                if success == True:
+                    responseToCMD = self.successMessage 
+                else:
+                    responseToCMD = status                  
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage      
+        elif clientMsgParsed[0] == "getGainTX":
+            if len(clientMsgParsed) == 1:
+                tx_bb_gain, tx_bb_phase, tx_bb_iq_gain, tx_bfrf_gain, tx_ctrl = self.obj_rfsoc.siversControllerObj.getGainTX()
+                responseToCMD = 'tx_bb_gain:' + str(hex(tx_bb_gain)) + \
+                                ', tx_bb_phase:' +  str(hex(tx_bb_phase)) + \
+                                ', tx_bb_gain:' +   str(hex(tx_bb_iq_gain)) + \
+                                ', tx_bfrf_gain:' +   str(hex(tx_bfrf_gain)) + \
+                                ', tx_ctrl:' +   str(hex(tx_ctrl))
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage 
+        elif clientMsgParsed[0] == "setGainTX":
+            if len(clientMsgParsed) == 5:
+                self.print(clientMsgParsed[1], thr=2)
+                
+                tx_bb_gain = int(clientMsgParsed[1])
+                tx_bb_phase = int(clientMsgParsed[2])
+                tx_bb_iq_gain = int(clientMsgParsed[3])
+                tx_bfrf_gain = int(clientMsgParsed[4])
+                
+                success,status = self.obj_rfsoc.siversControllerObj.setGainTX(tx_bb_gain, tx_bb_phase, tx_bb_iq_gain, tx_bfrf_gain)
+                if success == True:
+                    responseToCMD = self.successMessage 
+                else:
+                    responseToCMD = status                  
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage   
+        elif clientMsgParsed[0] == "getCarrierFrequency":
+            if len(clientMsgParsed) == 1:
+                responseToCMD = str(self.obj_rfsoc.siversControllerObj.getFrequency())
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage 
+        elif clientMsgParsed[0] == "setCarrierFrequency":
+            if len(clientMsgParsed) == 2:
+                self.print(clientMsgParsed[1], thr=2)
+                fc = float(clientMsgParsed[1])
+                success, status = self.obj_rfsoc.siversControllerObj.setFrequency(fc)
+                if success == True:
+                    responseToCMD = self.successMessage 
+                else:
+                    responseToCMD = status 
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage
+                
+        #######################
+        else:
+            responseToCMD = self.invalidCommandMessage
+        
+        responseToCMDInBytes = str.encode(responseToCMD + " (" + clientMsg + ")" )  
+        return responseToCMDInBytes
+    
+
 
 class Tcp_Comm_LinTrack(Tcp_Comm):
     def __init__(self, params):
         params = params.copy()
         params.server_ip = params.lintrack_server_ip
         super().__init__(params)
+        self.obj_lintrack = None
 
         self.print("Tcp_Comm_LinTrack object init done", thr=1)
 
@@ -219,8 +412,88 @@ class Tcp_Comm_LinTrack(Tcp_Comm):
         data = self.radio_control.recv(1024)
         self.print("Result of Go2end: {}".format(data), thr=1)
         return data
-
     
+
+    def parse_and_execute(self, receivedCMD):
+        clientMsg = receivedCMD.decode()
+        clientMsgParsed = clientMsg.split()
+
+        if clientMsgParsed[0] == "Move":
+            if len(clientMsgParsed) == 3:
+                self.print('{}, {}'.format(clientMsgParsed[1], clientMsgParsed[2]), thr=5)
+                motor_id = int(clientMsgParsed[1])
+                distance = float(clientMsgParsed[2])
+                success, status = self.obj_lintrack.displace(motor_id=motor_id, dis=distance)
+                if success == True:
+                    responseToCMD = self.successMessage 
+                else:
+                    responseToCMD = status 
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage
+
+        elif clientMsgParsed[0] == "Return2home":
+            if len(clientMsgParsed) == 2:
+                motor_id = int(clientMsgParsed[1])
+                success, status = self.obj_lintrack.return2home(motor_id=motor_id)
+                if success == True:
+                    responseToCMD = self.successMessage 
+                else:
+                    responseToCMD = status 
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage
+
+        elif clientMsgParsed[0] == "Go2end":
+            if len(clientMsgParsed) == 2:
+                motor_id = int(clientMsgParsed[1])
+                success, status = self.obj_lintrack.go2end(motor_id=motor_id)
+                if success == True:
+                    responseToCMD = self.successMessage 
+                else:
+                    responseToCMD = status 
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage
+
+        else:
+            responseToCMD = self.invalidCommandMessage
+        
+        responseToCMDInBytes = str.encode(responseToCMD + " (" + clientMsg + ")" )  
+        return responseToCMDInBytes
+
+
+class Tcp_Comm_Controller(Tcp_Comm):
+    def __init__(self, params):
+        params = params.copy()
+        params.server_ip = params.controller_slave_ip
+        super().__init__(params)
+
+        self.obj_rfsoc = None
+        self.obj_piradio = None
+
+        self.print("Tcp_Comm_Controller object init done", thr=1)
+
+    def set_frequency(self, fc=6.0e9):
+        self.print("Setting frequency to {} GHz".format(fc/1e9), thr=2)
+        self.radio_control.sendall(b"setFrequency "+str.encode(str(fc)))
+        data = self.radio_control.recv(1024)
+        self.print("Result of set_frequency: {}".format(data), thr=1)
+        return data
+    
+    def parse_and_execute(self, receivedCMD):
+        clientMsg = receivedCMD.decode()
+        clientMsgParsed = clientMsg.split()
+
+        if clientMsgParsed[0] == "setFrequency":
+            if len(clientMsgParsed) == 2:
+                responseToCMD = self.obj_piradio.set_frequency(float(clientMsgParsed[1]))
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage
+        else:
+            responseToCMD = self.invalidCommandMessage
+        
+        responseToCMDInBytes = str.encode(responseToCMD + " (" + clientMsg + ")" )  
+        return responseToCMDInBytes
+
+
 
 class ssh_Com(General):
     def __init__(self, params):

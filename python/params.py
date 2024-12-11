@@ -98,6 +98,7 @@ class Params_Class(object):
             self.ant_dy_m = 0.02
 
             # Connections parameters
+            self.control_rfsoc=False
             self.control_piradio=False
             self.tcp_localIP = "0.0.0.0"
             self.tcp_bufferSize=2**10
@@ -115,6 +116,7 @@ class Params_Class(object):
             self.host_ip = '192.168.3.100'
             self.host_username = 'wirelesslab914'
             self.host_password = ''
+            self.controller_slave_ip = '192.168.1.1'
             
             # Signals information
             self.freq_hop_list = [10.0e9]
@@ -192,7 +194,10 @@ class Params_Class(object):
             # FR3 measurements parameters (overwritten)
             # self.nf_param_estimate = True
             # self.use_linear_track = True
+            self.mode = 'client_master'
+            self.control_rfsoc=True
             self.control_piradio=True
+            self.controller_slave_ip = '192.168.1.1'
             self.ant_dx_m = 0.02               # Antenna spacing in meters
             self.n_rx_ch_eq=1
             self.wb_sc_range=[-250,250]
@@ -205,9 +210,8 @@ class Params_Class(object):
             self.plt_rx_ant_id = 0
             self.animate_plot_mode=['h01', 'rxfd']
             self.anim_interval=200
-            self.freq_hop_list = [10.0e9]
             self.save_list = ['', '']           # signal or channel
-            self.n_save = 500
+            self.n_save = 100
             self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
             self.sig_gen_mode = 'ZadoffChu'
 
@@ -249,16 +253,23 @@ class Params_Class(object):
             if self.overwrite_level:
                 self.plot_level=4
                 self.verbose_level=4
-                self.nf_param_estimate=False
-                self.use_linear_track=False
-                self.control_piradio=False
+
+            self.nf_param_estimate=False
+            self.control_rfsoc=False
+            self.control_piradio=False
+            self.use_linear_track=False
         else:
-            self.mode = 'client'
             if self.overwrite_level:
                 self.plot_level=0
                 self.verbose_level=1
-            # if self.nf_param_estimate:
-            #     self.use_linear_track=True
+
+            if self.mode == 'client':
+                pass
+            elif self.mode == 'client_master':
+                pass
+            elif self.mode == 'client_slave':
+                self.control_rfsoc=False
+                self.use_linear_track=False
 
         if self.mixer_mode=='digital' and self.mix_freq!=0:
             self.mix_freq_dac = 0

@@ -85,57 +85,8 @@ class LinearTrack(General):
 
     def run_tcp(self):
         self.print("Running TCP server", thr=1)
-        self.tcp_comm.run_tcp_server(self.parse_and_execute)
-
-
-    def parse_and_execute(self, receivedCMD):
-        clientMsg = receivedCMD.decode()
-        invalidCommandMessage = "ERROR: Invalid command"
-        invalidNumberOfArgumentsMessage = "ERROR: Invalid number of arguments"
-        successMessage = "Successully executed"
-        droppedMessage = "Connection dropped?"
-        clientMsgParsed = clientMsg.split()
-
-        if clientMsgParsed[0] == "Move":
-            if len(clientMsgParsed) == 3:
-                self.print('{}, {}'.format(clientMsgParsed[1], clientMsgParsed[2]), thr=5)
-                motor_id = int(clientMsgParsed[1])
-                distance = float(clientMsgParsed[2])
-                success, status = self.displace(motor_id=motor_id, dis=distance)
-                if success == True:
-                    responseToCMD = successMessage 
-                else:
-                    responseToCMD = status 
-            else:
-                responseToCMD = invalidNumberOfArgumentsMessage
-
-        elif clientMsgParsed[0] == "Return2home":
-            if len(clientMsgParsed) == 2:
-                motor_id = int(clientMsgParsed[1])
-                success, status = self.return2home(motor_id=motor_id)
-                if success == True:
-                    responseToCMD = successMessage 
-                else:
-                    responseToCMD = status 
-            else:
-                responseToCMD = invalidNumberOfArgumentsMessage
-
-        elif clientMsgParsed[0] == "Go2end":
-            if len(clientMsgParsed) == 2:
-                motor_id = int(clientMsgParsed[1])
-                success, status = self.go2end(motor_id=motor_id)
-                if success == True:
-                    responseToCMD = successMessage 
-                else:
-                    responseToCMD = status 
-            else:
-                responseToCMD = invalidNumberOfArgumentsMessage
-
-        else:
-            responseToCMD = invalidCommandMessage
-        
-        responseToCMDInBytes = str.encode(responseToCMD + " (" + clientMsg + ")" )  
-        return responseToCMDInBytes
+        self.tcp_comm.obj_lintrack = self
+        self.tcp_comm.run_tcp_server(self.tcp_comm.parse_and_execute)
 
 
     def calibrate(self, motor_id=0, mode='start'):

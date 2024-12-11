@@ -6,7 +6,7 @@ except:
     pass
 from params import Params_Class
 from signal_utilsrfsoc import Signal_Utils_Rfsoc
-from tcp_comm import Tcp_Comm_RFSoC, Tcp_Comm_LinTrack, ssh_Com_Piradio, REST_Com_Piradio
+from tcp_comm import Tcp_Comm_RFSoC, Tcp_Comm_LinTrack, ssh_Com_Piradio, REST_Com_Piradio, Tcp_Comm_Controller
 
 
 
@@ -15,6 +15,7 @@ def rfsoc_run(params):
     client_rfsoc = None
     client_lintrack = None
     client_piradio = None
+    client_controller = None
 
     signals_inst = Signal_Utils_Rfsoc(params)
     signals_inst.print("Running the code in mode {}".format(params.mode), thr=1)
@@ -45,14 +46,15 @@ def rfsoc_run(params):
             rfsoc_inst.run_tcp()
 
 
-    elif params.mode=='client':
+    elif 'client' in params.mode:
         params.show_saved_sigs=len(params.saved_sig_plot)>0
         if not params.show_saved_sigs:
             client_rfsoc=Tcp_Comm_RFSoC(params)
             client_rfsoc.init_tcp_client()
 
             if params.send_signal:
-                # client_rfsoc.transmit_data()
+                # client_rfsoc.transmit_data_default()
+                client_rfsoc.transmit_data(txtd)
                 pass
 
             if params.RFFE=='sivers':
@@ -71,7 +73,17 @@ def rfsoc_run(params):
             if 'channel' in params.save_list or 'signal' in params.save_list:
                 signals_inst.save_signal_channel(client_rfsoc, txtd_base, save_list=params.save_list)
         
-        signals_inst.animate_plot(client_rfsoc, client_lintrack, client_piradio, txtd_base, plot_mode=params.animate_plot_mode, plot_level=0)
+        if 'master' in params.mode:
+            client_controller = Tcp_Comm_Controller(params)
+            client_controller.init_tcp_client()
+            client_controller.set_frequency(params.fc)
+            signals_inst.animate_plot(client_rfsoc, client_lintrack, client_piradio, txtd_base, plot_mode=params.animate_plot_mode, plot_level=0)
+        elif 'slave' in params.mode:
+            controller = Tcp_Comm_Controller(params)
+            controller.init_tcp_server()
+            controller.obj_piradio = client_piradio
+            controller.obj_rfsoc = client_rfsoc
+            controller.run_tcp_server(controller.parse_and_execute)
 
 
 
