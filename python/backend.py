@@ -129,14 +129,21 @@ if import_sklearn:
     from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 if import_cv2:
-    import cv2
+    try:
+        import cv2
+    except ImportError:
+        pass
 
 if import_torch:
-    import torch
-    from torch import nn, optim
-    import torch.nn.functional as F
-    from torch.utils.data import Dataset, DataLoader, random_split
-    import torchvision.transforms as transforms
+    try:
+        import torch
+        from torch import nn, optim
+        import torch.nn.functional as F
+        from torch.utils.data import Dataset, DataLoader, random_split
+        import torchvision.transforms as transforms
+    except ImportError:
+        pass
+
 
 if import_pynq:
     from pynq import Overlay, allocate, MMIO, Clocks, interrupt, GPIO

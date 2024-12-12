@@ -472,10 +472,12 @@ class Tcp_Comm_Controller(Tcp_Comm):
         self.print("Tcp_Comm_Controller object init done", thr=1)
 
     def set_frequency(self, fc=6.0e9):
+        print("Sending command to set frequency to {} GHz".format(fc/1e9))
         self.print("Setting frequency to {} GHz".format(fc/1e9), thr=3)
         self.radio_control.sendall(b"setFrequency "+str.encode(str(fc)))
         data = self.radio_control.recv(1024)
         self.print("Result of set_frequency: {}".format(data), thr=3)
+        print(data)
         return data
     
     def parse_and_execute(self, receivedCMD):
@@ -570,6 +572,8 @@ class ssh_Com_Piradio(ssh_Com):
         params.password = params.piradio_password
         super().__init__(params)
 
+        self.freq_sw_dly = getattr(params, 'piradio_freq_sw_dly', 1.0)
+
         self.print("ssh_Com_Piradio object init done", thr=1)
 
 
@@ -589,7 +593,7 @@ class ssh_Com_Piradio(ssh_Com):
         command = f"ls"
         result = self.exec_command(command, verif_keyword=verif_keyword)
         if result:
-            time.sleep(0.1)
+            time.sleep(self.freq_sw_dly)
             self.print(f"Frequency set to {fc/1e9} GHz", thr=3)
         else:
             self.print(f"Failed to set frequency to {fc/1e9} GHz", thr=0)
@@ -634,6 +638,7 @@ class REST_Com(General):
         self.host = getattr(params, 'host', '0.0.0.0')
         self.port = getattr(params, 'port', 5000)
         self.protocol = getattr(params, 'protocol', 'http')
+        self.timeout = getattr(params, 'timeout', 3)
 
         self.print("REST_Com object init done", thr=1)
 
@@ -655,7 +660,7 @@ class REST_Com(General):
         url = f"{self.protocol}://{self.host}:{self.port}/{command}"
 
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=self.timeout)
             response.raise_for_status()  # Raise an HTTPError for bad responses
             self.print("Successfully called the REST API:{}".format(response.json()), thr=3)
             response =  response.json()
@@ -686,6 +691,8 @@ class REST_Com_Piradio(REST_Com):
         params.protocol = getattr(params, 'piradio_rest_protocol', 'http')
         super().__init__(params)
 
+        self.freq_sw_dly = getattr(params, 'piradio_freq_sw_dly', 1.0)
+
         self.print("REST_Com_Piradio object init done", thr=1)
 
 
@@ -694,6 +701,7 @@ class REST_Com_Piradio(REST_Com):
 
 
     def set_frequency(self, fc=6.0e9, verif_keyword=''):
+        print(f"Setting frequency to {fc/1e9} GHz")
         command = f'high_lo?freq={fc}'
         result, response = self.call_rest_api(command, verif_keyword=verif_keyword)
         if response == '':
@@ -701,7 +709,12 @@ class REST_Com_Piradio(REST_Com):
         else:
             result = (float(response) == fc)
         if result:
-            time.sleep(0.1)
+            time.sleep(self.freq_sw_dly)
             self.print(f"Frequency set to {fc/1e9} GHz", thr=3)
         else:
             self.print(f"Failed to set frequency to {fc/1e9} GHz", thr=0)
+        print(response)
+
+
+
+

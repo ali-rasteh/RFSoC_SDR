@@ -15,6 +15,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         self.fc = params.fc
         self.f_max = params.f_max
+        self.mode = params.mode
         self.rx_chain = params.rx_chain
         self.sig_mode = params.sig_mode
         self.sig_gain_db = params.sig_gain_db
@@ -29,10 +30,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.sig_modulation = params.sig_modulation
         self.sig_gen_mode = params.sig_gen_mode
         self.tx_sig_sim = params.tx_sig_sim
+        self.sig_dir = params.sig_dir
         self.sig_path = params.sig_path
         self.sig_save_path = params.sig_save_path
+        self.sig_save_postfix = params.sig_save_postfix
         self.calib_params_path = params.calib_params_path
+        self.channel_dir = params.channel_dir
         self.channel_save_path = params.channel_save_path
+        self.ch_save_postfix = params.ch_save_postfix
         self.sys_response_path = params.sys_response_path
         self.n_save = params.n_save
         self.mixer_mode = params.mixer_mode
@@ -74,6 +79,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
         self.rx_phase_offset = 0
+        self.fc_id = 0
         self.nf_loc_idx = 0
         self.nf_sep_idx = 0
         self.rx_phase_list = []
@@ -152,7 +158,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         print("Dot product of transmitted signals: ", np.abs(np.vdot(txtd_base[1], txtd_base[0])))
         # print("Correlation of transmitted signals: ", np.max(np.abs(np.correlate(txtd_base[0], txtd_base[1], mode='full'))))
-        self.plot_signal(sigs = np.abs(np.correlate(txtd_base[1,:], txtd_base[0,:], mode='full')))
+        # self.plot_signal(sigs = np.abs(np.correlate(txtd_base[1,:], txtd_base[0,:], mode='full')))
 
         return (txtd_base, txtd)
 
@@ -274,7 +280,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             self.print("Calibrated and saved phase offset between RX ports: {:0.3f} Rad".format(self.rx_phase_offset), thr=1)
 
 
-    def save_signal_channel(self, client_rfsoc, txtd_base, save_list=[]):
+    def save_signal_channel(self, client_rfsoc, client_piradio, client_controller, txtd_base, save_list=[]):
         rx_chain_main = self.rx_chain.copy()
         if 'sys_res_deconv' in self.rx_chain:
             self.rx_chain.remove('sys_res_deconv')
@@ -282,39 +288,49 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             self.rx_chain.remove('sparse_est')
         n_rd_rep = 1
 
-        # test = np.load(self.sig_save_path)
-        txtd_save=[]
-        rxtd_save=[]
-        h_est_full_save=[]
-        H_est_save=[]
-        H_est_max_save=[]
-        for i in range(self.n_save):
-            time.sleep(0.01)
-            print("Save Iteration: ", i+1)
-            rxtd = self.receive_data(client_rfsoc, n_rd_rep=n_rd_rep, mode='once')
-            # to handle the dimenstion needed for read repeat
-            (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd)
-            txtd_save.append(txtd_base)
-            rxtd_save.append(rxtd_base)
-            h_est_full_save.append(h_est_full)
-            H_est_save.append(H_est)
-            H_est_max_save.append(H_est_max)
 
-        txtd_save = np.array(txtd_save)
-        rxtd_save = np.array(rxtd_save)
-        h_est_full_save = np.array(h_est_full_save)
-        H_est_save = np.array(H_est_save)
-        H_est_max_save = np.array(H_est_max_save)
+        for freq_id in range(len(self.freq_hop_list)):
+            self.hop_freq(client_piradio, client_controller, fc_id=freq_id)
 
-        # h_est_full_avg = np.mean(h_est_full_save, axis=0)
-        rxtd_avg = np.mean(rxtd_save, axis=0)
-        self.rx_chain = ['channel_est']
-        (rxtd_avg, h_est_full_avg, H_est_avg, H_est_max_avg, sparse_est_params) = self.rx_operations(txtd_base, rxtd_avg)
+            # test = np.load(self.sig_save_path)
+            txtd_save=[]
+            rxtd_save=[]
+            h_est_full_save=[]
+            H_est_save=[]
+            H_est_max_save=[]
+            for i in range(self.n_save):
+                time.sleep(0.01)
+                print("Save Iteration: ", i+1)
+                rxtd = self.receive_data(client_rfsoc, n_rd_rep=n_rd_rep, mode='once')
+                # to handle the dimenstion needed for read repeat
+                (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd)
+                txtd_save.append(txtd_base)
+                rxtd_save.append(rxtd_base)
+                h_est_full_save.append(h_est_full)
+                H_est_save.append(H_est)
+                H_est_max_save.append(H_est_max)
 
-        if 'signal' in save_list:
-            np.savez(self.sig_save_path, txtd=txtd_save, rxtd=rxtd_save)
-        if 'channel' in save_list:
-            np.savez(self.channel_save_path, h_est_full=h_est_full_save, h_est_full_avg=h_est_full_avg, H_est=H_est_save, H_est_max=H_est_max_save)
+            txtd_save = np.array(txtd_save)
+            rxtd_save = np.array(rxtd_save)
+            h_est_full_save = np.array(h_est_full_save)
+            H_est_save = np.array(H_est_save)
+            H_est_max_save = np.array(H_est_max_save)
+
+            # h_est_full_avg = np.mean(h_est_full_save, axis=0)
+            rxtd_avg = np.mean(rxtd_save, axis=0)
+            self.rx_chain = ['channel_est']
+            (rxtd_avg, h_est_full_avg, H_est_avg, H_est_max_avg, sparse_est_params) = self.rx_operations(txtd_base, rxtd_avg)
+
+            if 'signal' in save_list:
+                save_name = f'{self.freq_hop_list[freq_id]/1e9}' + self.sig_save_postfix + '.npz'
+                sig_save_path=os.path.join(self.sig_dir, save_name)
+                np.savez(sig_save_path, txtd=txtd_save, rxtd=rxtd_save)
+            if 'channel' in save_list:
+                save_name = f'{self.freq_hop_list[freq_id]/1e9}' + self.ch_save_postfix + '.npz'
+                channel_save_path=os.path.join(self.channel_dir, save_name)
+                np.savez(channel_save_path, h_est_full=h_est_full_save, h_est_full_avg=h_est_full_avg, H_est=H_est_save, H_est_max=H_est_max_save)
+
+
 
         self.rx_chain = rx_chain_main.copy()
     
@@ -329,13 +345,29 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         return rxtd
 
 
-    def animate_plot(self, client_rfsoc, client_lintrack, client_piradio, txtd_base, plot_mode=['h', 'rxtd', 'rxfd'], plot_level=0):
+    def hop_freq(self, client_piradio, client_controller, fc_id=None):
+        if self.control_piradio:
+            if fc_id is not None:
+                self.fc_id = fc_id
+            else:
+                self.fc_id = (self.fc_id + 1) % len(self.freq_hop_list)
+            fc = self.freq_hop_list[int(self.fc_id)]
+            if self.fc != fc:
+                client_piradio.set_frequency(fc=self.fc)
+                if 'master' in self.mode:
+                    client_controller.set_frequency(fc=self.fc)
+                self.fc = fc
+                self.wl = self.c / self.fc
+        else:
+            self.fc_id = 0
+
+
+    def animate_plot(self, client_rfsoc, client_lintrack, client_piradio, client_controller, txtd_base, plot_mode=['h', 'rxtd', 'rxfd'], plot_level=0):
         if self.plot_level<plot_level:
             return
         self.anim_paused = False
         self.mag_filter_list = ['rxfd01', 'txfd', 'rxfd', 'H', 'h01', 'h']
         self.untoched_plot_list = ['aoa_gauge', 'nf_loc', 'IQ']
-        self.fc_id = 0
         self.read_id = -1
         n_plots_row = len(plot_mode)
         n_plots_col = len(self.freq_hop_list)
@@ -495,14 +527,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             sigs, h_est_full, sparse_est_params = receive_data_anim(txtd_base)
 
 
-            if self.control_piradio:
-                fc = self.freq_hop_list[int(self.fc_id)]
-                if self.fc != fc:
-                    self.fc = fc
-                    client_piradio.set_frequency(fc=self.fc)
-                self.fc_id = (self.fc_id + 1) % len(self.freq_hop_list)
-            else:
-                self.fc_id = 0
+            self.hop_freq(client_piradio, client_controller)
+
 
             if self.nf_param_estimate:
                 # h_index = plot_mode.index('h')

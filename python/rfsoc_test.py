@@ -47,6 +47,19 @@ def rfsoc_run(params):
 
 
     elif 'client' in params.mode:
+
+        if 'master' in params.mode:
+            client_controller = Tcp_Comm_Controller(params)
+            client_controller.init_tcp_client()
+            client_controller.set_frequency(params.fc)
+        elif 'slave' in params.mode:
+            controller = Tcp_Comm_Controller(params)
+            controller.init_tcp_server()
+            controller.obj_piradio = client_piradio
+            controller.obj_rfsoc = client_rfsoc
+            controller.run_tcp_server(controller.parse_and_execute)
+
+
         params.show_saved_sigs=len(params.saved_sig_plot)>0
         if params.control_rfsoc and not params.show_saved_sigs:
             client_rfsoc=Tcp_Comm_RFSoC(params)
@@ -71,21 +84,12 @@ def rfsoc_run(params):
                 signals_inst.create_near_field_model()
 
             if 'channel' in params.save_list or 'signal' in params.save_list:
-                signals_inst.save_signal_channel(client_rfsoc, txtd_base, save_list=params.save_list)
+                signals_inst.save_signal_channel(client_rfsoc, client_piradio, client_controller, txtd_base, save_list=params.save_list)
         
-        if 'master' in params.mode:
-            client_controller = Tcp_Comm_Controller(params)
-            client_controller.init_tcp_client()
-            client_controller.set_frequency(params.fc)
-        elif 'slave' in params.mode:
-            controller = Tcp_Comm_Controller(params)
-            controller.init_tcp_server()
-            controller.obj_piradio = client_piradio
-            controller.obj_rfsoc = client_rfsoc
-            controller.run_tcp_server(controller.parse_and_execute)
+        
 
         if not 'slave' in params.mode:
-            signals_inst.animate_plot(client_rfsoc, client_lintrack, client_piradio, txtd_base, plot_mode=params.animate_plot_mode, plot_level=0)
+            signals_inst.animate_plot(client_rfsoc, client_lintrack, client_piradio, client_controller, txtd_base, plot_mode=params.animate_plot_mode, plot_level=0)
 
 
 if __name__ == '__main__':

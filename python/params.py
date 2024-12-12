@@ -117,6 +117,7 @@ class Params_Class(object):
             self.host_username = 'wirelesslab914'
             self.host_password = ''
             self.controller_slave_ip = '192.168.1.1'
+            self.piradio_freq_sw_dly = 1.0
             
             # Signals information
             self.freq_hop_list = [10.0e9]
@@ -152,13 +153,15 @@ class Params_Class(object):
 
             # Save parameters
             self.calib_params_dir=os.path.join(os.getcwd(), 'calib/')
-            self.calib_params_path=os.path.join(os.getcwd(), 'calib/calib_params.npz')
+            self.calib_params_path=os.path.join(self.calib_params_dir, 'calib_params.npz')
             self.sig_dir=os.path.join(os.getcwd(), 'sigs/')
-            self.sig_path=os.path.join(os.getcwd(), 'sigs/txtd.npz')
-            self.sig_save_path=os.path.join(os.getcwd(), 'sigs/trx.npz')
+            self.sig_path=os.path.join(self.sig_dir, 'txtd.npz')
+            self.sig_save_path=os.path.join(self.sig_dir, 'trx.npz')
+            self.sig_save_postfix = ''
             self.channel_dir=os.path.join(os.getcwd(), 'channels/')
-            self.channel_save_path=os.path.join(os.getcwd(), 'channels/channel.npz')
-            self.sys_response_path=os.path.join(os.getcwd(), 'channels/sys_response.npz')
+            self.channel_save_path=os.path.join(self.channel_dir, 'channel.npz')
+            self.sys_response_path=os.path.join(self.channel_dir, 'sys_response.npz')
+            self.ch_save_postfix = ''
             self.figs_dir=os.path.join(os.getcwd(), 'figs/')
             self.figs_save_path=os.path.join(self.figs_dir, 'plot.pdf')
             self.n_save = 100
@@ -194,9 +197,11 @@ class Params_Class(object):
             # FR3 measurements parameters (overwritten)
             # self.nf_param_estimate = True
             # self.use_linear_track = True
+            # self.control_rfsoc=True
+            # self.control_piradio=True
+            self.freq_hop_list = [6.5e9, 8.75e9, 10.0e9]
             self.mode = 'client_master'
-            self.control_rfsoc=True
-            self.control_piradio=True
+            self.piradio_freq_sw_dly = 10.0
             self.controller_slave_ip = '10.18.134.22'
             self.ant_dx_m = 0.02               # Antenna spacing in meters
             self.n_rx_ch_eq=1
@@ -215,13 +220,8 @@ class Params_Class(object):
             self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
             self.sig_gen_mode = 'ZadoffChu'
 
-            # self.freq_hop_list = [6.5e9]
-            # self.freq_hop_list = [8.75e9]
-            self.freq_hop_list = [10.0e9]
-            save_name = f'{self.freq_hop_list[0]/1e9}_B_gamma_gamma_n'
-            
-            self.sig_save_path=os.path.join(os.getcwd(), 'sigs/' + save_name + '.npz')
-            self.channel_save_path=os.path.join(os.getcwd(), 'channels/' + save_name + '.npz')
+            self.sig_save_postfix = '_B_gamma_gamma_n'
+            self.ch_save_postfix = self.sig_save_postfix
 
 
             # Chain or operations to perform (overwritten)
