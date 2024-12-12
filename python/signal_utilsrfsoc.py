@@ -290,6 +290,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
         for freq_id in range(len(self.freq_hop_list)):
+            self.print("Saving signals for Freq: {} GHz".format(self.freq_hop_list[freq_id]/1e9), thr=0)
+
             self.hop_freq(client_piradio, client_controller, fc_id=freq_id)
 
             # test = np.load(self.sig_save_path)
@@ -300,7 +302,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             H_est_max_save=[]
             for i in range(self.n_save):
                 time.sleep(0.01)
-                print("Save Iteration: ", i+1)
+                self.print("Save Iteration: {}".format(i+1), thr=0)
                 rxtd = self.receive_data(client_rfsoc, n_rd_rep=n_rd_rep, mode='once')
                 # to handle the dimenstion needed for read repeat
                 (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd)
@@ -348,14 +350,15 @@ class Signal_Utils_Rfsoc(Signal_Utils):
     def hop_freq(self, client_piradio, client_controller, fc_id=None):
         if self.control_piradio:
             if fc_id is not None:
-                self.fc_id = fc_id
+                fc_id = fc_id
             else:
-                self.fc_id = (self.fc_id + 1) % len(self.freq_hop_list)
-            fc = self.freq_hop_list[int(self.fc_id)]
+                fc_id = (self.fc_id + 1) % len(self.freq_hop_list)
+            fc = self.freq_hop_list[int(fc_id)]
             if self.fc != fc:
-                client_piradio.set_frequency(fc=self.fc)
+                client_piradio.set_frequency(fc=fc)
                 if 'master' in self.mode:
-                    client_controller.set_frequency(fc=self.fc)
+                    client_controller.set_frequency(fc=fc)
+                self.fc_id = fc_id
                 self.fc = fc
                 self.wl = self.c / self.fc
         else:
@@ -600,7 +603,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
             line_id = 0
             for i in range(n_plots_row):
-                j = self.fc_id
+                j = self.fc_id - 1
                 if plot_mode[i]=='rxtd' or plot_mode[i]=='txtd':
                     line[line_id][j].set_ydata(sigs[i].real)
                     line_id+=1

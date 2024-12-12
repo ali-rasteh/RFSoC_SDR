@@ -472,12 +472,10 @@ class Tcp_Comm_Controller(Tcp_Comm):
         self.print("Tcp_Comm_Controller object init done", thr=1)
 
     def set_frequency(self, fc=6.0e9):
-        print("Sending command to set frequency to {} GHz".format(fc/1e9))
         self.print("Setting frequency to {} GHz".format(fc/1e9), thr=3)
         self.radio_control.sendall(b"setFrequency "+str.encode(str(fc)))
         data = self.radio_control.recv(1024)
         self.print("Result of set_frequency: {}".format(data), thr=3)
-        print(data)
         return data
     
     def parse_and_execute(self, receivedCMD):
@@ -486,7 +484,8 @@ class Tcp_Comm_Controller(Tcp_Comm):
 
         if clientMsgParsed[0] == "setFrequency":
             if len(clientMsgParsed) == 2:
-                responseToCMD = self.obj_piradio.set_frequency(float(clientMsgParsed[1]))
+                result, response = self.obj_piradio.set_frequency(float(clientMsgParsed[1]))
+                responseToCMD = self.successMessage
             else:
                 responseToCMD = self.invalidNumberOfArgumentsMessage
         else:
@@ -598,6 +597,8 @@ class ssh_Com_Piradio(ssh_Com):
         else:
             self.print(f"Failed to set frequency to {fc/1e9} GHz", thr=0)
 
+        return result
+
 
 
 
@@ -638,7 +639,7 @@ class REST_Com(General):
         self.host = getattr(params, 'host', '0.0.0.0')
         self.port = getattr(params, 'port', 5000)
         self.protocol = getattr(params, 'protocol', 'http')
-        self.timeout = getattr(params, 'timeout', 3)
+        self.timeout = getattr(params, 'timeout', 5)
 
         self.print("REST_Com object init done", thr=1)
 
@@ -701,7 +702,6 @@ class REST_Com_Piradio(REST_Com):
 
 
     def set_frequency(self, fc=6.0e9, verif_keyword=''):
-        print(f"Setting frequency to {fc/1e9} GHz")
         command = f'high_lo?freq={fc}'
         result, response = self.call_rest_api(command, verif_keyword=verif_keyword)
         if response == '':
@@ -713,7 +713,7 @@ class REST_Com_Piradio(REST_Com):
             self.print(f"Frequency set to {fc/1e9} GHz", thr=3)
         else:
             self.print(f"Failed to set frequency to {fc/1e9} GHz", thr=0)
-        print(response)
+        return result, response
 
 
 

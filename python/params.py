@@ -201,7 +201,7 @@ class Params_Class(object):
             # self.control_piradio=True
             self.freq_hop_list = [6.5e9, 8.75e9, 10.0e9]
             self.mode = 'client_master'
-            self.piradio_freq_sw_dly = 10.0
+            self.piradio_freq_sw_dly = 1.0
             self.controller_slave_ip = '10.18.134.22'
             self.ant_dx_m = 0.02               # Antenna spacing in meters
             self.n_rx_ch_eq=1
