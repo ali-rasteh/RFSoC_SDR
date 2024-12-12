@@ -250,26 +250,33 @@ class Params_Class(object):
         system_info = platform.uname()
         if "pynq" in system_info.node.lower():
             self.mode = 'server'
-            if self.overwrite_level:
+
+
+        if self.overwrite_level:
+            if self.mode == 'server':
                 self.plot_level=4
                 self.verbose_level=4
+            elif 'slave' in self.mode:
+                self.plot_level=0
+                self.verbose_level=4
+            else:
+                self.plot_level=0
+                self.verbose_level=1
 
+
+        if self.mode == 'server':
             self.nf_param_estimate=False
             self.control_rfsoc=False
             self.control_piradio=False
             self.use_linear_track=False
-        else:
-            if self.overwrite_level:
-                self.plot_level=0
-                self.verbose_level=1
+        elif self.mode == 'client':
+            pass
+        elif self.mode == 'client_master':
+            pass
+        elif self.mode == 'client_slave':
+            self.control_rfsoc=False
+            self.use_linear_track=False
 
-            if self.mode == 'client':
-                pass
-            elif self.mode == 'client_master':
-                pass
-            elif self.mode == 'client_slave':
-                self.control_rfsoc=False
-                self.use_linear_track=False
 
         if self.mixer_mode=='digital' and self.mix_freq!=0:
             self.mix_freq_dac = 0

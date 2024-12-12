@@ -144,13 +144,13 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
         if mode == 'RXen0_TXen1' or mode == 'RXen1_TXen0' or mode == 'RXen0_TXen0':
             self.radio_control.sendall(b"setModeSiver "+str.encode(str(mode)))
             data = self.radio_control.recv(1024)
-            self.print("Result of set_mode: {}".format(data),thr=1)
+            self.print("Result of set_mode: {}".format(data),thr=3)
             return data
         
     def set_frequency(self, fc):
         self.radio_control.sendall(b"setCarrierFrequency "+str.encode(str(fc)))
         data = self.radio_control.recv(1024)
-        self.print("Result of set_frequency: {}".format(data),thr=1)
+        self.print("Result of set_frequency: {}".format(data),thr=3)
         return data
 
     def set_tx_gain(self):
@@ -159,7 +159,7 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
                                                     + str.encode(str(int(self.tx_bb_iq_gain)) + " ") \
                                                     + str.encode(str(int(self.tx_bfrf_gain))))
         data = self.radio_control.recv(1024)
-        self.print("Result of set_tx_gain: {}".format(data),thr=1)
+        self.print("Result of set_tx_gain: {}".format(data),thr=3)
         return data
 
     def set_rx_gain(self):
@@ -168,13 +168,13 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
                                                     + str.encode(str(int(self.rx_gain_ctrl_bb3)) + " ") \
                                                     + str.encode(str(int(self.rx_gain_ctrl_bfrf))))
         data = self.radio_control.recv(1024)
-        self.print("Result of set_rx_gain: {}".format(data),thr=1)
+        self.print("Result of set_rx_gain: {}".format(data),thr=3)
         return data
 
     def transmit_data_default(self):
         self.radio_control.sendall(b"transmitSamplesDefault")
         data = self.radio_control.recv(1024)
-        self.print("Result of transmit_data_default: {}".format(data),thr=1)
+        self.print("Result of transmit_data_default: {}".format(data),thr=3)
         return data
     
     def transmit_data(self, txtd):
@@ -188,7 +188,7 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
         self.radio_control.sendall(b"transmitSamples")
         self.radio_data.sendall(txtd.tobytes())
         data = self.radio_control.recv(1024)
-        self.print("Result of transmit_data: {}".format(data),thr=1)
+        self.print("Result of transmit_data: {}".format(data),thr=3)
         return data
 
     def receive_data(self, mode='once'):
@@ -396,21 +396,21 @@ class Tcp_Comm_LinTrack(Tcp_Comm):
         self.print("Moving linear track {} by {} mm".format(lin_track_id, distance), thr=2)
         self.radio_control.sendall(b"Move "+str.encode(str(lin_track_id)+' ')+str.encode(str(distance)))
         data = self.radio_control.recv(1024)
-        self.print("Result of move_forward: {}".format(data), thr=1)
+        self.print("Result of move_forward: {}".format(data), thr=3)
         return data
     
     def return2home(self, lin_track_id=0):
         self.print("Returning linear track {} to home".format(lin_track_id), thr=2)
         self.radio_control.sendall(b"Return2home "+str.encode(str(lin_track_id)))
         data = self.radio_control.recv(1024)
-        self.print("Result of Return2home: {}".format(data), thr=1)
+        self.print("Result of Return2home: {}".format(data), thr=3)
         return data
     
     def go2end(self, lin_track_id=0):
         self.print("Going to the end of line on linear track {}".format(lin_track_id), thr=2)
         self.radio_control.sendall(b"Go2end "+str.encode(str(lin_track_id)))
         data = self.radio_control.recv(1024)
-        self.print("Result of Go2end: {}".format(data), thr=1)
+        self.print("Result of Go2end: {}".format(data), thr=3)
         return data
     
 
@@ -472,10 +472,10 @@ class Tcp_Comm_Controller(Tcp_Comm):
         self.print("Tcp_Comm_Controller object init done", thr=1)
 
     def set_frequency(self, fc=6.0e9):
-        self.print("Setting frequency to {} GHz".format(fc/1e9), thr=2)
+        self.print("Setting frequency to {} GHz".format(fc/1e9), thr=3)
         self.radio_control.sendall(b"setFrequency "+str.encode(str(fc)))
         data = self.radio_control.recv(1024)
-        self.print("Result of set_frequency: {}".format(data), thr=1)
+        self.print("Result of set_frequency: {}".format(data), thr=3)
         return data
     
     def parse_and_execute(self, receivedCMD):

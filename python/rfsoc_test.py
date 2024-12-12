@@ -54,7 +54,7 @@ def rfsoc_run(params):
 
             if params.send_signal:
                 # client_rfsoc.transmit_data_default()
-                client_rfsoc.transmit_data(txtd)
+                # client_rfsoc.transmit_data(txtd)
                 pass
 
             if params.RFFE=='sivers':
