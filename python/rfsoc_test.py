@@ -48,7 +48,7 @@ def rfsoc_run(params):
 
     elif 'client' in params.mode:
         params.show_saved_sigs=len(params.saved_sig_plot)>0
-        if not params.show_saved_sigs:
+        if params.control_rfsoc and not params.show_saved_sigs:
             client_rfsoc=Tcp_Comm_RFSoC(params)
             client_rfsoc.init_tcp_client()
 
@@ -83,7 +83,7 @@ def rfsoc_run(params):
             controller.obj_piradio = client_piradio
             controller.obj_rfsoc = client_rfsoc
             controller.run_tcp_server(controller.parse_and_execute)
-            
+
         if not 'slave' in params.mode:
             signals_inst.animate_plot(client_rfsoc, client_lintrack, client_piradio, txtd_base, plot_mode=params.animate_plot_mode, plot_level=0)
 

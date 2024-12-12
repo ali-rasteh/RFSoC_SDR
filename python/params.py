@@ -98,8 +98,8 @@ class Params_Class(object):
             self.ant_dy_m = 0.02
 
             # Connections parameters
-            self.control_rfsoc=False
-            self.control_piradio=False
+            self.control_rfsoc=True
+            self.control_piradio=True
             self.tcp_localIP = "0.0.0.0"
             self.tcp_bufferSize=2**10
             self.TCP_port_Cmd=8080
@@ -197,7 +197,7 @@ class Params_Class(object):
             self.mode = 'client_master'
             self.control_rfsoc=True
             self.control_piradio=True
-            self.controller_slave_ip = '192.168.1.1'
+            self.controller_slave_ip = '10.18.134.22'
             self.ant_dx_m = 0.02               # Antenna spacing in meters
             self.n_rx_ch_eq=1
             self.wb_sc_range=[-250,250]
