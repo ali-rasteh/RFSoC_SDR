@@ -28,7 +28,7 @@ def main(params):
     # Configuration
     target = 'rfsoc'        # 'rfsoc' or 'raspi'
 
-    host_base_addr = "~/ali/sounder_rfsoc/RFSoC_SDR/python/"
+    host_base_addr = "/home/wirelesslab914/ali/sounder_rfsoc/RFSoC_SDR/python/"
     # host_base_addr = "/Users/alira/OneDrive/Desktop/Current_works/Channel_sounding/RFSoC_SDR_copy/"
 
     local_dir = "./"
@@ -46,7 +46,7 @@ def main(params):
         # remote_files.extend(["../vivado/sounder_fr3_if_ddr4_mimo_4x2/builds/project_v1-0-58_20241001-150336.bit", 
         #                 "../vivado/sounder_fr3_if_ddr4_mimo_4x2/builds/project_v1-0-58_20241001-150336.hwh"])
     elif target == 'raspi':
-        remote_files = ["*.py", "linear_track/*.py", "linear_track/*.txt", "SigProc_Comm/*.py"]
+        remote_files = ["*.py", "*.txt", "SigProc_Comm/*.py", "linear_track/*.py", "linear_track/*.txt"]
     
     if target == 'rfsoc':
         params_to_modify = {"backend.py": {"import_pynq": True, "import_torch": False,
@@ -69,11 +69,14 @@ def main(params):
     # remote_files_ = [os.path.join(host_base_addr, file) for file in remote_files]
     remote_files_ = remote_files.copy()
 
-    for file in remote_files:
-        file = file.split('/')[-1]
-        local_file = os.path.join(local_dir, file)
-        if os.path.exists(local_file):
-            os.remove(local_file)
+
+
+    for pattern in remote_files:
+        local_files = glob.glob(os.path.join(local_dir, pattern))
+        # file = file.split('/')[-1]
+        for file in local_files:
+            if os.path.exists(file):
+                os.remove(file)
 
     for item in os.listdir(local_dir):
         item_path = os.path.join(local_dir, item)
@@ -93,10 +96,14 @@ def main(params):
     # scp_client.download_files(remote_files_, local_dir)
     scp_client.download_files_with_pattern(host_base_addr, remote_files_, local_dir)
 
+
+
     for file in params_to_modify:
+        local_script_path = os.path.join(local_dir, file)
         for param in params_to_modify[file]:
-            local_script_path = os.path.join(local_dir, file)
             scp_client.modify_text_file(local_script_path, param, params_to_modify[file][param])
+
+
 
     for file in files_to_convert:
         file_1 = os.path.join(local_dir, file)

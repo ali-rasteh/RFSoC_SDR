@@ -44,6 +44,7 @@ be_scp = None
 if import_general:
     import importlib
     import os
+    import glob
     import shutil
     import nbformat
     import copy
