@@ -199,7 +199,7 @@ class Params_Class(object):
             # self.use_linear_track = True
             # self.control_rfsoc=True
             # self.control_piradio=True
-            self.freq_hop_list = [6.5e9, 8.75e9, 10.0e9]
+            self.freq_hop_list = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
             self.mode = 'client_master'
             self.piradio_freq_sw_dly = 1.0
             self.controller_slave_ip = '10.18.134.22'
@@ -215,12 +215,25 @@ class Params_Class(object):
             self.plt_rx_ant_id = 0
             self.animate_plot_mode=['h01', 'rxfd']
             self.anim_interval=200
-            self.save_list = ['', '']           # signal or channel
+            self.save_list = ['signal', 'channel']           # signal or channel
             self.n_save = 100
             self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
             self.sig_gen_mode = 'ZadoffChu'
 
-            self.sig_save_postfix = '_B_gamma_gamma_n'
+
+            # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect-Blockage/NoBlockage
+            # Orientations: alpha: 0, beta: 45, gamma: -45
+            # Down
+            # self.sig_save_postfix = '_C_beta_beta_b'
+            # self.sig_save_postfix = '_C_beta_alpha_b'
+            # self.sig_save_postfix = '_C_beta_gamma_b'
+            # self.sig_save_postfix = '_C_alpha_gamma_b'
+            # self.sig_save_postfix = '_C_alpha_alpha_b'
+            # self.sig_save_postfix = '_C_alpha_beta_b'
+            # self.sig_save_postfix = '_C_gamma_beta_b'
+            # self.sig_save_postfix = '_C_gamma_alpha_b'
+            self.sig_save_postfix = '_C_gamma_gamma_b'
+
             self.ch_save_postfix = self.sig_save_postfix
 
 

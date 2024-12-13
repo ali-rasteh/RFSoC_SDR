@@ -301,7 +301,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             H_est_save=[]
             H_est_max_save=[]
             for i in range(self.n_save):
-                time.sleep(0.01)
+                # time.sleep(0.01)
                 self.print("Save Iteration: {}".format(i+1), thr=0)
                 rxtd = self.receive_data(client_rfsoc, n_rd_rep=n_rd_rep, mode='once')
                 # to handle the dimenstion needed for read repeat
