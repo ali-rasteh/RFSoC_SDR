@@ -625,6 +625,24 @@ class Scp_Com(ssh_Com):
             self.print("Files download failed!", thr=0)
 
 
+    def download_files_with_pattern(self, remote_base_dir, remote_patterns, local_base_dir):
+        try:
+            for pattern in remote_patterns:
+                remote_files = os.path.join(remote_base_dir, pattern)
+                remote_files = self.client.exec_command(f'ls {pattern}')[1].read().decode().split()
+                for remote_file in remote_files:
+                    relative_path = os.path.relpath(remote_file, remote_base_dir)
+                    local_path = os.path.join(local_base_dir, relative_path)
+                    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+                    try:
+                        self.scp_clinet.get(remote_file, local_path=local_path)
+                    except:
+                        self.print(f"Failed to download {remote_file}", thr=0)
+            self.print("Files downloaded successfully!", thr=3)
+        except:
+            self.print("Files download failed!", thr=0)
+
+
     def close(self):
         self.scp_clinet.close()
         self.client.close()

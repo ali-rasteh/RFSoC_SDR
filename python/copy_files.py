@@ -28,7 +28,7 @@ def main(params):
     # Configuration
     target = 'rfsoc'        # 'rfsoc' or 'raspi'
 
-    host_base_addr = "~/ali/sounder_rfsoc/RFSoC_SDR/"
+    host_base_addr = "~/ali/sounder_rfsoc/RFSoC_SDR/python/"
     # host_base_addr = "/Users/alira/OneDrive/Desktop/Current_works/Channel_sounding/RFSoC_SDR_copy/"
 
     local_dir = "./"
@@ -42,15 +42,11 @@ def main(params):
 
 
     if target == 'rfsoc':
-        remote_files = ["python/params.py", "python/rfsoc_test.py", "python/rfsoc.py", 
-                        "python/signal_utilsrfsoc.py", "python/signal_utils.py",
-                        "python/near_field.py", "python/general.py", "python/backend.py", 
-                        "python/tcp_comm.py", "python/requirements.txt"]
-        # remote_files.extend(["vivado/sounder_fr3_if_ddr4_mimo_4x2/builds/project_v1-0-58_20241001-150336.bit", 
-        #                 "vivado/sounder_fr3_if_ddr4_mimo_4x2/builds/project_v1-0-58_20241001-150336.hwh"])
+        remote_files = ["*.py", "*.txt", "SigProc_Comm/*.py"]
+        # remote_files.extend(["../vivado/sounder_fr3_if_ddr4_mimo_4x2/builds/project_v1-0-58_20241001-150336.bit", 
+        #                 "../vivado/sounder_fr3_if_ddr4_mimo_4x2/builds/project_v1-0-58_20241001-150336.hwh"])
     elif target == 'raspi':
-        remote_files = ["python/linear_track/lin_track_cntrl.py", "python/linear_track/position.txt", 
-                  "python/backend.py", "python/tcp_comm.py", "python/general.py"]
+        remote_files = ["*.py", "linear_track/*.py", "linear_track/*.txt", "SigProc_Comm/*.py"]
     
     if target == 'rfsoc':
         params_to_modify = {"backend.py": {"import_pynq": True, "import_torch": False,
@@ -70,7 +66,8 @@ def main(params):
     # Ensure the local directory exists
     os.makedirs(local_dir, exist_ok=True)
 
-    remote_files_ = [os.path.join(host_base_addr, file) for file in remote_files]
+    # remote_files_ = [os.path.join(host_base_addr, file) for file in remote_files]
+    remote_files_ = remote_files.copy()
 
     for file in remote_files:
         file = file.split('/')[-1]
@@ -93,7 +90,8 @@ def main(params):
         except Exception as e:
             print(f"Error deleting {item_path}: {e}")
 
-    scp_client.download_files(remote_files_, local_dir)
+    # scp_client.download_files(remote_files_, local_dir)
+    scp_client.download_files_with_pattern(host_base_addr, remote_files_, local_dir)
 
     for file in params_to_modify:
         for param in params_to_modify[file]:
