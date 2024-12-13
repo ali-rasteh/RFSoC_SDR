@@ -631,6 +631,7 @@ class Scp_Com(ssh_Com):
                 remote_files = os.path.join(remote_base_dir, pattern)
                 remote_files = self.client.exec_command(f'ls {pattern}')[1].read().decode().split()
                 for remote_file in remote_files:
+                    remote_file = os.path.join(remote_base_dir, remote_file) if not os.path.isabs(remote_file) else remote_file
                     relative_path = os.path.relpath(remote_file, remote_base_dir)
                     local_path = os.path.join(local_base_dir, relative_path)
                     os.makedirs(os.path.dirname(local_path), exist_ok=True)
