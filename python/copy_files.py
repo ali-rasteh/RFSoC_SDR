@@ -33,10 +33,12 @@ def main(params):
 
     local_dir = "./"
 
-    params.host = "192.168.3.130"
+    params.host = ""
     params.username = "wirelesslab914"
     # params.username = "alira"
+
     params.password = ''
+
 
 
 
@@ -60,7 +62,8 @@ def main(params):
 
 
 
-    params.password = 'nyu@1234'
+
+    params.verbose_level = 5
     scp_client = Scp_Com(params)
 
     # Ensure the local directory exists
@@ -71,12 +74,14 @@ def main(params):
 
 
 
+
     for pattern in remote_files:
         local_files = glob.glob(os.path.join(local_dir, pattern))
         # file = file.split('/')[-1]
         for file in local_files:
             if os.path.exists(file):
                 os.remove(file)
+                print(f"Deleted: {file}")
 
     for item in os.listdir(local_dir):
         item_path = os.path.join(local_dir, item)
@@ -89,12 +94,13 @@ def main(params):
                 os.remove(item_path)
             elif os.path.islink(item_path):
                 os.unlink(item_path)
-            # print(f"Deleted: {item_path}")
+            print(f"Deleted: {item_path}")
         except Exception as e:
             print(f"Error deleting {item_path}: {e}")
 
     # scp_client.download_files(remote_files_, local_dir)
     scp_client.download_files_with_pattern(host_base_addr, remote_files_, local_dir)
+
 
 
 
@@ -109,6 +115,7 @@ def main(params):
         file_1 = os.path.join(local_dir, file)
         file_2 = os.path.join(local_dir, files_to_convert[file])
         scp_client.convert_file_format(file_1, file_2)
+
 
 
 
