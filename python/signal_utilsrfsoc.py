@@ -280,6 +280,41 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             self.print("Calibrated and saved phase offset between RX ports: {:0.3f} Rad".format(self.rx_phase_offset), thr=1)
 
 
+    def collect_signals(self):
+        collect_count = 2500
+        ignore_less_count = False
+        # input_folder = self.channel_dir
+        input_folder = self.sig_dir
+        output_folder = os.path.join(input_folder, 'collected')
+
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
+
+        for file_name in os.listdir(input_folder):
+            if file_name.endswith('.npz'):
+                file_path = os.path.join(input_folder, file_name)
+                data = np.load(file_path)
+
+                collected_data = {}
+                for key, value in data.items():
+                    # print(key, value.shape)
+                    if not key in ['h_est_full', 'txtd', 'rxtd']:
+                        continue
+                    elif ignore_less_count and value.shape[0] < collect_count:
+                        continue
+                    else:
+                        if key == 'txtd':
+                            collect_count_ = 1
+                        else:
+                            collect_count_ = collect_count
+                        collect_count_ = min(value.shape[0], collect_count_)
+                        collected_data[key] = value[:collect_count_]
+                        
+                output_file_path = os.path.join(output_folder, file_name)
+                print([(key, value.shape) for (key, value) in collected_data.items()])
+                np.savez(output_file_path, **collected_data)
+
+
     def save_signal_channel(self, client_rfsoc, client_piradio, client_controller, txtd_base, save_list=[]):
         rx_chain_main = self.rx_chain.copy()
         if 'sys_res_deconv' in self.rx_chain:
@@ -312,7 +347,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 H_est_save.append(H_est)
                 H_est_max_save.append(H_est_max)
 
-            txtd_save = np.array(txtd_save)
+            txtd_save = np.array(txtd_save)[0].expand_dims(axis=0)
             rxtd_save = np.array(rxtd_save)
             h_est_full_save = np.array(h_est_full_save)
             H_est_save = np.array(H_est_save)
@@ -330,8 +365,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             if 'channel' in save_list:
                 save_name = f'{self.freq_hop_list[freq_id]/1e9}' + self.ch_save_postfix + '.npz'
                 channel_save_path=os.path.join(self.channel_dir, save_name)
-                np.savez(channel_save_path, h_est_full=h_est_full_save, h_est_full_avg=h_est_full_avg, H_est=H_est_save, H_est_max=H_est_max_save)
-
+                # np.savez(channel_save_path, h_est_full=h_est_full_save, h_est_full_avg=h_est_full_avg, H_est=H_est_save, H_est_max=H_est_max_save)
+                np.savez(channel_save_path, h_est_full=h_est_full_save)
 
 
         self.rx_chain = rx_chain_main.copy()
@@ -1030,4 +1065,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         return (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params)
     
+
+
+if __name__ == "__main__":
+    from params import Params_Class
+    params = Params_Class()
+
+    signals_inst = Signal_Utils_Rfsoc(params)
+    signals_inst.collect_signals()
+
+
 
