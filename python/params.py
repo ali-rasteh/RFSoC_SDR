@@ -215,7 +215,7 @@ class Params_Class(object):
             self.plt_rx_ant_id = 0
             self.animate_plot_mode=['h01', 'rxfd']
             self.anim_interval=200
-            self.save_list = ['signal', 'channel']           # signal or channel
+            # self.save_list = ['signal', 'channel']           # signal or channel
             self.n_save = 100
             self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
             self.sig_gen_mode = 'ZadoffChu'
@@ -232,7 +232,7 @@ class Params_Class(object):
             # self.sig_save_postfix = '_C_alpha_beta_b'
             # self.sig_save_postfix = '_C_gamma_beta_b'
             # self.sig_save_postfix = '_C_gamma_alpha_b'
-            self.sig_save_postfix = '_C_gamma_gamma_b'
+            # self.sig_save_postfix = '_C_gamma_gamma_b'
 
             self.ch_save_postfix = self.sig_save_postfix
 
