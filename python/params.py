@@ -223,7 +223,6 @@ class Params_Class(object):
 
             # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect-Blockage/NoBlockage
             # Orientations: alpha: 0, beta: 45, gamma: -45
-            # Down
             # self.sig_save_postfix = '_C_beta_beta_b'
             # self.sig_save_postfix = '_C_beta_alpha_b'
             # self.sig_save_postfix = '_C_beta_gamma_b'

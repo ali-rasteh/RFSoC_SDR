@@ -347,7 +347,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 H_est_save.append(H_est)
                 H_est_max_save.append(H_est_max)
 
-            txtd_save = np.array(txtd_save)[0].expand_dims(axis=0)
+            txtd_save = np.expand_dims(np.array(txtd_save)[0], axis=0)
             rxtd_save = np.array(rxtd_save)
             h_est_full_save = np.array(h_est_full_save)
             H_est_save = np.array(H_est_save)

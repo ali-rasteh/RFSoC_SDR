@@ -30,6 +30,7 @@ def main(params):
 
     host_base_addr = "/home/wirelesslab914/ali/sounder_rfsoc/RFSoC_SDR/python/"
     # host_base_addr = "/Users/alira/OneDrive/Desktop/Current_works/Channel_sounding/RFSoC_SDR_copy/"
+    # host_base_addr = "/home/wirelesslab914/ali/RFSoC_SDR/python"
 
     local_dir = "./"
 
@@ -37,7 +38,7 @@ def main(params):
     params.username = "wirelesslab914"
     # params.username = "alira"
 
-    params.password = ''
+    params.password = ""
 
 
 
