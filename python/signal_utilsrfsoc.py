@@ -354,9 +354,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             H_est_max_save = np.array(H_est_max_save)
 
             # h_est_full_avg = np.mean(h_est_full_save, axis=0)
-            rxtd_avg = np.mean(rxtd_save, axis=0)
-            self.rx_chain = ['channel_est']
-            (rxtd_avg, h_est_full_avg, H_est_avg, H_est_max_avg, sparse_est_params) = self.rx_operations(txtd_base, rxtd_avg)
+            # rxtd_avg = np.mean(rxtd_save, axis=0)
+            # self.rx_chain = ['channel_est']
+            # (rxtd_avg, h_est_full_avg, H_est_avg, H_est_max_avg, sparse_est_params) = self.rx_operations(txtd_base, rxtd_avg)
 
             if 'signal' in save_list:
                 save_name = f'{self.freq_hop_list[freq_id]/1e9}' + self.sig_save_postfix + '.npz'
