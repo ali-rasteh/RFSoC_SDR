@@ -221,6 +221,9 @@ class Params_Class(object):
             self.sig_gen_mode = 'ZadoffChu'
 
 
+            # self.sig_save_postfix = 'calib_1-1_2-2'
+            # self.sig_save_postfix = 'calib_1-2_2-1'
+            
             # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect-Blockage/NoBlockage
             # Orientations: alpha: 0, beta: 45, gamma: -45
             # self.sig_save_postfix = '_C_beta_beta_b'
