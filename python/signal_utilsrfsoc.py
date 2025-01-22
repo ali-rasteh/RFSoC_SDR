@@ -310,9 +310,16 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         collect_count_ = min(value.shape[0], collect_count_)
                         collected_data[key] = value[:collect_count_]
                         
+                print(np.max(np.abs(collected_data['rxtd'][5,0])))
+                print(np.max(np.abs(collected_data['rxtd'][5,1])))
+                print(np.max(np.abs(collected_data['rxtd'][57,0])))
+                print(np.max(np.abs(collected_data['rxtd'][57,1])))
+                # print(np.argmax(np.abs(collected_data['txtd'][0,0])))
+                # print(np.argmax(np.abs(collected_data['txtd'][0,1])))
+
                 output_file_path = os.path.join(output_folder, file_name)
                 print([(key, value.shape) for (key, value) in collected_data.items()])
-                np.savez(output_file_path, **collected_data)
+                # np.savez(output_file_path, **collected_data)
 
 
     def save_signal_channel(self, client_rfsoc, client_piradio, client_controller, txtd_base, save_list=[]):
@@ -339,24 +346,37 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 # time.sleep(0.01)
                 self.print("Save Iteration: {}".format(i+1), thr=0)
                 rxtd = self.receive_data(client_rfsoc, n_rd_rep=n_rd_rep, mode='once')
+
                 # to handle the dimenstion needed for read repeat
-                (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd)
+                if 'channel' in save_list:
+                    (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd)
+                else:
+                    rxtd_base = rxtd[0,:,:self.n_samples_tx]
+
                 txtd_save.append(txtd_base)
                 rxtd_save.append(rxtd_base)
-                h_est_full_save.append(h_est_full)
-                H_est_save.append(H_est)
-                H_est_max_save.append(H_est_max)
+                if 'channel' in save_list:
+                    h_est_full_save.append(h_est_full)
+                    H_est_save.append(H_est)
+                    H_est_max_save.append(H_est_max)
 
             txtd_save = np.expand_dims(np.array(txtd_save)[0], axis=0)
             rxtd_save = np.array(rxtd_save)
-            h_est_full_save = np.array(h_est_full_save)
-            H_est_save = np.array(H_est_save)
-            H_est_max_save = np.array(H_est_max_save)
+            print(rxtd_save.shape)
+            print(np.max(np.abs(rxtd_save[5,0])))
+            print(np.max(np.abs(rxtd_save[5,1])))
+            print(np.max(np.abs(rxtd_save[57,0])))
+            print(np.max(np.abs(rxtd_save[57,1])))
 
-            # h_est_full_avg = np.mean(h_est_full_save, axis=0)
-            # rxtd_avg = np.mean(rxtd_save, axis=0)
-            # self.rx_chain = ['channel_est']
-            # (rxtd_avg, h_est_full_avg, H_est_avg, H_est_max_avg, sparse_est_params) = self.rx_operations(txtd_base, rxtd_avg)
+            if 'channel' in save_list:
+                h_est_full_save = np.array(h_est_full_save)
+                H_est_save = np.array(H_est_save)
+                H_est_max_save = np.array(H_est_max_save)
+
+                # h_est_full_avg = np.mean(h_est_full_save, axis=0)
+                # rxtd_avg = np.mean(rxtd_save, axis=0)
+                # self.rx_chain = ['channel_est']
+                # (rxtd_avg, h_est_full_avg, H_est_avg, H_est_max_avg, sparse_est_params) = self.rx_operations(txtd_base, rxtd_avg)
 
             if 'signal' in save_list:
                 save_name = f'{self.freq_hop_list[freq_id]/1e9}' + self.sig_save_postfix + '.npz'

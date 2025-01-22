@@ -99,7 +99,7 @@ class Params_Class(object):
 
             # Connections parameters
             self.control_rfsoc=True
-            self.control_piradio=True
+            self.control_piradio=False
             self.tcp_localIP = "0.0.0.0"
             self.tcp_bufferSize=2**10
             self.TCP_port_Cmd=8080
@@ -200,7 +200,7 @@ class Params_Class(object):
             # self.control_rfsoc=True
             # self.control_piradio=True
             self.freq_hop_list = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
-            self.mode = 'client_master'
+            self.mode = 'client'
             self.piradio_freq_sw_dly = 1.0
             self.controller_slave_ip = '10.18.134.22'
             self.ant_dx_m = 0.02               # Antenna spacing in meters
@@ -213,16 +213,17 @@ class Params_Class(object):
             self.n_rd_rep=8
             self.plt_tx_ant_id = 0
             self.plt_rx_ant_id = 0
-            self.animate_plot_mode=['h01', 'rxfd']
+            self.animate_plot_mode=['h01', 'rxfd01']
             self.anim_interval=200
-            # self.save_list = ['signal', 'channel']           # signal or channel
+            self.save_list = ['signal']           # signal or channel
             self.n_save = 100
             self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
             self.sig_gen_mode = 'ZadoffChu'
 
 
-            # self.sig_save_postfix = 'calib_1-1_2-2'
-            # self.sig_save_postfix = 'calib_1-2_2-1'
+            self.sig_save_postfix = '_test'
+            # self.sig_save_postfix = '_calib_1-1_2-2'
+            # self.sig_save_postfix = '_calib_1-2_2-1'
             
             # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect-Blockage/NoBlockage
             # Orientations: alpha: 0, beta: 45, gamma: -45
