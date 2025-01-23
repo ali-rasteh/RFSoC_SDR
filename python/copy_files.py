@@ -92,7 +92,8 @@ def main(params):
                 shutil.rmtree(item_path)
             # Remove files
             elif os.path.isfile(item_path):
-                os.remove(item_path)
+                continue
+                # os.remove(item_path)
             elif os.path.islink(item_path):
                 os.unlink(item_path)
             print(f"Deleted: {item_path}")

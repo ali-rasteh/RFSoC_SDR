@@ -216,7 +216,7 @@ class Params_Class(object):
             self.animate_plot_mode=['h01', 'rxfd01']
             self.anim_interval=200
             self.save_list = ['signal']           # signal or channel
-            self.n_save = 100
+            self.n_save = 250
             self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
             self.sig_gen_mode = 'ZadoffChu'
 

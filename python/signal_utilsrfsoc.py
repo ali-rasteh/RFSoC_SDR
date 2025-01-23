@@ -310,13 +310,31 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                             collect_count_ = collect_count
                         collect_count_ = min(value.shape[0], collect_count_)
                         collected_data[key] = value[:collect_count_]
-                        
-                print(np.max(np.abs(collected_data['rxtd'][5,0])))
-                print(np.max(np.abs(collected_data['rxtd'][5,1])))
-                print(np.max(np.abs(collected_data['rxtd'][57,0])))
-                print(np.max(np.abs(collected_data['rxtd'][57,1])))
-                # print(np.argmax(np.abs(collected_data['txtd'][0,0])))
-                # print(np.argmax(np.abs(collected_data['txtd'][0,1])))
+
+
+
+                self.print("Sanity check for saved signals", thr=0)
+                thr = 1e-8
+                for i in range(self.n_save):
+                    mse = np.mean(np.abs(collected_data['rxtd'][i,0]-collected_data['rxtd'][i,1])**2)
+                    if mse < thr:
+                        raise ValueError('Zero MSE between RX ports')
+                    mse = np.mean(np.abs(collected_data['rxtd'][i-self.n_save//self.n_frame_rd,0]-collected_data['rxtd'][i,0])**2)
+                    if mse < thr:
+                        raise ValueError('Zero MSE between RX ports')
+                    mse = np.mean(np.abs(collected_data['rxtd'][i-self.n_save//self.n_frame_rd,1]-collected_data['rxtd'][i,1])**2)
+                    if mse < thr:
+                        raise ValueError('Zero MSE between RX ports')
+                    mse = np.mean(np.abs(collected_data['rxtd'][i-1,0]-collected_data['rxtd'][i,0])**2)
+                    if mse < thr:
+                        raise ValueError('Zero MSE between RX ports')
+                    mse = np.mean(np.abs(collected_data['rxtd'][i-1,1]-collected_data['rxtd'][i,1])**2)
+                    if mse < thr:
+                        raise ValueError('Zero MSE between RX ports')
+                offset = np.argmax(np.abs(collected_data['txtd'][0,0]))-np.argmax(np.abs(collected_data['txtd'][0,1]))
+                self.print("Offset between TX signals: {}".format(offset), thr=0)
+                self.print("Sanity check passed", thr=0)
+
 
                 output_file_path = os.path.join(output_folder, file_name)
                 print([(key, value.shape) for (key, value) in collected_data.items()])
@@ -373,22 +391,43 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 # self.rx_chain = ['channel_est']
                 # (rxtd_avg, h_est_full_avg, H_est_avg, H_est_max_avg, sparse_est_params) = self.rx_operations(txtd_base, rxtd_avg)
             else:
-                rxtd_save = None
+                rxtd_save = np.empty((self.n_save, self.n_rx_ant, self.n_samples_tx), dtype=rxtd.dtype)
                 for i in range(self.n_frame_rd):
-                    if rxtd_save is None:
-                        rxtd_save = rxtd[:,:,i*self.n_samples_tx:(i+1)*self.n_samples_tx]
-                    else:
-                        rxtd_save = np.vstack((rxtd_save, rxtd[:,:,i*self.n_samples_tx:(i+1)*self.n_samples_tx]))
+                    rxtd_save[i::self.n_frame_rd] = rxtd[:,:,i*self.n_samples_tx:(i+1)*self.n_samples_tx]
+                # print(rxtd_save.shape)
+
+                # for i in range(self.n_frame_rd):
+                #     if rxtd_save is None:
+                #         rxtd_save = rxtd[:,:,i*self.n_samples_tx:(i+1)*self.n_samples_tx]
+                #     else:
+                #         rxtd_save = np.vstack((rxtd_save, rxtd[:,:,i*self.n_samples_tx:(i+1)*self.n_samples_tx]))
+                #     print(rxtd_save.shape)
 
 
             txtd_save = np.expand_dims(txtd_base, axis=0)
             rxtd_save = np.array(rxtd_save)
 
-            print(rxtd_save.shape)
-            print(np.max(np.abs(rxtd_save[5,0])))
-            print(np.max(np.abs(rxtd_save[5,1])))
-            print(np.max(np.abs(rxtd_save[57,0])))
-            print(np.max(np.abs(rxtd_save[57,1])))
+
+            self.print("Sanity check for saved signals", thr=0)
+            thr = 1e-8
+            for i in range(self.n_save):
+                mse = np.mean(np.abs(rxtd_save[i,0]-rxtd_save[i,1])**2)
+                if mse < thr:
+                    raise ValueError('Zero MSE between RX ports')
+                mse = np.mean(np.abs(rxtd_save[i-self.n_save//self.n_frame_rd,0]-rxtd_save[i,0])**2)
+                if mse < thr:
+                    raise ValueError('Zero MSE between RX ports')
+                mse = np.mean(np.abs(rxtd_save[i-self.n_save//self.n_frame_rd,1]-rxtd_save[i,1])**2)
+                if mse < thr:
+                    raise ValueError('Zero MSE between RX ports')
+                mse = np.mean(np.abs(rxtd_save[i-1,0]-rxtd_save[i,0])**2)
+                if mse < thr:
+                    raise ValueError('Zero MSE between RX ports')
+                mse = np.mean(np.abs(rxtd_save[i-1,1]-rxtd_save[i,1])**2)
+                if mse < thr:
+                    raise ValueError('Zero MSE between RX ports')
+            self.print("Sanity check passed", thr=0)
+
                 
             if 'signal' in save_list:
                 save_name = f'{self.freq_hop_list[freq_id]/1e9}' + self.sig_save_postfix + '.npz'
