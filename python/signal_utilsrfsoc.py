@@ -292,6 +292,35 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             self.print("Calibrated and saved phase offset between RX ports: {:0.3f} Rad".format(self.rx_phase_offset), thr=1)
 
 
+
+    def validate_saved_signals(self, rxtd, txtd=None, thr = 1e-8):
+        self.print("Sanity check for saved signals", thr=0)
+
+        for i in range(self.n_save):
+            mse = np.mean(np.abs(rxtd[i,0]-rxtd[i,1])**2)
+            if mse < thr:
+                raise ValueError('Zero MSE between RX ports 1')
+            mse = np.mean(np.abs(rxtd[i-self.n_save//self.n_frame_rd,0]-rxtd[i,0])**2)
+            if mse < thr:
+                raise ValueError('Zero MSE between RX ports 2')
+            mse = np.mean(np.abs(rxtd[i-self.n_save//self.n_frame_rd,1]-rxtd[i,1])**2)
+            if mse < thr:
+                raise ValueError('Zero MSE between RX ports 3')
+            mse = np.mean(np.abs(rxtd[i-1,0]-rxtd[i,0])**2)
+            if mse < thr:
+                raise ValueError('Zero MSE between RX ports 4')
+            mse = np.mean(np.abs(rxtd[i-1,1]-rxtd[i,1])**2)
+            if mse < thr:
+                raise ValueError('Zero MSE between RX ports 5')
+            
+        if txtd != None:
+            offset = np.argmax(np.abs(txtd[0,0]))-np.argmax(np.abs(txtd[0,1]))
+            self.print("Offset between TX signals: {}".format(offset), thr=0)
+
+        self.print("Sanity check passed", thr=0)
+
+
+
     def collect_signals(self):
         collect_count = 2500
         ignore_less_count = False
@@ -322,31 +351,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         collect_count_ = min(value.shape[0], collect_count_)
                         collected_data[key] = value[:collect_count_]
 
-
-
-                self.print("Sanity check for saved signals", thr=0)
-                thr = 1e-8
-                for i in range(self.n_save):
-                    mse = np.mean(np.abs(collected_data['rxtd'][i,0]-collected_data['rxtd'][i,1])**2)
-                    if mse < thr:
-                        raise ValueError('Zero MSE between RX ports')
-                    mse = np.mean(np.abs(collected_data['rxtd'][i-self.n_save//self.n_frame_rd,0]-collected_data['rxtd'][i,0])**2)
-                    if mse < thr:
-                        raise ValueError('Zero MSE between RX ports')
-                    mse = np.mean(np.abs(collected_data['rxtd'][i-self.n_save//self.n_frame_rd,1]-collected_data['rxtd'][i,1])**2)
-                    if mse < thr:
-                        raise ValueError('Zero MSE between RX ports')
-                    mse = np.mean(np.abs(collected_data['rxtd'][i-1,0]-collected_data['rxtd'][i,0])**2)
-                    if mse < thr:
-                        raise ValueError('Zero MSE between RX ports')
-                    mse = np.mean(np.abs(collected_data['rxtd'][i-1,1]-collected_data['rxtd'][i,1])**2)
-                    if mse < thr:
-                        raise ValueError('Zero MSE between RX ports')
-                offset = np.argmax(np.abs(collected_data['txtd'][0,0]))-np.argmax(np.abs(collected_data['txtd'][0,1]))
-                self.print("Offset between TX signals: {}".format(offset), thr=0)
-                self.print("Sanity check passed", thr=0)
-
-
+                self.validate_saved_signals(rxtd=collected_data['rxtd'], txtd=collected_data['txtd'])
                 output_file_path = os.path.join(output_folder, file_name)
                 print([(key, value.shape) for (key, value) in collected_data.items()])
                 # np.savez(output_file_path, **collected_data)
@@ -418,26 +423,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             txtd_save = np.expand_dims(txtd_base, axis=0)
             rxtd_save = np.array(rxtd_save)
 
-
-            self.print("Sanity check for saved signals", thr=0)
-            thr = 1e-8
-            for i in range(self.n_save):
-                mse = np.mean(np.abs(rxtd_save[i,0]-rxtd_save[i,1])**2)
-                if mse < thr:
-                    raise ValueError('Zero MSE between RX ports')
-                mse = np.mean(np.abs(rxtd_save[i-self.n_save//self.n_frame_rd,0]-rxtd_save[i,0])**2)
-                if mse < thr:
-                    raise ValueError('Zero MSE between RX ports')
-                mse = np.mean(np.abs(rxtd_save[i-self.n_save//self.n_frame_rd,1]-rxtd_save[i,1])**2)
-                if mse < thr:
-                    raise ValueError('Zero MSE between RX ports')
-                mse = np.mean(np.abs(rxtd_save[i-1,0]-rxtd_save[i,0])**2)
-                if mse < thr:
-                    raise ValueError('Zero MSE between RX ports')
-                mse = np.mean(np.abs(rxtd_save[i-1,1]-rxtd_save[i,1])**2)
-                if mse < thr:
-                    raise ValueError('Zero MSE between RX ports')
-            self.print("Sanity check passed", thr=0)
+            self.validate_saved_signals(rxtd=rxtd_save)
 
                 
             if 'signal' in save_list:
