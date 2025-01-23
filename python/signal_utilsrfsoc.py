@@ -313,7 +313,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             if mse < thr:
                 raise ValueError('Zero MSE between RX ports 5')
             
-        if txtd != None:
+        if txtd is not None:
             offset = np.argmax(np.abs(txtd[0,0]))-np.argmax(np.abs(txtd[0,1]))
             self.print("Offset between TX signals: {}".format(offset), thr=0)
 
