@@ -135,7 +135,18 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         txtd_base = np.array(txtd_base)
 
         if self.tx_sig_sim == 'shifted':
-            txtd_base[1,:] = np.roll(txtd_base[0,:], shift=(self.nfft_tx//2 - self.nfft_tx//16), axis=-1)
+            # txtd_base[1,:] = txtd_base[0,:].copy()
+            # txtd_base[1,:] = np.roll(txtd_base[0,:], shift=(self.n_samples_tx//2), axis=-1)
+            txtd_base[1,:] = np.roll(txtd_base[0,:], shift=(469), axis=-1)
+
+            # dot_prod = []
+            # for i in range(0, self.n_samples_tx, 1):
+            #     txtd_base[1,:] = np.roll(txtd_base[0,:], shift=(i), axis=-1)
+            #     dot_prod.append(np.abs(np.vdot(txtd_base[1], txtd_base[0])))
+            # dot_prod = np.array(dot_prod)
+            # print(np.argsort(dot_prod)[:20])
+            # print(np.sort(dot_prod)[:20])
+
 
         if self.mixer_mode=='digital' and self.mix_freq!=0:
             for ant_id in range(self.n_tx_ant):
