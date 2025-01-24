@@ -296,23 +296,23 @@ class Signal_Utils_Rfsoc(Signal_Utils):
     def validate_saved_signals(self, rxtd, txtd=None, thr = 1e-8):
         self.print("Sanity check for saved signals", thr=0)
 
+        mses = []
         for i in range(self.n_save):
-            mse = np.mean(np.abs(rxtd[i,0]-rxtd[i,1])**2)
-            if mse < thr:
-                raise ValueError('Zero MSE between RX ports 1')
-            mse = np.mean(np.abs(rxtd[i-self.n_save//self.n_frame_rd,0]-rxtd[i,0])**2)
-            if mse < thr:
-                raise ValueError('Zero MSE between RX ports 2')
-            mse = np.mean(np.abs(rxtd[i-self.n_save//self.n_frame_rd,1]-rxtd[i,1])**2)
-            if mse < thr:
-                raise ValueError('Zero MSE between RX ports 3')
-            mse = np.mean(np.abs(rxtd[i-1,0]-rxtd[i,0])**2)
-            if mse < thr:
-                raise ValueError('Zero MSE between RX ports 4')
-            mse = np.mean(np.abs(rxtd[i-1,1]-rxtd[i,1])**2)
-            if mse < thr:
-                raise ValueError('Zero MSE between RX ports 5')
+            mse = self.mse(rxtd[i,0], rxtd[i,1])
+            mses.append(mse)
+            mse = self.mse(rxtd[i-self.n_save//self.n_frame_rd,0], rxtd[i,0])
+            mses.append(mse)
+            mse = self.mse(rxtd[i-self.n_save//self.n_frame_rd,1], rxtd[i,1])
+            mses.append(mse)
+            mse = self.mse(rxtd[i-1,0], rxtd[i,0])
+            mses.append(mse)
+            mse = self.mse(rxtd[i-1,1], rxtd[i,1])
+            mses.append(mse)
             
+        if np.min(mses) < thr:
+            self.print("RX signals are not saved correctly", thr=0)
+            raise ValueError('RX signals are not saved correctly')
+        
         if txtd is not None:
             offset = np.argmax(np.abs(txtd[0,0]))-np.argmax(np.abs(txtd[0,1]))
             self.print("Offset between TX signals: {}".format(offset), thr=0)
