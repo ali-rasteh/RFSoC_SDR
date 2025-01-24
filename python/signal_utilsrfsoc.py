@@ -80,6 +80,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
         self.rx_phase_offset = 0
+        self.rx_delay_offset = 0
         self.fc_id = 0
         self.nf_loc_idx = 0
         self.nf_sep_idx = 0
@@ -277,19 +278,26 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         if input_.lower()!='y':
             self.rx_phase_offset = np.load(self.calib_params_path)['rx_phase_offset']
-            self.print("Using saved phase offset between RX ports: {:0.3f} Rad".format(self.rx_phase_offset), thr=1)
+            self.rx_delay_offset = np.load(self.calib_params_path)['rx_delay_offset']
+            # self.print("Using saved phase offset between RX ports: {:0.3f} Rad".format(self.rx_phase_offset), thr=1)
+            self.print("Using saved delay offset between RX ports: {:0.3f} s".format(self.rx_delay_offset), thr=1)
             return
         else:
             phase_diff_list = []
+            delay_list = []
             for i in range(self.calib_iter):
                 rxtd = client_rfsoc.receive_data(mode='once')
                 rxtd = rxtd.squeeze(axis=0)
                 phase_diff = self.calc_phase_offset(rxtd[0,:], rxtd[1,:])
+                delay = phase_diff / (2*np.pi*self.fc)
                 phase_diff_list.append(phase_diff)
+                delay_list.append(delay)
 
             self.rx_phase_offset = np.mean(phase_diff_list)
-            np.savez(self.calib_params_path, rx_phase_offset=self.rx_phase_offset)
-            self.print("Calibrated and saved phase offset between RX ports: {:0.3f} Rad".format(self.rx_phase_offset), thr=1)
+            self.rx_delay_offset = np.mean(delay_list)
+            np.savez(self.calib_params_path, rx_phase_offset=self.rx_phase_offset, rx_delay_offset=self.rx_delay_offset, fc=self.fc)
+            # self.print("Calibrated and saved phase offset between RX ports: {:0.3f} Rad".format(self.rx_phase_offset), thr=1)
+            self.print("Calibrated and saved delay offset between RX ports: {:0.3f} s".format(self.rx_delay_offset), thr=1)
 
 
 
@@ -613,10 +621,10 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     # phi = np.unwrap(phi)
                     sigs.append(phi)
                 elif item=='rx_phase_diff':
-                    # self.rx_phase_list, self.aoa_list = self.estimate_mimo_params(txtd_base, rxtd_base, h_est_full, H_est_max, self.rx_phase_list, self.aoa_list)
+                    # self.rx_phase_list, self.aoa_list = self.estimate_mimo_params(txtd_base, rxtd_base, self.fc, h_est_full, H_est_max, self.rx_phase_list, self.aoa_list)
                     sigs.append(self.rx_phase_list)
                 elif item=='aoa_gauge':
-                    # self.rx_phase_list, self.aoa_list = self.estimate_mimo_params(txtd_base, rxtd_base, h_est_full, H_est_max, self.rx_phase_list, self.aoa_list)
+                    # self.rx_phase_list, self.aoa_list = self.estimate_mimo_params(txtd_base, rxtd_base, self.fc, h_est_full, H_est_max, self.rx_phase_list, self.aoa_list)
                     sigs.append(self.aoa_list[-1])
                 elif item=='nf_loc':
                     pass
@@ -962,14 +970,19 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
                     ax[i][j].set_xlim(self.nf_region[0])
                     ax[i][j].set_ylim(self.nf_region[1])
-                    ax[i][j].set_xticks(np.arange(self.nf_region[0,0], self.nf_region[0,1], 1.0))
+                    ax[i][j].set_xticks(np.arange(self.nn_plots_rowf_region[0,0], self.nf_region[0,1], 1.0))
                     ax[i][j].set_yticks(np.arange(self.nf_region[1,0], self.nf_region[1,1], 2.0))
 
-                ax[i][j].title.set_fontsize(35-5*n_plots_row)
-                ax[i][j].xaxis.label.set_fontsize(30-4*n_plots_row)
-                ax[i][j].yaxis.label.set_fontsize(30-4*n_plots_row)
-                ax[i][j].tick_params(axis='both', which='major', labelsize=25-4*n_plots_row)  # For major ticks
-                ax[i][j].legend(fontsize=30-4*n_plots_row)
+                # ax[i][j].title.set_fontsize(35-5*n_plots_row-3*n_plots_col)
+                ax[i][j].title.set_fontsize(15)
+                # ax[i][j].xaxis.label.set_fontsize(30-4*n_plots_row-2*n_plots_col)
+                ax[i][j].xaxis.label.set_fontsize(15)
+                # ax[i][j].yaxis.label.set_fontsize(30-4*n_plots_row-2*n_plots_col)
+                ax[i][j].yaxis.label.set_fontsize(12)
+                # ax[i][j].tick_params(axis='both', which='major', labelsize=25-4*n_plots_row-2*n_plots_col)  # For major ticks
+                ax[i][j].tick_params(axis='both', which='major', labelsize=15)  # For major ticks
+                # ax[i][j].legend(fontsize=30-4*n_plots_row-2.5*n_plots_col)
+                ax[i][j].legend(fontsize=12)
 
                 # ax[i].autoscale()
                 ax[i][j].grid(True)
@@ -981,7 +994,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         for j in range(n_plots_col):
             for i in range(len(line)):
                 if line[i][j] is not None:
-                    line[i][j].set_linewidth(3.0-0.5*n_plots_row)
+                    # line[i][j].set_linewidth(3.0-0.5*n_plots_row-0.3*n_plots_col)
+                    line[i][j].set_linewidth(1.0)
 
         # Create the animation
         plt.tight_layout()
@@ -1117,7 +1131,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             else:
                 h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_pilot_s, sys_response=sys_response, sc_range_ch=self.sc_range_ch, snr_est=snr_est)
             
-            self.rx_phase_list, self.aoa_list = self.estimate_mimo_params(txtd_base, rxtd_pilot, h_est_full, H_est_max, self.rx_phase_list, self.aoa_list)
+            self.rx_phase_list, self.aoa_list = self.estimate_mimo_params(txtd_base, rxtd_pilot, self.fc, h_est_full, H_est_max, self.rx_phase_list, self.aoa_list)
             if len(self.rx_phase_list)>self.nfft_trx//10:
                 self.rx_phase_list.pop(0)
             if len(self.aoa_list)>self.nfft_trx//10:
