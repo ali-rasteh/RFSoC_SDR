@@ -821,7 +821,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 if plot_mode[i]=='h':
                     line[line_id][j], = ax[i][j].plot(self.t_trx[:n_samples_ch]*1e9, sigs[i])
                     line_id+=1
-                    ax[i][j].set_title("Channel-Mag-TD, Freq {}, TX ant {}, RX ant {}".format(self.freq_hop_list[j]/1e9, tx_ant_id, rx_ant_id))
+                    ax[i][j].set_title("Channel-Mag-TD, Freq {}GHz, TX ant {}, RX ant {}".format(self.freq_hop_list[j]/1e9, tx_ant_id, rx_ant_id))
                     ax[i][j].set_xlabel("Time (ns)")
                     ax[i][j].set_ylabel("Normalized Magnitude (dB)")
                 elif plot_mode[i]=='h01':
@@ -829,7 +829,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     line_id+=1
                     line[line_id][j], = ax[i][j].plot(self.t_trx[:n_samples_ch]*1e9, sigs[i][1], label='Antenna 1')
                     line_id+=1
-                    ax[i][j].set_title("Channel-Mag-TD, Freq {}, RX ant 0/1".format(self.freq_hop_list[j]/1e9))
+                    ax[i][j].set_title("Channel-Mag-TD, Freq {}GHz, RX ant 0/1".format(self.freq_hop_list[j]/1e9))
                     ax[i][j].set_xlabel("Time (ns)")
                     ax[i][j].set_ylabel("Normalized Magnitude (dB)")
                 elif plot_mode[i]=='h_sparse':
@@ -974,15 +974,15 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ax[i][j].set_yticks(np.arange(self.nf_region[1,0], self.nf_region[1,1], 2.0))
 
                 # ax[i][j].title.set_fontsize(35-5*n_plots_row-3*n_plots_col)
-                ax[i][j].title.set_fontsize(15)
+                ax[i][j].title.set_fontsize(20)
                 # ax[i][j].xaxis.label.set_fontsize(30-4*n_plots_row-2*n_plots_col)
-                ax[i][j].xaxis.label.set_fontsize(15)
+                ax[i][j].xaxis.label.set_fontsize(17)
                 # ax[i][j].yaxis.label.set_fontsize(30-4*n_plots_row-2*n_plots_col)
-                ax[i][j].yaxis.label.set_fontsize(12)
+                ax[i][j].yaxis.label.set_fontsize(15)
                 # ax[i][j].tick_params(axis='both', which='major', labelsize=25-4*n_plots_row-2*n_plots_col)  # For major ticks
                 ax[i][j].tick_params(axis='both', which='major', labelsize=15)  # For major ticks
                 # ax[i][j].legend(fontsize=30-4*n_plots_row-2.5*n_plots_col)
-                ax[i][j].legend(fontsize=12)
+                ax[i][j].legend(fontsize=15)
 
                 # ax[i].autoscale()
                 ax[i][j].grid(True)
@@ -995,7 +995,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             for i in range(len(line)):
                 if line[i][j] is not None:
                     # line[i][j].set_linewidth(3.0-0.5*n_plots_row-0.3*n_plots_col)
-                    line[i][j].set_linewidth(1.0)
+                    line[i][j].set_linewidth(1.2)
 
         # Create the animation
         plt.tight_layout()
