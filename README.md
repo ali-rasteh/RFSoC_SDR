@@ -98,3 +98,23 @@ as follows:
 - First time you run the system you need to do phase calibration on the receiver, so when the script shows a message about the calibration, follow the instructions to run the calibration.
 - Finally the script should receive the measurements, do the needed processing and show the animation plots.
 - You can also save the signal and channel responses by adding appropriate elements to the save_list parameter.
+
+
+
+## Citation
+
+If you use this repository or code in your research, please cite it as follows:
+
+### BibTeX
+```bibtex
+@misc{Rasteh_RFSoC_SDR,
+  author       = {Rasteh, Ali},
+  title        = {Software Defined Radio using Xilinx RFSoC},
+  year         = {2024},
+  publisher    = {GitHub},
+  journal      = {GitHub repository},
+  howpublished = {\url{https://github.com/ali-rasteh/RFSoC_SDR}},
+  doi          = {[![DOI](https://zenodo.org/badge/821517620.svg)](https://doi.org/10.5281/zenodo.14846067)},
+  note         = {Accessed: 2024-06-16}
+}
+```
