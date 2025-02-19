@@ -194,14 +194,18 @@ class Params_Class(object):
 
 
 
+
+
+
             # FR3 measurements parameters (overwritten)
             # self.nf_param_estimate = True
             # self.use_linear_track = True
-            # self.control_rfsoc=True
+            self.control_rfsoc=True
             # self.control_piradio=True
-            self.freq_hop_list = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
+            # self.freq_hop_list = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
+            self.freq_hop_list = [8.75e9]
             self.mode = 'client'
-            self.piradio_freq_sw_dly = 1.0
+            self.piradio_freq_sw_dly = 0.1
             self.controller_slave_ip = '10.18.134.22'
             self.ant_dx_m = 0.02               # Antenna spacing in meters
             self.n_rx_ch_eq=1
@@ -213,12 +217,13 @@ class Params_Class(object):
             self.n_rd_rep=8
             self.plt_tx_ant_id = 0
             self.plt_rx_ant_id = 0
-            self.animate_plot_mode=['h01', 'rxfd01']
-            self.anim_interval=200
-            self.save_list = ['signal']           # signal or channel
+            self.animate_plot_mode=['h01', 'rxfd01', 'IQ']
+            # self.animate_plot_mode=['h01', 'rxfd01', 'IQ']
+            self.anim_interval=100
+            # self.save_list = ['signal']           # signal or channel
             self.n_save = 250
-            self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
-            self.sig_gen_mode = 'ZadoffChu'
+            self.tx_sig_sim = 'orthogonal'        # same or orthogonal or shifted
+            # self.sig_gen_mode = 'ZadoffChu'
 
 
             self.sig_save_postfix = '_test'
@@ -251,7 +256,7 @@ class Params_Class(object):
             # self.rx_chain.append('sys_res_deconv')
             self.rx_chain.append('channel_est')
             # self.rx_chain.append('sparse_est')
-            # self.rx_chain.append('channel_eq')
+            self.rx_chain.append('channel_eq')
 
 
         self.initialize()
