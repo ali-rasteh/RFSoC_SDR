@@ -104,7 +104,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 txtd_base_s = self.generate_tone(freq_mode=self.tone_f_mode, sc=self.sc_tone, f=self.f_tone, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode)
             elif 'wideband' in self.sig_mode:
                 nsc = self.wb_sc_range[1] - self.wb_sc_range[0] + 1
-                txtd_base_s = self.generate_wideband(bw_mode=self.wb_bw_mode, sc_range=self.wb_sc_range, bw_range=self.wb_bw_range, modulation=self.sig_modulation, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode, seed=self.seed[ant_id])
+                txtd_base_s = self.generate_wideband(bw_mode=self.wb_bw_mode, sc_range=self.wb_sc_range, bw_range=self.wb_bw_range, modulation=self.sig_modulation, sig_mode=self.sig_mode, gen_mode=self.sig_gen_mode, seed=self.seed_list[ant_id])
             elif self.sig_mode == 'load':
                 txtd_base_s = np.load(self.sig_path)
             else:

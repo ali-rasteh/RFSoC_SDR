@@ -167,6 +167,11 @@ class Params_Class(object):
             self.n_save = 100
             self.save_list = ['', '']           # signal or channel
             self.saved_sig_plot = []
+            self.params_dir = os.path.join(os.getcwd(), 'params/')
+            self.params_path = os.path.join(self.params_dir, 'params.json')
+            self.params_save_path = os.path.join(self.params_dir, 'params.json')
+            self.save_parameters=False
+            self.load_parameters=False
 
             # Calibration parameters
             self.calib_iter = 100
@@ -201,9 +206,12 @@ class Params_Class(object):
             # self.nf_param_estimate = True
             # self.use_linear_track = True
             self.control_rfsoc=True
-            # self.control_piradio=True
-            # self.freq_hop_list = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
-            self.freq_hop_list = [8.75e9]
+            self.control_piradio=True
+            self.params_path = os.path.join(self.params_dir, 'params.json')
+            self.save_parameters=True
+            self.load_parameters=False
+            self.freq_hop_list = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
+            # self.freq_hop_list = [8.75e9, 10.0e9, 21.7e9]
             self.mode = 'client'
             self.piradio_freq_sw_dly = 0.1
             self.controller_slave_ip = '10.18.134.22'
@@ -337,11 +345,11 @@ class Params_Class(object):
             self.dac_bits = 14
 
         if self.tx_sig_sim=='same':
-            self.seed = [self.seed for i in range(self.n_tx_ant)]
+            self.seed_list = [self.seed for i in range(self.n_tx_ant)]
         elif self.tx_sig_sim=='orthogonal':
-            self.seed = [self.seed*i+i for i in range(self.n_tx_ant)]
+            self.seed_list = [self.seed*i+i for i in range(self.n_tx_ant)]
         elif self.tx_sig_sim=='shifted':
-            self.seed = [self.seed for i in range(self.n_tx_ant)]
+            self.seed_list = [self.seed for i in range(self.n_tx_ant)]
 
         self.server_ip = None
         self.steer_phi_rad = np.deg2rad(self.steer_phi_deg)

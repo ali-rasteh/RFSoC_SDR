@@ -18,6 +18,13 @@ def rfsoc_run(params):
     client_controller = None
 
     signals_inst = Signal_Utils_Rfsoc(params)
+    if params.save_parameters:
+        params.save_parameters = False
+        signals_inst.save_class_attributes_to_json(params, './params.json')
+    if params.load_parameters:
+        signals_inst.load_class_attributes_from_json(params, './params.json')
+        params.initialize()
+
     signals_inst.print("Running the code in mode {}".format(params.mode), thr=1)
     (txtd_base, txtd) = signals_inst.gen_tx_signal()
 

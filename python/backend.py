@@ -60,6 +60,7 @@ if import_general:
     import itertools
     import heapq
     import atexit
+    import json
 
 if import_networking:
     from scp import SCPClient
