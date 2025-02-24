@@ -433,7 +433,7 @@ class Params_Class(object):
                 self.nf_tx_ant_loc[:,m,:] = self.nf_tx_loc + t[:,None]*self.nf_tx_sep_dir[None,:]
 
 
-        for f in [self.calib_params_dir, self.sig_dir, self.channel_dir, self.figs_dir]:
+        for f in [self.calib_params_dir, self.sig_dir, self.channel_dir, self.figs_dir, self.params_dir]:
             if not os.path.exists(f):
                 os.makedirs(f)
         

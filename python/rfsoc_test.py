@@ -20,9 +20,9 @@ def rfsoc_run(params):
     signals_inst = Signal_Utils_Rfsoc(params)
     if params.save_parameters:
         params.save_parameters = False
-        signals_inst.save_class_attributes_to_json(params, './params.json')
+        signals_inst.save_class_attributes_to_json(params, params.params_save_path)
     if params.load_parameters:
-        signals_inst.load_class_attributes_from_json(params, './params.json')
+        signals_inst.load_class_attributes_from_json(params, params.params_path)
         params.initialize()
 
     signals_inst.print("Running the code in mode {}".format(params.mode), thr=1)
