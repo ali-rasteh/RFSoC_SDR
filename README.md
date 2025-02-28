@@ -113,8 +113,10 @@ If you use this repository or code in your research, please cite it as follows:
   year         = {2024},
   publisher    = {GitHub},
   journal      = {GitHub repository},
-  howpublished = {\url{https://github.com/ali-rasteh/RFSoC_SDR}},
-  doi          = {[![DOI](https://zenodo.org/badge/821517620.svg)](https://doi.org/10.5281/zenodo.14846067)},
+  howpublished = {GitHub repository, \url{https://github.com/ali-rasteh/RFSoC_SDR}},
+  doi          = {10.5281/zenodo.14846067},
   note         = {Accessed: 2024-06-16}
 }
 ```
+
+[![DOI](https://zenodo.org/badge/821517620.svg)](https://doi.org/10.5281/zenodo.14846067)
