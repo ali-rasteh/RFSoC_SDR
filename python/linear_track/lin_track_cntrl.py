@@ -92,7 +92,7 @@ class LinearTrack(General):
     def calibrate(self, motor_id=0, mode='start'):
         self.print("Calibrating the linear track {} with mode {}".format(motor_id, mode), thr=1)
         while True:
-            dis = float(input("Enter the distance to move in mm: "))
+            dis = float(input("Enter the distance to move in mm, 0 if need to break: "))
             if dis == 0:
                 if mode == 'start':
                     self.position[motor_id] = 0.0
@@ -108,7 +108,7 @@ class LinearTrack(General):
     def interactive_move(self, motor_id=0):
         self.print("Starting interactive move for linear track {}".format(motor_id), thr=1)
         while True:
-            dis = float(input("Enter the distance to move in mm: "))
+            dis = float(input("Enter the distance to move in mm, 0 if need to break: "))
             if dis == 0:
                 break
             self.displace(motor_id=motor_id, dis=dis)

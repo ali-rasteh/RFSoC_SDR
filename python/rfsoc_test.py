@@ -39,6 +39,7 @@ def rfsoc_run(params):
     if params.use_turntable:
         client_turntable = Serial_Comm_TurnTable(params)
         client_turntable.connect()
+        client_turntable.calibrate()
 
     if params.control_piradio:
         # client_piradio = ssh_Com_Piradio(params)

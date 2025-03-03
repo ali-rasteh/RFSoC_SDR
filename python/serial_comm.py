@@ -106,12 +106,12 @@ class Serial_Comm_TurnTable(Serial_Comm):
 
 
     def return2home(self):
-        self.print("Homing procedure..", thr=2)
-        self.print("Homing procedure done.", thr=2)
+        self.print("Starting turn-table homing procedure..", thr=2)
+        self.print("turn-table homing procedure done.", thr=2)
 
 
     def move_to_position(self, position):
-        self.print(f"Moving to position: {position}", thr=2)
+        self.print(f"Moving turn-table to position: {position}", thr=2)
         command = "moveToAngle=" + str(position)
         self.write(command)
         responses = self.read_lines(max_lines=1)
@@ -124,6 +124,30 @@ class Serial_Comm_TurnTable(Serial_Comm):
                 self.print('waiting..', thr=3)
                 time.sleep(0.1)
                 responses = self.read_lines(max_lines=1)
+
+
+    def calibrate(self, mode='start'):
+        self.print("Calibrating the turn-table with mode {}".format(mode), thr=1)
+        while True:
+            angle = float(input("Enter the angle to move in deg, 0 if need to break: "))
+            if angle == 0:
+                if mode == 'start':
+                    self.position = 0.0
+                elif mode == 'end':
+                    self.position = 360.0
+                break
+            self.move_to_position(position=angle)
+
+        self.print("Calibration for turn-table complete", thr=1)
+
+
+    def interactive_move(self):
+        self.print("Starting interactive move for TurnTable", thr=1)
+        while True:
+            angle = float(input("Enter the angle to move in degrees, 0 if need to break: "))
+            if angle == 0:
+                break
+            self.move_to_position(position=angle)
 
 
 

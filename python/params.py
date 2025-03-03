@@ -5,284 +5,153 @@ from backend import be_np as np, be_scp as scipy
 
 
 
-class Params_Class(object):
+class Params_Class_Default(object):
     def __init__(self):
-        # parser = argparse.ArgumentParser()
-        # parser.add_argument("--bit_file_path", type=str, default="./rfsoc.bit", help="Path to the bit file")
-        # parser.add_argument("--fs", type=float, default=245.76e6*4, help="sampling frequency used in signal processings")
-        # parser.add_argument("--fc", type=float, default=57.51e9, help="carrier frequency")
-        # parser.add_argument("--fs_tx", type=float, default=245.76e6*4, help="DAC sampling frequency")
-        # parser.add_argument("--fs_rx", type=float, default=245.76e6*4, help="ADC sampling frequency")
-        # parser.add_argument("--n_samples", type=int, default=1024, help="Number of samples")
-        # parser.add_argument("--nfft", type=int, default=1024, help="Number of FFT points")
-        # parser.add_argument("--sig_modulation", type=str, default='qam', help="Singal modulation type for sounding, qam or empty")
-        # parser.add_argument("--mix_phase_off", type=float, default=0.0, help="Mixer's phase offset")
-        # parser.add_argument("--sig_path", type=str, default='./txtd.npy', help="Signal path to load")
-        # parser.add_argument("--wb_null_sc", type=int, default=10, help="Number of carriers to null in the wideband signal")
-        # parser.add_argument("--TCP_port_Cmd", type=int, default=8080, help="Commands TCP port")
-        # parser.add_argument("--TCP_port_Data", type=int, default=8081, help="Data TCP port")
-        # parser.add_argument("--mix_freq", type=float, default=1000e6, help="Mixer carrier frequency")
-        # parser.add_argument("--mixer_mode", type=str, default='analog', help="Mixer mode, analog or digital")
-        # parser.add_argument("--do_mixer_settings", action="store_true", default=False, help="If true, performs mixer settings")
-        # parser.add_argument("--sig_mode", type=str, default='wideband', help="Signal mode, tone_1 or tone_2 or wideband or wideband_null or load")
-        # parser.add_argument("--sig_gen_mode", type=str, default='fft', help="signal generation mode, time, or fft or ofdm, or ZadoffChu")
-        # parser.add_argument("--wb_bw_range", type=float, default=[-450e6,450e6], help="Wideband signal bandwidth range")
-        # parser.add_argument("--f_tone", type=float, default=20e6, help="Tone signal frequency")         # 16.4e6 * 2 for function generator
-        # parser.add_argument("--do_pll_settings", action="store_true", default=False, help="If true, performs PLL settings")
-        # parser.add_argument("--filter_signal", action="store_true", default=False, help="If true, performs filtering on the RX signal")
-        # parser.add_argument("--filter_bw_range", type=float, default=[-450e6, 450e6], help="Final filter BW range on the RX signal")
-        # parser.add_argument("--project", type=str, default='sounder_if_ddr4', help="Project to use, sounder_bbf_ddr4 or sounder_if_ddr4 or sounder_bbf or sounder_if")
-        # parser.add_argument("--board", type=str, default='rfsoc_4x2', help="Board to use")
-        # parser.add_argument("--RFFE", type=str, default='piradio', help="RF front end to use, piradio or sivers")
-        # parser.add_argument("--lmk_freq_mhz", type=float, default=122.88, help="LMK frequency in MHz")
-        # parser.add_argument("--lmx_freq_mhz", type=float, default=3932.16, help="LMX frequency in MHz")
-        # parser.add_argument("--seed", type=int, default=100, help="Seed for random operations")
-        # parser.add_argument("--run_tcp_server", action="store_true", default=False, help="If true, runs the TCP server")
-        # parser.add_argument("--plot_level", type=int, default=0, help="level of plotting outputs")
-        # parser.add_argument("--verbose_level", type=int, default=0, help="level of printing output")
-        # parser.add_argument("--mode", type=str, default='server', help="mode of operation, server or client")
-        # parser.add_argument("--rfsoc_server_ip", type=str, default='192.168.1.3', help="RFSoC board IP as the server")
-        # parser.add_argument("--lintrack_server_ip", type=str, default='0.0.0.0', help="Linear track controller board IP as the server")
-        # parser.add_argument("--n_frame_wr", type=int, default=1, help="Number of frames to write")
-        # parser.add_argument("--n_frame_rd", type=int, default=1, help="Number of frames to read")
-        # parser.add_argument("--n_tx_ant", type=int, default=1, help="Number transmitter antennas")
-        # parser.add_argument("--n_rx_ant", type=int, default=1, help="Number of receiver antennas")
-        # parser.add_argument("--overwrite_configs", action="store_true", default=False, help="If true, overwrites configurations")
-        # parser.add_argument("--send_signal", action="store_true", default=False, help="If true, sends TX signal")
-        # parser.add_argument("--recv_signal", action="store_true", default=False, help="If true, receives and plots EX signal")
-        # params = parser.parse_args()
-        params = SimpleNamespace()
-        params.overwrite_configs=True
+        # Constant parameters
+        self.c = constants.c
+        self.seed=100
 
-        if params.overwrite_configs:
+        # Board and RFSoC FPGA project parameters
+        self.project='sounder_if_ddr4'      # Type of the project, sounder_bbf_ddr4 or sounder_if_ddr4 or sounder_bbf or sounder_if
+        self.board='rfsoc_4x2'              # Type of the RFSoC board, rfsoc_4x2 or rfsoc_2x2
+        self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-58_20241001-150336.bit')       # Path to the bit file for the RFSoC (Without DAC MTS)
+        # self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-62_20241019-173825.bit')     # Path to the bit file for the RFSoC (With DAC MTS)
+        self.mode='client'                  # Mode of operation, server or client or client_master or client_slave
+        self.run_tcp_server=True            # If True, runs the TCP server
+        self.send_signal=True               # If True, sends TX signal
+        self.recv_signal=True               # If True, receives and plots RX signal
 
-            # Constant parameters
-            self.c = constants.c
-            self.seed=100
+        # Plots and logs parameters
+        self.plt_frame_id = 0               # Frame ID to plot
+        self.overwrite_level=True           # If True, overwrites the plot and verbose levels
+        self.plot_level=0                   # Level of plotting outputs
+        self.verbose_level=0                # Level of printing output
+        self.plt_tx_ant_id = 0              # TX antenna ID to plot
+        self.plt_rx_ant_id = 0              # RX antenna ID to plot
+        self.anim_interval=500              # Animation interval in ms
+        self.animate_plot_mode=['h01', 'rxfd', 'IQ']        # List of plots to animate
 
-            # Board and RFSoC FPGA project parameters
-            self.project='sounder_if_ddr4'
-            self.board='rfsoc_4x2'
-            self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-58_20241001-150336.bit')       # Without DAC MTS
-            # self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-62_20241019-173825.bit')         # With DAC MTS
-            self.mode='client'
-            self.run_tcp_server=True
-            self.send_signal=True
-            self.recv_signal=True
+        # Mixer parameters
+        self.mixer_mode='analog'            # Mixer mode, analog or digital
+        self.mix_freq=1000e6                # Mixer carrier frequency
+        self.mix_phase_off=0.0              # Mixer's phase offset
+        self.do_mixer_settings=False        # If True, performs mixer settings
+        self.do_pll_settings=False          # If True, performs PLL settings
+        self.lmk_freq_mhz=122.88            # LMK frequency in MHz
+        self.lmx_freq_mhz=3932.16           # LMX frequency in MHz
 
-            # Plots and logs parameters
-            self.plt_frame_id = 0
-            self.overwrite_level=True
-            self.plot_level=0
-            self.verbose_level=0
-            self.plt_tx_ant_id = 0
-            self.plt_rx_ant_id = 0
-            self.anim_interval=500
-            self.animate_plot_mode=['h01', 'rxfd', 'IQ']
+        # RFFE and antennas parameters
+        self.RFFE='piradio'                 # RF front end to use, piradio or sivers
+        self.ant_dim = 1                    # Antenna dimension, 1 or 2
+        self.n_tx_ant=2                     # Number of transmitter antennas
+        self.n_rx_ant=2                     # Number of receiver antennas
+        self.ant_dx_m = 0.02                # Antenna x axis spacing in meters
+        self.ant_dy_m = 0.02                # Antenna y axis spacing in meters
 
-            # Mixer parameters
-            self.mixer_mode='analog'
-            self.mix_freq=1000e6
-            self.mix_phase_off=0.0
-            self.do_mixer_settings=False
-            self.do_pll_settings=False
-            self.lmk_freq_mhz=122.88
-            self.lmx_freq_mhz=3932.16
+        # Connections parameters
+        self.control_rfsoc=True             # If True, controls the RFSoC board
+        self.control_piradio=False          # If True, controls the PIRadio board
+        self.tcp_localIP = "0.0.0.0"        # Local IP address
+        self.tcp_bufferSize=2**10           # TCP buffer size
+        self.TCP_port_Cmd=8080              # TCP port for commands
+        self.TCP_port_Data=8081             # TCP port for data
+        self.rfsoc_server_ip='192.168.3.1'  # RFSoC board IP as the server
+        self.lintrack_server_ip='192.168.137.100'   # Linear track controller board IP as the server ('10.18.242.48')
+        self.turntable_port = 'COM6'                # Turntable serial port
+        self.turntable_baudrate = 115200            # Turntable baudrate
+        self.piradio_host = '192.168.137.51'        # PIRadio host IP
+        self.piradio_ssh_port = '22'                # PIRadio SSH port
+        self.piradio_rest_port = '5111'             # PIRadio REST port
+        self.piradio_username = 'ubuntu'            # PIRadio username
+        self.piradio_password = 'temppwd'           # PIRadio password
+        self.piradio_rest_protocol = 'http'         # PIRadio REST protocol
+        self.host_ip = '192.168.3.100'              # Host IP
+        self.host_username = 'wirelesslab914'       # Host username
+        self.host_password = ''                     # Host password
+        self.controller_slave_ip = '192.168.1.1'    # Controller slave IP
+        self.piradio_freq_sw_dly = 1.0              # PIRadio frequency switch delay
+        
+        # Signals information
+        self.freq_hop_list = [10.0e9]               # Frequency hopping list
+        self.fs=245.76e6 * 4                        # Sampling frequency in RFSoC
+        self.fs_tx=self.fs                          # DAC sampling frequency
+        self.fs_rx=self.fs                          # ADC sampling frequency
+        self.fs_trx=self.fs                         # Sampling frequency used for operations involving both TX and RX
+        self.n_samples=1024                         # Number of samples
+        self.nfft=self.n_samples                    # Number of FFT points
+        self.sig_gen_mode = 'fft'                   # Signal generation mode, time, or fft or ofdm, or ZadoffChu
+        self.sig_mode='wideband_null'               # Signal mode, tone_1 or tone_2 or wideband or wideband_null or load
+        self.sig_modulation = '4qam'                # Signal modulation type for sounding, 4qam, 16qam, etc
+        self.tx_sig_sim = 'same'                    # TX signal similarity between antennas, same or orthogonal or shifted
+        self.sig_gain_db=0                          # Transmitter Signal gain in dB
+        self.n_frame_wr=1                           # Number of frames to write
+        self.n_frame_rd=2                           # Number of frames to read
+        self.n_rd_rep=8                             # Number of read repetitions for RX signal
+        self.snr_est_db=40                          # SNR for signal estimation
+        self.wb_bw_mode='sc'                        # Wideband signal bandwidth mode, sc or freq
+        self.wb_sc_range=[-250,250]                 # Wideband signal subcarrier range
+        self.wb_bw_range=[-250e6,250e6]             # Wideband signal bandwidth range
+        self.wb_null_sc=0                           # Number of carriers to null in the wideband signal
+        self.tone_f_mode='sc'                       # Tone signal frequency mode, sc or freq
+        self.sc_tone=10                             # Tone signal subcarrier
+        self.f_tone=10.0 * self.fs_tx / self.nfft   # Tone signal frequency
+        self.filter_bw_range=[-450e6,450e6]         # Final filter BW range on the RX signal
+        self.n_rx_ch_eq=1                           # Number of RX chains for channel equalization
+        self.sparse_ch_samp_range=[-6,20]           # Range of samples around the strongest peak to consider for channel estimation
+        self.sparse_ch_n_ignore=-1                  # Number of samples to ignore around the strongest peak
+        self.rx_same_delay=True                     # If True, all applies the same time shift to all RX antennas
+        self.rx_chain=['sync_time', 'channel_est']  # The chain of operations to perform on the RX signal, filter, integrate, sync_time, sync_time_frac, sync_freq, pilot_separate, channel_est, channel_eq
+        self.channel_limit = True                   # If True, limits the channel to a specific range in the frequency domain
 
-            # RFFE and antennas parameters
-            self.RFFE='piradio'
-            self.ant_dim = 1
-            self.n_tx_ant=2
-            self.n_rx_ant=2
-            self.ant_dx_m = 0.02
-            self.ant_dy_m = 0.02
+        # Save parameters
+        self.calib_params_dir=os.path.join(os.getcwd(), 'calib/')                           # Calibration parameters directory
+        self.calib_params_path=os.path.join(self.calib_params_dir, 'calib_params.npz')      # Calibration parameters path
+        self.sig_dir=os.path.join(os.getcwd(), 'sigs/')                             # Signals directory
+        self.sig_path=os.path.join(self.sig_dir, 'txtd.npz')                        # Signal load path
+        self.sig_save_path=os.path.join(self.sig_dir, 'trx.npz')                    # Signal save path
+        self.sig_save_postfix = ''                                                  # Signal save postfix
+        self.channel_dir=os.path.join(os.getcwd(), 'channels/')                     # Channel directory
+        self.channel_save_path=os.path.join(self.channel_dir, 'channel.npz')        # Channel save path
+        self.sys_response_path=os.path.join(self.channel_dir, 'sys_response.npz')   # System response save path
+        self.ch_save_postfix = ''                                                   # Channel save postfix
+        self.figs_dir=os.path.join(os.getcwd(), 'figs/')                            # Figures directory
+        self.figs_save_path=os.path.join(self.figs_dir, 'plot.pdf')                 # Figures save path
+        self.n_save = 100                                                           # Number of samples to save
+        self.save_list = ['', '']                                                   # List of items to save, signal or channel
+        self.saved_sig_plot = []                                                    # List of saved signal plots
+        self.params_dir = os.path.join(os.getcwd(), 'params/')                      # Parameters directory
+        self.params_path = os.path.join(self.params_dir, 'params.json')             # Parameters load path
+        self.params_save_path = os.path.join(self.params_dir, 'params.json')        # Parameters save path
+        self.save_parameters=False                                                  # If True, saves current parameters
+        self.load_parameters=False                                                  # If True, loads parameters from the file
 
-            # Connections parameters
-            self.control_rfsoc=True
-            self.control_piradio=False
-            self.tcp_localIP = "0.0.0.0"
-            self.tcp_bufferSize=2**10
-            self.TCP_port_Cmd=8080
-            self.TCP_port_Data=8081
-            self.rfsoc_server_ip='192.168.3.1'
-            # self.lintrack_server_ip='10.18.242.48'
-            self.lintrack_server_ip='192.168.137.100'
-            self.turntable_port = 'COM6'
-            self.turntable_baudrate = 115200
-            self.piradio_host = '192.168.137.51'
-            self.piradio_ssh_port = '22'
-            self.piradio_rest_port = '5111'
-            self.piradio_username = 'ubuntu'
-            self.piradio_password = 'temppwd'
-            self.piradio_rest_protocol = 'http'
-            self.host_ip = '192.168.3.100'
-            self.host_username = 'wirelesslab914'
-            self.host_password = ''
-            self.controller_slave_ip = '192.168.1.1'
-            self.piradio_freq_sw_dly = 1.0
-            
-            # Signals information
-            self.freq_hop_list = [10.0e9]
-            self.fs=245.76e6 * 4
-            self.fs_tx=self.fs
-            self.fs_rx=self.fs
-            self.fs_trx=self.fs
-            self.n_samples=1024
-            self.nfft=self.n_samples
-            self.sig_gen_mode = 'fft'
-            self.sig_mode='wideband_null'
-            self.sig_modulation = '4qam'
-            self.tx_sig_sim = 'same'        # same or orthogonal or shifted
-            self.sig_gain_db=0
-            self.n_frame_wr=1
-            self.n_frame_rd=2
-            self.n_rd_rep=8
-            self.snr_est_db=40
-            self.wb_bw_mode='sc'    # sc or freq
-            self.wb_sc_range=[-250,250]
-            self.wb_bw_range=[-250e6,250e6]
-            self.wb_null_sc=0
-            self.tone_f_mode='sc'    # sc or freq
-            self.sc_tone=10
-            self.f_tone=10.0 * self.fs_tx / self.nfft
-            self.filter_bw_range=[-450e6,450e6]
-            self.n_rx_ch_eq=1
-            self.sparse_ch_samp_range=[-6,20]       # Range of samples around the strongest peak to consider for channel estimation
-            self.sparse_ch_n_ignore=-1              # Number of samples to ignore around the strongest peak
-            self.rx_same_delay=True            # If True, all applies the same time shift to all RX antennas
-            self.rx_chain=['sync_time', 'channel_est']        # filter, integrate, sync_time, sync_time_frac, sync_freq, pilot_separate, channel_est, channel_eq
-            self.channel_limit = True
+        # Calibration parameters
+        self.calib_iter = 100           # Number of iterations for calibration
 
-            # Save parameters
-            self.calib_params_dir=os.path.join(os.getcwd(), 'calib/')
-            self.calib_params_path=os.path.join(self.calib_params_dir, 'calib_params.npz')
-            self.sig_dir=os.path.join(os.getcwd(), 'sigs/')
-            self.sig_path=os.path.join(self.sig_dir, 'txtd.npz')
-            self.sig_save_path=os.path.join(self.sig_dir, 'trx.npz')
-            self.sig_save_postfix = ''
-            self.channel_dir=os.path.join(os.getcwd(), 'channels/')
-            self.channel_save_path=os.path.join(self.channel_dir, 'channel.npz')
-            self.sys_response_path=os.path.join(self.channel_dir, 'sys_response.npz')
-            self.ch_save_postfix = ''
-            self.figs_dir=os.path.join(os.getcwd(), 'figs/')
-            self.figs_save_path=os.path.join(self.figs_dir, 'plot.pdf')
-            self.n_save = 100
-            self.save_list = ['', '']           # signal or channel
-            self.saved_sig_plot = []
-            self.params_dir = os.path.join(os.getcwd(), 'params/')
-            self.params_path = os.path.join(self.params_dir, 'params.json')
-            self.params_save_path = os.path.join(self.params_dir, 'params.json')
-            self.save_parameters=False
-            self.load_parameters=False
+        # Beamforming parameters
+        self.beamforming=False          # If True, performs beamforming
+        self.steer_theta_deg = 0        # Desired steering elevation in degrees
+        self.steer_phi_deg = 30         # Desired steering azimuth in degrees
 
-            # Calibration parameters
-            self.calib_iter = 100
+        # Near field measurements parameters
+        self.nf_param_estimate = False                  # If True, performs near field parameter estimation
+        self.use_linear_track = False                   # If True, uses the linear track for near field measurements
+        self.nf_walls = np.array([[-5,4], [-1,6]])      # Near field walls coordinates in meters
+        self.nf_rx_sep_dir = np.array([1,0])            # Direction of the RX antenna separation
+        self.nf_tx_sep_dir = np.array([1,0])            # Direction of the TX antenna separation
+        self.nf_npath_max = [20,5]                      # 1st number is the maximum number to extract at the 1st round, 2nd number is the maximum number to extract at the 2nd round
+        self.nf_stop_thr = 0.03                         # Stopping threshold for the near field parameter estimation
+        self.nf_tx_loc = np.array([[0.3,1.0]])          # TX antenna location in meters
+        self.nf_rx_loc_sep = np.array([0,0.2,0.4])      # RX locations separation in meters
+        self.nf_tx_ant_sep = 0.5                        # TX antenna separation in meters
+        self.nf_rx_ant_sep = 0.5 * np.array([1,2,4])    # RX antenna separation in meters
 
-            # Beamforming parameters
-            self.beamforming=False
-            self.steer_theta_deg = 0        # Desired steering elevation in degrees
-            self.steer_phi_deg = 30        # Desired steering azimuth in degrees
+        # Antenna calibration parameters
+        self.use_turntable = False                      # If True, uses the turntable for calibration
+        self.rotation_range_deg = [-180,180]            # Turntable Rotation range in degrees
+        self.rotation_step_deg = 1                      # Turntable Rotation step in degrees
+        self.rotation_delay = 0.1                       # Turntable between rotations delay in seconds
 
-            # Near field measurements parameters
-            self.nf_param_estimate = False
-            self.use_linear_track = False
-            self.nf_walls = np.array([[-5,4], [-1,6]])
-            self.nf_rx_sep_dir = np.array([1,0])
-            self.nf_tx_sep_dir = np.array([1,0])
-            self.nf_npath_max = [20,5]      # Dirst number is the maximum number to extract at the 1st round, 2nd number is the maximum number to extract at the 2nd round
-            self.nf_stop_thr = 0.03
-            # self.nf_tx_loc = None
-            self.nf_tx_loc = np.array([[0.3,1.0]])
-            # self.nf_tx_loc = np.array([[6,4]])
-            self.nf_rx_loc_sep = np.array([0,0.2,0.4])
-            self.nf_tx_ant_sep = 0.5
-            self.nf_rx_ant_sep = 0.5 * np.array([1,2,4])
-
-            # Antenna calibration parameters
-            self.use_turntable = False
-            self.rotation_range_deg = [-180,180]
-            self.rotation_step_deg = 1
-            self.rotation_delay = 0.1
-
-
-
-
-
-
-
-
-            # FR3 measurements parameters (overwritten)
-            # self.nf_param_estimate = True
-            # self.use_linear_track = True
-            self.use_turntable = True
-            self.turntable_port = 'COM0'
-            self.rotation_step_deg = 10
-            self.control_rfsoc=True
-            self.control_piradio=False
-            self.RFFE='piradio'
-            self.params_path = os.path.join(self.params_dir, 'params.json')
-            self.save_parameters=True
-            self.load_parameters=False
-            self.freq_hop_list = [57.51e9]
-            # self.freq_hop_list = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
-            # self.freq_hop_list = [8.75e9, 10.0e9, 21.7e9]
-            self.mode = 'client'
-            self.piradio_freq_sw_dly = 0.1
-            self.controller_slave_ip = '10.18.134.22'
-            self.ant_dx_m = 0.02               # Antenna spacing in meters
-            self.n_rx_ch_eq=1
-            self.wb_sc_range=[-250,250]
-            self.rx_same_delay=False
-            self.channel_limit = True
-            self.sparse_ch_samp_range=[-5,100]
-            self.sparse_ch_n_ignore=5
-            self.n_rd_rep=8
-            self.plt_tx_ant_id = 0
-            self.plt_rx_ant_id = 0
-            self.animate_plot_mode=['h01', 'rxfd01', 'aoa_gauge']
-            # self.animate_plot_mode=['h01', 'rxfd01', 'IQ']
-            self.anim_interval=100
-            # self.save_list = ['signal']           # signal or channel
-            self.n_save = 250
-            self.tx_sig_sim = 'orthogonal'        # same or orthogonal or shifted
-            # self.sig_gen_mode = 'ZadoffChu'
-
-
-            self.sig_save_postfix = '_test'
-            # self.sig_save_postfix = '_calib_1-1_2-2'
-            # self.sig_save_postfix = '_calib_1-2_2-1'
-            
-            # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect-Blockage/NoBlockage
-            # Orientations: alpha: 0, beta: 45, gamma: -45
-            # self.sig_save_postfix = '_C_beta_beta_b'
-            # self.sig_save_postfix = '_C_beta_alpha_b'
-            # self.sig_save_postfix = '_C_beta_gamma_b'
-            # self.sig_save_postfix = '_C_alpha_gamma_b'
-            # self.sig_save_postfix = '_C_alpha_alpha_b'
-            # self.sig_save_postfix = '_C_alpha_beta_b'
-            # self.sig_save_postfix = '_C_gamma_beta_b'
-            # self.sig_save_postfix = '_C_gamma_alpha_b'
-            # self.sig_save_postfix = '_C_gamma_gamma_b'
-
-            self.ch_save_postfix = self.sig_save_postfix
-
-
-            # Chain or operations to perform (overwritten)
-            self.rx_chain=[]
-            # self.rx_chain.append('filter')
-            # self.rx_chain.append('integrate')
-            self.rx_chain.append('sync_time')
-            # self.rx_chain.append('sync_time_frac')
-            # self.rx_chain.append('sync_freq')
-            # self.rx_chain.append('pilot_separate')
-            # self.rx_chain.append('sys_res_deconv')
-            self.rx_chain.append('channel_est')
-            # self.rx_chain.append('sparse_est')
-            self.rx_chain.append('channel_eq')
-
-            # mmWave measurements parameters [overwritten]
-            # self.RFFE = 'sivers'
-            
 
         self.initialize()
 
@@ -345,7 +214,6 @@ class Params_Class(object):
         if self.n_tx_ant==1 and self.n_rx_ant==1:
             self.ant_dim = 1
             self.beamforming = False
-
 
 
 
@@ -458,7 +326,93 @@ class Params_Class(object):
         
 
 
-
     def copy(self):
         return copy.deepcopy(self)
     
+
+
+
+
+
+
+class Params_Class(Params_Class_Default):
+    def __init__(self):
+        super().__init__()
+
+        # parser = argparse.ArgumentParser()
+        # parser.add_argument("--bit_file_path", type=str, default="./rfsoc.bit", help="Path to the bit file")
+        # params = parser.parse_args()
+        # params = SimpleNamespace()
+
+
+        # FR3 measurements parameters (overwritten)
+        # self.nf_param_estimate = True
+        # self.use_linear_track = True
+        self.use_turntable = True
+        self.turntable_port = 'COM0'
+        self.rotation_step_deg = 10
+        self.control_rfsoc=True
+        self.control_piradio=False
+        self.RFFE='piradio'
+        self.params_path = os.path.join(self.params_dir, 'params.json')
+        self.save_parameters=True
+        self.load_parameters=False
+        self.freq_hop_list = [57.51e9]
+        # self.freq_hop_list = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
+        self.mode = 'client'
+        self.piradio_freq_sw_dly = 0.1
+        self.controller_slave_ip = '10.18.134.22'
+        self.ant_dx_m = 0.02               # Antenna spacing in meters
+        self.n_rx_ch_eq=1
+        self.wb_sc_range=[-250,250]
+        self.rx_same_delay=False
+        self.channel_limit = True
+        self.sparse_ch_samp_range=[-5,100]
+        self.sparse_ch_n_ignore=5
+        self.n_rd_rep=8
+        self.plt_tx_ant_id = 0
+        self.plt_rx_ant_id = 0
+        self.animate_plot_mode=['h01', 'rxfd01', 'aoa_gauge']
+        self.anim_interval=100
+        # self.save_list = ['signal']           # signal or channel
+        self.n_save = 250
+        self.tx_sig_sim = 'orthogonal'        # same or orthogonal or shifted
+        # self.sig_gen_mode = 'ZadoffChu'
+
+
+        self.sig_save_postfix = '_test'
+        # self.sig_save_postfix = '_calib_1-1_2-2'
+        # self.sig_save_postfix = '_calib_1-2_2-1'
+        
+        # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect-Blockage/NoBlockage
+        # Orientations: alpha: 0, beta: 45, gamma: -45
+        # self.sig_save_postfix = '_C_beta_beta_b'
+        # self.sig_save_postfix = '_C_beta_alpha_b'
+        # self.sig_save_postfix = '_C_beta_gamma_b'
+        # self.sig_save_postfix = '_C_alpha_gamma_b'
+        # self.sig_save_postfix = '_C_alpha_alpha_b'
+        # self.sig_save_postfix = '_C_alpha_beta_b'
+        # self.sig_save_postfix = '_C_gamma_beta_b'
+        # self.sig_save_postfix = '_C_gamma_alpha_b'
+        # self.sig_save_postfix = '_C_gamma_gamma_b'
+
+        self.ch_save_postfix = self.sig_save_postfix
+
+
+        # Chain or operations to perform (overwritten)
+        self.rx_chain=[]
+        # self.rx_chain.append('filter')
+        # self.rx_chain.append('integrate')
+        self.rx_chain.append('sync_time')
+        # self.rx_chain.append('sync_time_frac')
+        # self.rx_chain.append('sync_freq')
+        # self.rx_chain.append('pilot_separate')
+        # self.rx_chain.append('sys_res_deconv')
+        self.rx_chain.append('channel_est')
+        # self.rx_chain.append('sparse_est')
+        self.rx_chain.append('channel_eq')
+
+        # mmWave measurements parameters [overwritten]
+        # self.RFFE = 'sivers'
+        
+
