@@ -7,6 +7,7 @@ except:
 from params import Params_Class
 from signal_utilsrfsoc import Signal_Utils_Rfsoc
 from tcp_comm import Tcp_Comm_RFSoC, Tcp_Comm_LinTrack, ssh_Com_Piradio, REST_Com_Piradio, Tcp_Comm_Controller
+from serial_comm import Serial_Comm_TurnTable
 
 
 
@@ -14,6 +15,7 @@ from tcp_comm import Tcp_Comm_RFSoC, Tcp_Comm_LinTrack, ssh_Com_Piradio, REST_Co
 def rfsoc_run(params):
     client_rfsoc = None
     client_lintrack = None
+    client_turntable = None
     client_piradio = None
     client_controller = None
 
@@ -33,6 +35,10 @@ def rfsoc_run(params):
         client_lintrack.init_tcp_client()
         # client_lintrack.return2home()
         # client_lintrack.go2end()
+
+    if params.use_turntable:
+        client_turntable = Serial_Comm_TurnTable(params)
+        client_turntable.connect()
 
     if params.control_piradio:
         # client_piradio = ssh_Com_Piradio(params)
@@ -96,7 +102,7 @@ def rfsoc_run(params):
         
 
         if not 'slave' in params.mode:
-            signals_inst.animate_plot(client_rfsoc, client_lintrack, client_piradio, client_controller, txtd_base, plot_mode=params.animate_plot_mode, plot_level=0)
+            signals_inst.animate_plot(client_rfsoc, client_lintrack, client_turntable, client_piradio, client_controller, txtd_base, plot_mode=params.animate_plot_mode, plot_level=0)
 
 
 if __name__ == '__main__':

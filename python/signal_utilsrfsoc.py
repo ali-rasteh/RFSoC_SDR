@@ -56,6 +56,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.ant_dy = params.ant_dy
         self.nf_param_estimate = params.nf_param_estimate
         self.use_linear_track = params.use_linear_track
+        self.use_turntable = params.use_turntable
+        self.rotation_angles = params.rotation_angles
         self.control_piradio = params.control_piradio
         self.anim_interval = params.anim_interval
         self.freq_hop_list = params.freq_hop_list
@@ -82,11 +84,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.rx_phase_offset = 0
         self.rx_delay_offset = 0
         self.fc_id = 0
+        self.rot_angle_id = 0
         self.nf_loc_idx = 0
         self.nf_sep_idx = 0
         self.rx_phase_list = []
         self.aoa_list = []
-        self.lin_track_pos = 0
         self.lin_track_dir = 'forward'
 
         self.print("signals object initialization done", thr=1)
@@ -478,7 +480,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             self.fc_id = 0
 
 
-    def animate_plot(self, client_rfsoc, client_lintrack, client_piradio, client_controller, txtd_base, plot_mode=['h', 'rxtd', 'rxfd'], plot_level=0):
+    def animate_plot(self, client_rfsoc, client_lintrack, client_turntable, client_piradio, client_controller, txtd_base, plot_mode=['h', 'rxtd', 'rxfd'], plot_level=0):
         if self.plot_level<plot_level:
             return
         self.anim_paused = False
@@ -644,6 +646,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
             self.hop_freq(client_piradio, client_controller)
+
+            if self.use_turntable:
+                angle = self.rotation_angles[self.rot_angle_id]
+                client_turntable.move_to_position(angle)
+                self.rot_angle_id = (self.rot_angle_id + 1) % len(self.rotation_angles)
 
 
             if self.nf_param_estimate:

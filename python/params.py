@@ -107,6 +107,8 @@ class Params_Class(object):
             self.rfsoc_server_ip='192.168.3.1'
             # self.lintrack_server_ip='10.18.242.48'
             self.lintrack_server_ip='192.168.137.100'
+            self.turntable_port = 'COM6'
+            self.turntable_baudrate = 115200
             self.piradio_host = '192.168.137.51'
             self.piradio_ssh_port = '22'
             self.piradio_rest_port = '5111'
@@ -196,6 +198,13 @@ class Params_Class(object):
             self.nf_tx_ant_sep = 0.5
             self.nf_rx_ant_sep = 0.5 * np.array([1,2,4])
 
+            # Antenna calibration parameters
+            self.use_turntable = False
+            self.rotation_range_deg = [-180,180]
+            self.rotation_step_deg = 1
+            self.rotation_delay = 0.1
+
+
 
 
 
@@ -205,12 +214,17 @@ class Params_Class(object):
             # FR3 measurements parameters (overwritten)
             # self.nf_param_estimate = True
             # self.use_linear_track = True
+            self.use_turntable = True
+            self.turntable_port = 'COM0'
+            self.rotation_step_deg = 10
             self.control_rfsoc=True
-            self.control_piradio=True
+            self.control_piradio=False
+            self.RFFE='piradio'
             self.params_path = os.path.join(self.params_dir, 'params.json')
             self.save_parameters=True
             self.load_parameters=False
-            self.freq_hop_list = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
+            self.freq_hop_list = [57.51e9]
+            # self.freq_hop_list = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
             # self.freq_hop_list = [8.75e9, 10.0e9, 21.7e9]
             self.mode = 'client'
             self.piradio_freq_sw_dly = 0.1
@@ -225,7 +239,7 @@ class Params_Class(object):
             self.n_rd_rep=8
             self.plt_tx_ant_id = 0
             self.plt_rx_ant_id = 0
-            self.animate_plot_mode=['h01', 'rxfd01', 'IQ']
+            self.animate_plot_mode=['h01', 'rxfd01', 'aoa_gauge']
             # self.animate_plot_mode=['h01', 'rxfd01', 'IQ']
             self.anim_interval=100
             # self.save_list = ['signal']           # signal or channel
@@ -266,6 +280,9 @@ class Params_Class(object):
             # self.rx_chain.append('sparse_est')
             self.rx_chain.append('channel_eq')
 
+            # mmWave measurements parameters [overwritten]
+            # self.RFFE = 'sivers'
+            
 
         self.initialize()
 
@@ -432,6 +449,8 @@ class Params_Class(object):
                 t = self.ant_dx_m * np.arange(self.n_tx_ant)
                 self.nf_tx_ant_loc[:,m,:] = self.nf_tx_loc + t[:,None]*self.nf_tx_sep_dir[None,:]
 
+
+        self.rotation_angles = np.arange(self.rotation_range_deg[0], self.rotation_range_deg[1]+self.rotation_step_deg, self.rotation_step_deg)
 
         for f in [self.calib_params_dir, self.sig_dir, self.channel_dir, self.figs_dir, self.params_dir]:
             if not os.path.exists(f):

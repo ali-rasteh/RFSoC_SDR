@@ -61,6 +61,7 @@ if import_general:
     import heapq
     import atexit
     import json
+    import serial
 
 if import_networking:
     from scp import SCPClient
