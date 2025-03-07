@@ -37,7 +37,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.calib_params_path = params.calib_params_path
         self.channel_dir = params.channel_dir
         self.channel_save_path = params.channel_save_path
-        self.ch_save_postfix = params.ch_save_postfix
         self.sys_response_path = params.sys_response_path
         self.n_save = params.n_save
         self.mixer_mode = params.mixer_mode
@@ -367,84 +366,111 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 # np.savez(output_file_path, **collected_data)
 
 
-    def save_signal_channel(self, client_rfsoc, client_piradio, client_controller, txtd_base, save_list=[]):
+    def save_signal_channel(self, client_rfsoc, client_turntable, client_piradio, client_controller, txtd_base, save_list=[]):
         rx_chain_main = self.rx_chain.copy()
         if 'sys_res_deconv' in self.rx_chain:
             self.rx_chain.remove('sys_res_deconv')
         if 'sparse_est' in self.rx_chain:
             self.rx_chain.remove('sparse_est')
 
+        if self.use_turntable:
+                angle = self.rotation_angles[self.rot_angle_id]
+                client_turntable.move_to_position(angle)
+                self.rot_angle_id = (self.rot_angle_id + 1) % len(self.rotation_angles)
 
-        for freq_id in range(len(self.freq_hop_list)):
-            self.print("Saving signals for Freq: {} GHz".format(self.freq_hop_list[freq_id]/1e9), thr=0)
+        for angle_id in range(len(self.rotation_angles)):
 
-            self.hop_freq(client_piradio, client_controller, fc_id=freq_id)
+            angle = self.rotation_angles[angle_id]
+            self.print("Rotating to angle: {}".format(angle), thr=0)
+            if self.use_turntable:
+                start = time.time()
+                client_turntable.move_to_position(angle)
+                self.print("Time taken to rotate: {:0.3f} s".format(time.time()-start), thr=0)
 
-            # test = np.load(self.sig_save_path)
-            rxtd_save=[]
-            h_est_full_save=[]
-            H_est_save=[]
-            H_est_max_save=[]
-                
-            if 'channel' in save_list:
-                n_rd_rep = self.n_save
-            else:
-                n_rd_rep = self.n_save//self.n_frame_rd
-            rxtd = self.receive_data(client_rfsoc, n_rd_rep=n_rd_rep, mode='once', verbose=True)
-            # raise ValueError('Stop')
-            
-            if 'channel' in save_list:
-                for i in range(self.n_save):
-                    # time.sleep(0.01)
-                    self.print("Channel Save Iteration: {}".format(i+1), thr=0)
-                    rxtd = self.receive_data(client_rfsoc, n_rd_rep=n_rd_rep, mode='once')
+            for freq_id in range(len(self.freq_hop_list)):
+                self.print("Saving signals for Freq: {} GHz".format(self.freq_hop_list[freq_id]/1e9), thr=0)
 
-                    # to handle the dimenstion needed for read repeat
-                    (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd[i])
+                start = time.time()
+                self.hop_freq(client_piradio, client_controller, fc_id=freq_id)
 
-                    rxtd_save.append(rxtd_base)
+                # test = np.load(self.sig_save_path)
+                rxtd_save=[]
+                h_est_full_save=[]
+                H_est_save=[]
+                H_est_max_save=[]
                     
-                    h_est_full_save.append(h_est_full)
-                    H_est_save.append(H_est)
-                    H_est_max_save.append(H_est_max)
-
-                h_est_full_save = np.array(h_est_full_save)
-                H_est_save = np.array(H_est_save)
-                H_est_max_save = np.array(H_est_max_save)
-
-                # h_est_full_avg = np.mean(h_est_full_save, axis=0)
-                # rxtd_avg = np.mean(rxtd_save, axis=0)
-                # self.rx_chain = ['channel_est']
-                # (rxtd_avg, h_est_full_avg, H_est_avg, H_est_max_avg, sparse_est_params) = self.rx_operations(txtd_base, rxtd_avg)
-            else:
-                rxtd_save = np.empty((self.n_save, self.n_rx_ant, self.n_samples_tx), dtype=rxtd.dtype)
-                for i in range(self.n_frame_rd):
-                    rxtd_save[i::self.n_frame_rd] = rxtd[:,:,i*self.n_samples_tx:(i+1)*self.n_samples_tx]
-                # print(rxtd_save.shape)
-
-                # for i in range(self.n_frame_rd):
-                #     if rxtd_save is None:
-                #         rxtd_save = rxtd[:,:,i*self.n_samples_tx:(i+1)*self.n_samples_tx]
-                #     else:
-                #         rxtd_save = np.vstack((rxtd_save, rxtd[:,:,i*self.n_samples_tx:(i+1)*self.n_samples_tx]))
-                #     print(rxtd_save.shape)
-
-
-            txtd_save = np.expand_dims(txtd_base, axis=0)
-            rxtd_save = np.array(rxtd_save)
-
-            self.validate_saved_signals(rxtd=rxtd_save)
-
+                if 'channel' in save_list:
+                    n_rd_rep = self.n_save
+                else:
+                    n_rd_rep = self.n_save//self.n_frame_rd
+                rxtd = self.receive_data(client_rfsoc, n_rd_rep=n_rd_rep, mode='once', verbose=True)
+                # raise ValueError('Stop')
                 
-            if 'signal' in save_list:
-                save_name = f'{self.freq_hop_list[freq_id]/1e9}' + self.sig_save_postfix + '.npz'
-                sig_save_path=os.path.join(self.sig_dir, save_name)
-                np.savez(sig_save_path, txtd=txtd_save, rxtd=rxtd_save)
-            if 'channel' in save_list:
-                save_name = f'{self.freq_hop_list[freq_id]/1e9}' + self.ch_save_postfix + '.npz'
-                channel_save_path=os.path.join(self.channel_dir, save_name)
-                # np.savez(channel_save_path, h_est_full=h_est_full_save, h_est_full_avg=h_est_full_avg, H_est=H_est_save, H_est_max=H_est_max_save)
-                np.savez(channel_save_path, h_est_full=h_est_full_save)
+                if 'channel' in save_list:
+                    for i in range(self.n_save):
+                        # time.sleep(0.01)
+                        self.print("Channel Save Iteration: {}".format(i+1), thr=0)
+                        rxtd = self.receive_data(client_rfsoc, n_rd_rep=n_rd_rep, mode='once')
+
+                        # to handle the dimenstion needed for read repeat
+                        (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd[i])
+
+                        rxtd_save.append(rxtd_base)
+                        
+                        h_est_full_save.append(h_est_full)
+                        H_est_save.append(H_est)
+                        H_est_max_save.append(H_est_max)
+
+                    h_est_full_save = np.array(h_est_full_save)
+                    H_est_save = np.array(H_est_save)
+                    H_est_max_save = np.array(H_est_max_save)
+
+                    # h_est_full_avg = np.mean(h_est_full_save, axis=0)
+                    # rxtd_avg = np.mean(rxtd_save, axis=0)
+                    # self.rx_chain = ['channel_est']
+                    # (rxtd_avg, h_est_full_avg, H_est_avg, H_est_max_avg, sparse_est_params) = self.rx_operations(txtd_base, rxtd_avg)
+                else:
+                    rxtd_save = np.empty((self.n_save, self.n_rx_ant, self.n_samples_tx), dtype=rxtd.dtype)
+                    for i in range(self.n_frame_rd):
+                        rxtd_save[i::self.n_frame_rd] = rxtd[:,:,i*self.n_samples_tx:(i+1)*self.n_samples_tx]
+                    # print(rxtd_save.shape)
+
+                    # for i in range(self.n_frame_rd):
+                    #     if rxtd_save is None:
+                    #         rxtd_save = rxtd[:,:,i*self.n_samples_tx:(i+1)*self.n_samples_tx]
+                    #     else:
+                    #         rxtd_save = np.vstack((rxtd_save, rxtd[:,:,i*self.n_samples_tx:(i+1)*self.n_samples_tx]))
+                    #     print(rxtd_save.shape)
+
+
+                txtd_save = np.expand_dims(txtd_base, axis=0)
+                rxtd_save = np.array(rxtd_save)
+
+                self.validate_saved_signals(rxtd=rxtd_save)
+
+                    
+                postfix = self.sig_save_postfix
+                if self.measurement_type == 'nyu_3state':
+                    if angle == -45:
+                        postfix.replace('<rxorient>', 'gamma')
+                    elif angle == 0:
+                        postfix.replace('<rxorient>', 'alpha')
+                    elif angle == 45:
+                        postfix.replace('<rxorient>', 'beta')
+                    else:
+                        raise ValueError('Unsupported angle: {}'.format(angle))
+                    save_name = f'{self.freq_hop_list[freq_id]/1e9}' + postfix + '.npz'
+                elif self.measurement_type == 'ant_calib':
+                    save_name = '{}_{}'.format(angle, self.freq_hop_list[freq_id]/1e9) + postfix + '.npz'
+                if 'signal' in save_list:
+                    sig_save_path=os.path.join(self.sig_dir, save_name)
+                    np.savez(sig_save_path, txtd=txtd_save, rxtd=rxtd_save)
+                if 'channel' in save_list:
+                    channel_save_path=os.path.join(self.channel_dir, save_name)
+                    # np.savez(channel_save_path, h_est_full=h_est_full_save, h_est_full_avg=h_est_full_avg, H_est=H_est_save, H_est_max=H_est_max_save)
+                    np.savez(channel_save_path, h_est_full=h_est_full_save)
+
+                self.print("Time taken to save signals: {:0.3f} s".format(time.time()-start), thr=0)
 
 
         self.rx_chain = rx_chain_main.copy()

@@ -38,8 +38,13 @@ def rfsoc_run(params):
 
     if params.use_turntable:
         client_turntable = Serial_Comm_TurnTable(params)
-        client_turntable.connect()
-        client_turntable.calibrate()
+        try:
+            client_turntable.connect()
+            client_turntable.calibrate()
+        except:
+            client_turntable.list_ports()
+            raise Exception("Turntable not connected or wrong port, please check the port list")
+
 
     if params.control_piradio:
         # client_piradio = ssh_Com_Piradio(params)
@@ -98,7 +103,7 @@ def rfsoc_run(params):
                 signals_inst.create_near_field_model()
 
             if 'channel' in params.save_list or 'signal' in params.save_list:
-                signals_inst.save_signal_channel(client_rfsoc, client_piradio, client_controller, txtd_base, save_list=params.save_list)
+                signals_inst.save_signal_channel(client_rfsoc, client_piradio, client_turntable, client_controller, txtd_base, save_list=params.save_list)
         
         
 

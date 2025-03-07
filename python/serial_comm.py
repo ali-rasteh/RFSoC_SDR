@@ -26,6 +26,15 @@ class Serial_Comm(General):
         self.print("Serial_Comm Client object created", thr=1)
 
 
+    def list_ports(self):
+        """
+        List all available COM ports.
+        """
+        ports = serial.tools.list_ports.comports()
+        for port, desc, hwid in ports:
+            self.print(f"{port}: {desc} [{hwid}]", thr=0)
+
+
     def connect(self):
         """Establish a connection to the target."""
         self.client = serial.Serial(port=self.port, baudrate=self.baudrate, timeout=self.timeout)
@@ -100,6 +109,7 @@ class Serial_Comm_TurnTable(Serial_Comm):
         params.timeout = getattr(params, 'turntable_timeout', 1)
         super().__init__(params)
 
+        self.position = 0.0
         self.print("Serial_Comm_TurnTable Client object created", thr=1)
 
         # self.connect()
@@ -107,6 +117,7 @@ class Serial_Comm_TurnTable(Serial_Comm):
 
     def return2home(self):
         self.print("Starting turn-table homing procedure..", thr=2)
+        self.move_to_position(position=0.0)
         self.print("turn-table homing procedure done.", thr=2)
 
 
@@ -124,6 +135,17 @@ class Serial_Comm_TurnTable(Serial_Comm):
                 self.print('waiting..', thr=3)
                 time.sleep(0.1)
                 responses = self.read_lines(max_lines=1)
+        self.position = position
+        self.print(f"Turn-table moved to position: {position}", thr=3)
+
+
+    def set_home(self):
+        self.print("Setting the current position as the home position", thr=2)
+        command = "home"
+        self.write(command)
+        responses = self.read_lines(max_lines=1)
+        self.position = 0.0
+        self.print("Home position set", thr=3)
 
 
     def calibrate(self, mode='start'):
@@ -131,10 +153,11 @@ class Serial_Comm_TurnTable(Serial_Comm):
         while True:
             angle = float(input("Enter the angle to move in deg, 0 if need to break: "))
             if angle == 0:
-                if mode == 'start':
-                    self.position = 0.0
-                elif mode == 'end':
-                    self.position = 360.0
+                # if mode == 'start':
+                #     self.position = 0.0
+                # elif mode == 'end':
+                #     self.position = 360.0
+                self.set_home()
                 break
             self.move_to_position(position=angle)
 

@@ -62,6 +62,7 @@ if import_general:
     import atexit
     import json
     import serial
+    import serial.tools.list_ports
 
 if import_networking:
     from scp import SCPClient

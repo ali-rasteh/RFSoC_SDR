@@ -13,6 +13,7 @@ class Params_Class_Default(object):
 
         # Board and RFSoC FPGA project parameters
         self.project='sounder_if_ddr4'      # Type of the project, sounder_bbf_ddr4 or sounder_if_ddr4 or sounder_bbf or sounder_if
+        self.measurement_type=''            # Type of the measurement, ant_calib or nyu_3state
         self.board='rfsoc_4x2'              # Type of the RFSoC board, rfsoc_4x2 or rfsoc_2x2
         self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-58_20241001-150336.bit')       # Path to the bit file for the RFSoC (Without DAC MTS)
         # self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-62_20241019-173825.bit')     # Path to the bit file for the RFSoC (With DAC MTS)
@@ -72,7 +73,7 @@ class Params_Class_Default(object):
         self.piradio_freq_sw_dly = 1.0              # PIRadio frequency switch delay
         
         # Signals information
-        self.freq_hop_list = [10.0e9]               # Frequency hopping list
+        self.freq_hop_config = {'mode': 'discrete', 'list': [10.0e9], 'range': [10.0e9, 10.0e9], 'step': 1.0e9}    # Frequency hopping configuration, modes: discrete or sweep
         self.fs=245.76e6 * 4                        # Sampling frequency in RFSoC
         self.fs_tx=self.fs                          # DAC sampling frequency
         self.fs_rx=self.fs                          # ADC sampling frequency
@@ -113,7 +114,6 @@ class Params_Class_Default(object):
         self.channel_dir=os.path.join(os.getcwd(), 'channels/')                     # Channel directory
         self.channel_save_path=os.path.join(self.channel_dir, 'channel.npz')        # Channel save path
         self.sys_response_path=os.path.join(self.channel_dir, 'sys_response.npz')   # System response save path
-        self.ch_save_postfix = ''                                                   # Channel save postfix
         self.figs_dir=os.path.join(os.getcwd(), 'figs/')                            # Figures directory
         self.figs_save_path=os.path.join(self.figs_dir, 'plot.pdf')                 # Figures save path
         self.n_save = 100                                                           # Number of samples to save
@@ -148,12 +148,12 @@ class Params_Class_Default(object):
 
         # Antenna calibration parameters
         self.use_turntable = False                      # If True, uses the turntable for calibration
-        self.rotation_range_deg = [-180,180]            # Turntable Rotation range in degrees
+        self.rotation_range_deg = [-90,90]              # Turntable Rotation range in degrees
         self.rotation_step_deg = 1                      # Turntable Rotation step in degrees
         self.rotation_delay = 0.1                       # Turntable between rotations delay in seconds
 
 
-        self.initialize()
+        # self.initialize()
 
 
 
@@ -216,7 +216,12 @@ class Params_Class_Default(object):
             self.beamforming = False
 
 
-
+        if self.freq_hop_config['mode']=='discrete':
+            self.freq_hop_list = self.freq_hop_config['list']
+        elif self.freq_hop_config['mode']=='sweep':
+            self.freq_hop_list = np.arange(self.freq_hop_config['range'][0], self.freq_hop_config['range'][1], self.freq_hop_config['step'])
+        else:
+            raise ValueError('Invalid freq_hop_config mode: ' + self.freq_hop_config['mode'])
         self.fc = self.freq_hop_list[0]
         self.wl = self.c / self.fc
         self.ant_dx = self.ant_dx_m/self.wl             # Antenna spacing in wavelengths (lambda)
@@ -317,8 +322,10 @@ class Params_Class_Default(object):
                 t = self.ant_dx_m * np.arange(self.n_tx_ant)
                 self.nf_tx_ant_loc[:,m,:] = self.nf_tx_loc + t[:,None]*self.nf_tx_sep_dir[None,:]
 
-
-        self.rotation_angles = np.arange(self.rotation_range_deg[0], self.rotation_range_deg[1]+self.rotation_step_deg, self.rotation_step_deg)
+        if self.use_turntable:
+            self.rotation_angles = np.arange(self.rotation_range_deg[0], self.rotation_range_deg[1]+self.rotation_step_deg, self.rotation_step_deg)
+        else:
+            self.rotation_angles = [0]
 
         for f in [self.calib_params_dir, self.sig_dir, self.channel_dir, self.figs_dir, self.params_dir]:
             if not os.path.exists(f):
@@ -349,16 +356,19 @@ class Params_Class(Params_Class_Default):
         # self.nf_param_estimate = True
         # self.use_linear_track = True
         self.use_turntable = True
-        self.turntable_port = 'COM0'
+        self.turntable_port = '/dev/ttyACM0'
+        self.rotation_range_deg = [-90,90]
         self.rotation_step_deg = 10
-        self.control_rfsoc=True
         self.control_piradio=False
-        self.RFFE='piradio'
-        self.params_path = os.path.join(self.params_dir, 'params.json')
-        self.save_parameters=True
-        self.load_parameters=False
-        self.freq_hop_list = [57.51e9]
-        # self.freq_hop_list = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
+        # self.params_path = os.path.join(self.params_dir, 'params.json')
+        # self.save_parameters=True
+        # self.load_parameters=True
+        
+        # self.freq_hop_config['mode'] = 'discrete'
+        # self.freq_hop_config['list'] = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
+        self.freq_hop_config['mode'] = 'sweep'
+        self.freq_hop_config['range'] = [6.0e9, 24.0e9]
+        self.freq_hop_config['step'] = 0.5e9
         self.mode = 'client'
         self.piradio_freq_sw_dly = 0.1
         self.controller_slave_ip = '10.18.134.22'
@@ -380,7 +390,22 @@ class Params_Class(Params_Class_Default):
         # self.sig_gen_mode = 'ZadoffChu'
 
 
-        self.sig_save_postfix = '_test'
+        # Chain or operations to perform (overwritten)
+        self.rx_chain=[]
+        # self.rx_chain.append('filter')
+        # self.rx_chain.append('integrate')
+        self.rx_chain.append('sync_time')
+        # self.rx_chain.append('sync_time_frac')
+        # self.rx_chain.append('sync_freq')
+        # self.rx_chain.append('pilot_separate')
+        # self.rx_chain.append('sys_res_deconv')
+        self.rx_chain.append('channel_est')
+        # self.rx_chain.append('sparse_est')
+        # self.rx_chain.append('channel_eq')
+
+
+        self.measurement_type = 'nyu_3state'
+        # self.sig_save_postfix = '_test'
         # self.sig_save_postfix = '_calib_1-1_2-2'
         # self.sig_save_postfix = '_calib_1-2_2-1'
         
@@ -396,23 +421,12 @@ class Params_Class(Params_Class_Default):
         # self.sig_save_postfix = '_C_gamma_alpha_b'
         # self.sig_save_postfix = '_C_gamma_gamma_b'
 
-        self.ch_save_postfix = self.sig_save_postfix
+        # self.sig_save_postfix = '_C_beta_<rxorient>_b'
+        # self.sig_save_postfix = '_C_alpha_<rxorient>_b'
+        # self.sig_save_postfix = '_C_gamma_<rxorient>_b'
 
-
-        # Chain or operations to perform (overwritten)
-        self.rx_chain=[]
-        # self.rx_chain.append('filter')
-        # self.rx_chain.append('integrate')
-        self.rx_chain.append('sync_time')
-        # self.rx_chain.append('sync_time_frac')
-        # self.rx_chain.append('sync_freq')
-        # self.rx_chain.append('pilot_separate')
-        # self.rx_chain.append('sys_res_deconv')
-        self.rx_chain.append('channel_est')
-        # self.rx_chain.append('sparse_est')
-        self.rx_chain.append('channel_eq')
-
-        # mmWave measurements parameters [overwritten]
-        # self.RFFE = 'sivers'
         
+
+        self.initialize()
+
 
