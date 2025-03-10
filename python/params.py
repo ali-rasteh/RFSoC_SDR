@@ -188,6 +188,7 @@ class Params_Class_Default(object):
         elif self.mode == 'client':
             pass
         elif self.mode == 'client_master':
+            self.piradio_freq_sw_dly = 0.0
             pass
         elif self.mode == 'client_slave':
             self.control_rfsoc=False
