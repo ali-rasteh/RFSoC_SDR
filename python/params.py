@@ -70,7 +70,7 @@ class Params_Class_Default(object):
         self.host_username = 'wirelesslab914'       # Host username
         self.host_password = ''                     # Host password
         self.controller_slave_ip = '192.168.1.1'    # Controller slave IP
-        self.piradio_freq_sw_dly = 1.0              # PIRadio frequency switch delay
+        self.piradio_freq_sw_dly = 0.0              # PIRadio frequency switch delay
         
         # Signals information
         self.freq_hop_config = {'mode': 'discrete', 'list': [10.0e9], 'range': [10.0e9, 10.0e9], 'step': 1.0e9}    # Frequency hopping configuration, modes: discrete or sweep
@@ -150,7 +150,7 @@ class Params_Class_Default(object):
         self.use_turntable = False                      # If True, uses the turntable for calibration
         self.rotation_range_deg = [-90,90]              # Turntable Rotation range in degrees
         self.rotation_step_deg = 1                      # Turntable Rotation step in degrees
-        self.rotation_delay = 0.1                       # Turntable between rotations delay in seconds
+        self.rotation_delay = 0.0                       # Turntable between rotations delay in seconds
 
 
         # self.initialize()
@@ -184,6 +184,7 @@ class Params_Class_Default(object):
             self.control_rfsoc=False
             self.control_piradio=False
             self.use_linear_track=False
+            self.use_turntable=False
         elif self.mode == 'client':
             pass
         elif self.mode == 'client_master':
@@ -191,6 +192,7 @@ class Params_Class_Default(object):
         elif self.mode == 'client_slave':
             self.control_rfsoc=False
             self.use_linear_track=False
+            self.use_turntable=False
 
 
         if self.mixer_mode=='digital' and self.mix_freq!=0:
@@ -219,7 +221,7 @@ class Params_Class_Default(object):
         if self.freq_hop_config['mode']=='discrete':
             self.freq_hop_list = self.freq_hop_config['list']
         elif self.freq_hop_config['mode']=='sweep':
-            self.freq_hop_list = np.arange(self.freq_hop_config['range'][0], self.freq_hop_config['range'][1], self.freq_hop_config['step'])
+            self.freq_hop_list = np.arange(self.freq_hop_config['range'][0], self.freq_hop_config['range'][1]+self.freq_hop_config['step'], self.freq_hop_config['step'])
         else:
             raise ValueError('Invalid freq_hop_config mode: ' + self.freq_hop_config['mode'])
         self.fc = self.freq_hop_list[0]
@@ -358,18 +360,20 @@ class Params_Class(Params_Class_Default):
         self.use_turntable = True
         self.turntable_port = '/dev/ttyACM0'
         self.rotation_range_deg = [-90,90]
-        self.rotation_step_deg = 10
-        self.control_piradio=False
+        self.rotation_step_deg = 1
+        self.rotation_delay = 0.5
+        self.control_piradio=True
         # self.params_path = os.path.join(self.params_dir, 'params.json')
         # self.save_parameters=True
         # self.load_parameters=True
         
         # self.freq_hop_config['mode'] = 'discrete'
         # self.freq_hop_config['list'] = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
+        # self.freq_hop_config['list'] = [6.5e9, 8.75e9, 10.0e9]
         self.freq_hop_config['mode'] = 'sweep'
-        self.freq_hop_config['range'] = [6.0e9, 24.0e9]
+        self.freq_hop_config['range'] = [6.0e9, 22.5e9]
         self.freq_hop_config['step'] = 0.5e9
-        self.mode = 'client'
+        self.mode = 'client_master'
         self.piradio_freq_sw_dly = 0.1
         self.controller_slave_ip = '10.18.134.22'
         self.ant_dx_m = 0.02               # Antenna spacing in meters
@@ -379,15 +383,17 @@ class Params_Class(Params_Class_Default):
         self.channel_limit = True
         self.sparse_ch_samp_range=[-5,100]
         self.sparse_ch_n_ignore=5
-        self.n_rd_rep=8
+        self.n_frame_rd=32
+        self.n_rd_rep=1
         self.plt_tx_ant_id = 0
         self.plt_rx_ant_id = 0
-        self.animate_plot_mode=['h01', 'rxfd01', 'aoa_gauge']
+        # self.animate_plot_mode=['h01', 'rxfd01', 'aoa_gauge']
+        self.animate_plot_mode=['rxfd', 'h']
         self.anim_interval=100
-        # self.save_list = ['signal']           # signal or channel
-        self.n_save = 250
-        self.tx_sig_sim = 'orthogonal'        # same or orthogonal or shifted
-        # self.sig_gen_mode = 'ZadoffChu'
+        self.save_list = ['signal']           # signal or channel
+        self.n_save = 32
+        self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
+        self.sig_gen_mode = 'ZadoffChu'
 
 
         # Chain or operations to perform (overwritten)
@@ -404,13 +410,15 @@ class Params_Class(Params_Class_Default):
         # self.rx_chain.append('channel_eq')
 
 
-        self.measurement_type = 'nyu_3state'
+        self.measurement_type = 'ant_calib'
+        # self.measurement_type = 'nyu_3state'
         # self.sig_save_postfix = '_test'
         # self.sig_save_postfix = '_calib_1-1_2-2'
         # self.sig_save_postfix = '_calib_1-2_2-1'
         
         # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect-Blockage/NoBlockage
         # Orientations: alpha: 0, beta: 45, gamma: -45
+
         # self.sig_save_postfix = '_C_beta_beta_b'
         # self.sig_save_postfix = '_C_beta_alpha_b'
         # self.sig_save_postfix = '_C_beta_gamma_b'
@@ -428,5 +436,6 @@ class Params_Class(Params_Class_Default):
         
 
         self.initialize()
+
 
 

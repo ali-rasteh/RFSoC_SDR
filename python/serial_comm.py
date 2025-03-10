@@ -109,6 +109,7 @@ class Serial_Comm_TurnTable(Serial_Comm):
         params.timeout = getattr(params, 'turntable_timeout', 1)
         super().__init__(params)
 
+        self.rotation_delay = getattr(params, 'rotation_delay', 0.0)
         self.position = 0.0
         self.print("Serial_Comm_TurnTable Client object created", thr=1)
 
@@ -136,6 +137,8 @@ class Serial_Comm_TurnTable(Serial_Comm):
                 time.sleep(0.1)
                 responses = self.read_lines(max_lines=1)
         self.position = position
+        if self.rotation_delay > 0.0:
+            time.sleep(self.rotation_delay)
         self.print(f"Turn-table moved to position: {position}", thr=3)
 
 
@@ -151,14 +154,19 @@ class Serial_Comm_TurnTable(Serial_Comm):
     def calibrate(self, mode='start'):
         self.print("Calibrating the turn-table with mode {}".format(mode), thr=1)
         while True:
-            angle = float(input("Enter the angle to move in deg, 0 if need to break: "))
-            if angle == 0:
+            angle_str = input("Enter the angle to move in deg, empty if need to break: ")
+            if angle_str == '':
                 # if mode == 'start':
                 #     self.position = 0.0
                 # elif mode == 'end':
                 #     self.position = 360.0
                 self.set_home()
                 break
+            try:
+                angle = float(angle_str)
+            except:
+                self.print("Invalid angle, please enter a valid angle", thr=0)
+                continue
             self.move_to_position(position=angle)
 
         self.print("Calibration for turn-table complete", thr=1)
@@ -167,9 +175,14 @@ class Serial_Comm_TurnTable(Serial_Comm):
     def interactive_move(self):
         self.print("Starting interactive move for TurnTable", thr=1)
         while True:
-            angle = float(input("Enter the angle to move in degrees, 0 if need to break: "))
-            if angle == 0:
+            angle_str = input("Enter the angle to move in degrees, empty if need to break: ")
+            if angle_str == 0:
                 break
+            try:
+                angle = float(angle_str)
+            except:
+                self.print("Invalid angle, please enter a valid angle", thr=0)
+                continue
             self.move_to_position(position=angle)
 
 

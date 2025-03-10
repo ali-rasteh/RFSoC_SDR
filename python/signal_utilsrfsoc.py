@@ -78,6 +78,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.sparse_ch_n_ignore = params.sparse_ch_n_ignore
         self.saved_sig_plot = params.saved_sig_plot
         self.figs_save_path = params.figs_save_path
+        self.measurement_type = params.measurement_type
 
 
         self.rx_phase_offset = 0
@@ -303,7 +304,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
     def validate_saved_signals(self, rxtd, txtd=None, thr = 1e-8):
-        self.print("Sanity check for saved signals", thr=0)
+        self.print("Sanity check for saved signals", thr=2)
 
         mses = []
         for i in range(self.n_save):
@@ -326,8 +327,13 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             offset = np.argmax(np.abs(txtd[0,0]))-np.argmax(np.abs(txtd[0,1]))
             self.print("Offset between TX signals: {}".format(offset), thr=0)
 
-        self.print("Sanity check passed", thr=0)
+        self.print("Sanity check passed", thr=3)
 
+
+
+    def process_sys_response(self):
+        self.sys_response = np.load(self.sys_response_path)['h_est_full_avg']
+        self.sys_response /= np.max(np.abs(self.sys_response))
 
 
     def collect_signals(self):
@@ -378,20 +384,31 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 client_turntable.move_to_position(angle)
                 self.rot_angle_id = (self.rot_angle_id + 1) % len(self.rotation_angles)
 
+        rotation_time = 1.514 + client_turntable.rotation_delay
+        freq_switch_time = 0.052 + client_piradio.freq_sw_dly
+        total_time = len(self.rotation_angles) * (rotation_time + len(self.freq_hop_list)*(freq_switch_time))
+        self.print("Anticipated time to save signals: {:0.3f} s".format(total_time), thr=0)
+
         for angle_id in range(len(self.rotation_angles)):
+
+            remaining_time = (len(self.rotation_angles) - angle_id) * (rotation_time + len(self.freq_hop_list)*(freq_switch_time))
+            self.print("Remaining time to save signals: {:0.3f} s".format(remaining_time), thr=0)
 
             angle = self.rotation_angles[angle_id]
             self.print("Rotating to angle: {}".format(angle), thr=0)
             if self.use_turntable:
-                start = time.time()
+                start_time = time.time()
                 client_turntable.move_to_position(angle)
-                self.print("Time taken to rotate: {:0.3f} s".format(time.time()-start), thr=0)
+                rotation_time = time.time()-start_time
+                self.print("Time taken to rotate: {:0.3f} s".format(rotation_time), thr=2)
 
             for freq_id in range(len(self.freq_hop_list)):
                 self.print("Saving signals for Freq: {} GHz".format(self.freq_hop_list[freq_id]/1e9), thr=0)
 
-                start = time.time()
+                start_time = time.time()
                 self.hop_freq(client_piradio, client_controller, fc_id=freq_id)
+                if client_piradio.freq_sw_dly == 0:
+                    time.sleep(0.1)
 
                 # test = np.load(self.sig_save_path)
                 rxtd_save=[]
@@ -403,7 +420,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     n_rd_rep = self.n_save
                 else:
                     n_rd_rep = self.n_save//self.n_frame_rd
-                rxtd = self.receive_data(client_rfsoc, n_rd_rep=n_rd_rep, mode='once', verbose=True)
+                rxtd = self.receive_data(client_rfsoc, n_rd_rep=n_rd_rep, mode='once', verbose=False)
                 # raise ValueError('Stop')
                 
                 if 'channel' in save_list:
@@ -470,7 +487,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     # np.savez(channel_save_path, h_est_full=h_est_full_save, h_est_full_avg=h_est_full_avg, H_est=H_est_save, H_est_max=H_est_max_save)
                     np.savez(channel_save_path, h_est_full=h_est_full_save)
 
-                self.print("Time taken to save signals: {:0.3f} s".format(time.time()-start), thr=0)
+                freq_switch_time = time.time()-start_time
+                self.print("Time taken to save signals: {:0.3f} s".format(freq_switch_time), thr=2)
 
 
         self.rx_chain = rx_chain_main.copy()
@@ -606,9 +624,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     sigs.append(rxtd_base[rx_ant_id, :n_samples_rx])
                 elif item=='rxfd':
                     sigs.append(self.lin_to_db(np.abs(fftshift(fft(rxtd_base[rx_ant_id, :n_samples_rx]))), mode='mag'))
+                    # sigs.append(self.lin_to_db(np.abs(fftshift(fft(rxtd[0, rx_ant_id, 0*n_samples_rx:16*n_samples_rx]))), mode='mag'))
                 elif item=='txtd':
                     sigs.append(txtd_base[tx_ant_id])
                 elif item=='txfd':
+                    # sigs.append(self.lin_to_db(np.abs(fftshift(fft(txtd_base[tx_ant_id]))), mode='mag'))
                     sigs.append(self.lin_to_db(np.abs(fftshift(fft(txtd_base[tx_ant_id]))), mode='mag'))
                 elif item=='rxtd01':
                     # phase_offset = self.calc_phase_offset(rxtd_base[0], rxtd_base[1])
@@ -649,10 +669,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     # phi = np.unwrap(phi)
                     sigs.append(phi)
                 elif item=='rx_phase_diff':
-                    # self.rx_phase_list, self.aoa_list = self.estimate_mimo_params(txtd_base, rxtd_base, self.fc, h_est_full, H_est_max, self.rx_phase_list, self.aoa_list)
                     sigs.append(self.rx_phase_list)
                 elif item=='aoa_gauge':
-                    # self.rx_phase_list, self.aoa_list = self.estimate_mimo_params(txtd_base, rxtd_base, self.fc, h_est_full, H_est_max, self.rx_phase_list, self.aoa_list)
                     sigs.append(self.aoa_list[-1])
                 elif item=='nf_loc':
                     pass
@@ -900,6 +918,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ax[i][j].set_ylabel("Magnitude")
                 elif plot_mode[i]=='rxfd':
                     line[line_id][j], = ax[i][j].plot(self.freq_trx, sigs[i])
+                    # line[line_id][j], = ax[i][j].plot(np.arange(len(sigs[i])), sigs[i])
                     line_id+=1
                     ax[i][j].set_title("RX-FD, Freq {}GHz, RX ant {}".format(self.freq_hop_list[j]/1e9, rx_ant_id))
                     ax[i][j].set_xlabel("Freq (MHz)")
@@ -1144,25 +1163,25 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         
         if 'channel_est' in self.rx_chain:
             if 'sys_res_deconv' in self.rx_chain:
-                sys_response = np.load(self.sys_response_path)['h_est_full_avg']
+                self.process_sys_response()
             else:
-                sys_response = None
+                self.sys_response = None
             snr_est = self.db_to_lin(self.snr_est_db, mode='pow')
 
             if 'sparse_est' in self.rx_chain:
                 h = []
                 for frm_id in range(n_rd_rep):
-                    h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_pilot_s[frm_id], sys_response=sys_response, sc_range_ch=self.sc_range_ch, snr_est=snr_est)
+                    h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_pilot_s[frm_id], sys_response=self.sys_response, sc_range_ch=self.sc_range_ch, snr_est=snr_est)
                     h.append(h_est_full)
                 h = np.array(h)
                 h = h.transpose(3,1,2,0)
-                g = sys_response
+                g = self.sys_response.copy()
                 if g is not None:
-                    g = g.copy().transpose(2,0,1)
+                    g = g.transpose(2,0,1)
                 ndly = 5000
                 sparse_est_params = self.sparse_est(h=h, g=g, sc_range_ch=self.sc_range_ch, npaths=self.nf_npath_max, nframe_avg=1, ndly=ndly, drange=self.sparse_ch_samp_range, cv=True, n_ignore=self.sparse_ch_n_ignore)
             else:
-                h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_pilot_s, sys_response=sys_response, sc_range_ch=self.sc_range_ch, snr_est=snr_est)
+                h_est_full, H_est, H_est_max = self.channel_estimate(txtd_base, rxtd_pilot_s, sys_response=self.sys_response, sc_range_ch=self.sc_range_ch, snr_est=snr_est)
             
             self.rx_phase_list, self.aoa_list = self.estimate_mimo_params(txtd_base, rxtd_pilot, self.fc, h_est_full, H_est_max, self.rx_phase_list, self.aoa_list)
             if len(self.rx_phase_list)>self.nfft_trx//10:
