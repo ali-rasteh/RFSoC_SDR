@@ -110,7 +110,7 @@ class Params_Class_Default(object):
         self.sig_dir=os.path.join(os.getcwd(), 'sigs/')                             # Signals directory
         self.sig_path=os.path.join(self.sig_dir, 'txtd.npz')                        # Signal load path
         self.sig_save_path=os.path.join(self.sig_dir, 'trx.npz')                    # Signal save path
-        self.sig_save_postfix = ''                                                  # Signal save postfix
+        self.measurement_configs = []                                               # List of measurement configurations
         self.channel_dir=os.path.join(os.getcwd(), 'channels/')                     # Channel directory
         self.channel_save_path=os.path.join(self.channel_dir, 'channel.npz')        # Channel save path
         self.sys_response_path=os.path.join(self.channel_dir, 'sys_response.npz')   # System response save path
@@ -435,27 +435,29 @@ class Params_Class(Params_Class_Default):
             self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
             self.sig_gen_mode = 'ZadoffChu'
 
-            # self.sig_save_postfix = '_calib_1-1_2-2'
-            # self.sig_save_postfix = '_calib_1-2_2-1'
             
             # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect-Blockage/NoBlockage
             # Orientations: alpha: 0, beta: 45, gamma: -45
 
-            # self.sig_save_postfix = '_C_beta_beta_b'
-            # self.sig_save_postfix = '_C_beta_alpha_b'
-            # self.sig_save_postfix = '_C_beta_gamma_b'
-            # self.sig_save_postfix = '_C_alpha_gamma_b'
-            # self.sig_save_postfix = '_C_alpha_alpha_b'
-            # self.sig_save_postfix = '_C_alpha_beta_b'
-            # self.sig_save_postfix = '_C_gamma_beta_b'
-            # self.sig_save_postfix = '_C_gamma_alpha_b'
-            # self.sig_save_postfix = '_C_gamma_gamma_b'
+            self.measurement_configs = []
+            # self.measurement_configs.append('_calib_1-1_2-2')
+            # self.measurement_configs.append('_calib_1-2_2-1')
 
-            self.sig_save_postfix = '_C_beta_<rxorient>_b'
-            # self.sig_save_postfix = '_C_alpha_<rxorient>_b'
-            # self.sig_save_postfix = '_C_gamma_<rxorient>_b'
+            self.measurement_configs.append('C_beta_<rxorient>_b')
+            self.measurement_configs.append('C_alpha_<rxorient>_b')
+            self.measurement_configs.append('C_gamma_<rxorient>_b')
+
+            # self.measurement_configs.append('_C_beta_beta_b')
+            # self.measurement_configs.append('_C_beta_alpha_b')
+            # self.measurement_configs.append('_C_beta_gamma_b')
+            # self.measurement_configs.append('_C_alpha_gamma_b')
+            # self.measurement_configs.append('_C_alpha_alpha_b')
+            # self.measurement_configs.append('_C_alpha_beta_b')
+            # self.measurement_configs.append('_C_gamma_beta_b')
+            # self.measurement_configs.append('_C_gamma_alpha_b')
+            # self.measurement_configs.append('_C_gamma_gamma_b')
+
         
-
 
         self.initialize()
 
