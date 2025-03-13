@@ -387,12 +387,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         rotation_time = 1.514 + client_turntable.rotation_delay
         freq_switch_time = 0.052 + client_piradio.freq_sw_dly
         total_time = len(self.rotation_angles) * (rotation_time + len(self.freq_hop_list)*(freq_switch_time))
-        self.print("Anticipated time to save signals: {:0.3f} s".format(total_time), thr=0)
+        self.print("Anticipated time to save signals: {:0.0f} s".format(total_time), thr=0)
 
         for angle_id in range(len(self.rotation_angles)):
 
             remaining_time = (len(self.rotation_angles) - angle_id) * (rotation_time + len(self.freq_hop_list)*(freq_switch_time))
-            self.print("Remaining time to save signals: {:0.3f} s".format(remaining_time), thr=0)
+            self.print("Remaining time to save signals: {:0.0f} s".format(remaining_time), thr=0)
 
             angle = self.rotation_angles[angle_id]
             self.print("Rotating to angle: {}".format(angle), thr=0)
@@ -691,10 +691,10 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
             self.hop_freq(client_piradio, client_controller)
 
-            if self.use_turntable:
-                angle = self.rotation_angles[self.rot_angle_id]
-                client_turntable.move_to_position(angle)
-                self.rot_angle_id = (self.rot_angle_id + 1) % len(self.rotation_angles)
+            # if self.use_turntable:
+            #     angle = self.rotation_angles[self.rot_angle_id]
+            #     client_turntable.move_to_position(angle)
+            #     self.rot_angle_id = (self.rot_angle_id + 1) % len(self.rotation_angles)
 
 
             if self.nf_param_estimate:
@@ -1026,7 +1026,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     ax[i][j].set_yticks(np.arange(self.nf_region[1,0], self.nf_region[1,1], 2.0))
 
                 # ax[i][j].title.set_fontsize(35-5*n_plots_row-3*n_plots_col)
-                ax[i][j].title.set_fontsize(20)
+                ax[i][j].title.set_fontsize(15)
                 # ax[i][j].xaxis.label.set_fontsize(30-4*n_plots_row-2*n_plots_col)
                 ax[i][j].xaxis.label.set_fontsize(17)
                 # ax[i][j].yaxis.label.set_fontsize(30-4*n_plots_row-2*n_plots_col)

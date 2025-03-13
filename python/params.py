@@ -101,7 +101,7 @@ class Params_Class_Default(object):
         self.sparse_ch_samp_range=[-6,20]           # Range of samples around the strongest peak to consider for channel estimation
         self.sparse_ch_n_ignore=-1                  # Number of samples to ignore around the strongest peak
         self.rx_same_delay=True                     # If True, all applies the same time shift to all RX antennas
-        self.rx_chain=['sync_time', 'channel_est']  # The chain of operations to perform on the RX signal, filter, integrate, sync_time, sync_time_frac, sync_freq, pilot_separate, channel_est, channel_eq
+        self.rx_chain=['sync_time', 'channel_est']  # The chain of operations to perform on the RX signal, filter, integrate, sync_time, sync_time_frac, sync_freq, pilot_separate, sys_res_deconv, channel_est, sparse_est, channel_eq
         self.channel_limit = True                   # If True, limits the channel to a specific range in the frequency domain
 
         # Save parameters
@@ -352,89 +352,110 @@ class Params_Class(Params_Class_Default):
         # parser = argparse.ArgumentParser()
         # parser.add_argument("--bit_file_path", type=str, default="./rfsoc.bit", help="Path to the bit file")
         # params = parser.parse_args()
-        # params = SimpleNamespace()
 
 
         # FR3 measurements parameters (overwritten)
-        # self.nf_param_estimate = True
-        # self.use_linear_track = True
-        self.use_turntable = True
         self.turntable_port = '/dev/ttyACM0'
-        self.rotation_range_deg = [-90,90]
-        self.rotation_step_deg = 1
-        self.rotation_delay = 0.5
-        self.control_piradio=True
         # self.params_path = os.path.join(self.params_dir, 'params.json')
         # self.save_parameters=True
         # self.load_parameters=True
         
-        # self.freq_hop_config['mode'] = 'discrete'
-        # self.freq_hop_config['list'] = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
-        # self.freq_hop_config['list'] = [6.5e9, 8.75e9, 10.0e9]
-        self.freq_hop_config['mode'] = 'sweep'
-        self.freq_hop_config['range'] = [6.0e9, 22.5e9]
-        self.freq_hop_config['step'] = 0.5e9
-        self.mode = 'client_master'
         self.piradio_freq_sw_dly = 0.1
         self.controller_slave_ip = '10.18.134.22'
         self.ant_dx_m = 0.02               # Antenna spacing in meters
         self.n_rx_ch_eq=1
         self.wb_sc_range=[-250,250]
         self.rx_same_delay=False
-        self.channel_limit = True
         self.sparse_ch_samp_range=[-5,100]
         self.sparse_ch_n_ignore=5
         self.n_frame_rd=32
         self.n_rd_rep=1
         self.plt_tx_ant_id = 0
         self.plt_rx_ant_id = 0
-        # self.animate_plot_mode=['h01', 'rxfd01', 'aoa_gauge']
-        self.animate_plot_mode=['rxfd', 'h']
         self.anim_interval=100
-        self.save_list = ['signal']           # signal or channel
-        self.n_save = 32
-        self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
-        self.sig_gen_mode = 'ZadoffChu'
 
 
-        # Chain or operations to perform (overwritten)
-        self.rx_chain=[]
-        # self.rx_chain.append('filter')
-        # self.rx_chain.append('integrate')
-        self.rx_chain.append('sync_time')
-        # self.rx_chain.append('sync_time_frac')
-        # self.rx_chain.append('sync_freq')
-        # self.rx_chain.append('pilot_separate')
-        # self.rx_chain.append('sys_res_deconv')
-        self.rx_chain.append('channel_est')
-        # self.rx_chain.append('sparse_est')
-        # self.rx_chain.append('channel_eq')
-
-
-        self.measurement_type = 'ant_calib'
-        # self.measurement_type = 'nyu_3state'
-        # self.sig_save_postfix = '_test'
-        # self.sig_save_postfix = '_calib_1-1_2-2'
-        # self.sig_save_postfix = '_calib_1-2_2-1'
+        # self.measurement_type = 'demo_simple'
+        # self.measurement_type = 'demo_multi_freq'
+        # self.measurement_type = 'ant_calib'
+        self.measurement_type = 'nyu_3state'
         
-        # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect-Blockage/NoBlockage
-        # Orientations: alpha: 0, beta: 45, gamma: -45
 
-        # self.sig_save_postfix = '_C_beta_beta_b'
-        # self.sig_save_postfix = '_C_beta_alpha_b'
-        # self.sig_save_postfix = '_C_beta_gamma_b'
-        # self.sig_save_postfix = '_C_alpha_gamma_b'
-        # self.sig_save_postfix = '_C_alpha_alpha_b'
-        # self.sig_save_postfix = '_C_alpha_beta_b'
-        # self.sig_save_postfix = '_C_gamma_beta_b'
-        # self.sig_save_postfix = '_C_gamma_alpha_b'
-        # self.sig_save_postfix = '_C_gamma_gamma_b'
+        if self.measurement_type == 'demo_simple':
+            self.mode = 'client'
+            self.animate_plot_mode=['h01', 'rxfd01', 'aoa_gauge']
+            self.rx_chain = ['sync_time', 'channel_est']
+            # self.rx_chain = ['sync_time', 'channel_est', 'channel_eq']
+            self.control_piradio=True
+            self.freq_hop_config['list'] = [6.5e9]
+            self.tx_sig_sim = 'orthogonal'        # same or orthogonal or shifted
+            # self.sig_gen_mode = 'ZadoffChu'
+            self.save_parameters=True
 
-        # self.sig_save_postfix = '_C_beta_<rxorient>_b'
-        # self.sig_save_postfix = '_C_alpha_<rxorient>_b'
-        # self.sig_save_postfix = '_C_gamma_<rxorient>_b'
+        elif self.measurement_type == 'demo_multi_freq':
+            self.mode = 'client_master'
+            self.animate_plot_mode=['h01', 'rxfd01', 'aoa_gauge']
+            self.rx_chain = ['sync_time', 'channel_est']
+            # self.rx_chain = ['sync_time', 'channel_est', 'channel_eq']
+            self.control_piradio=True
+            self.freq_hop_config['list'] = [6.5e9, 8.75e9, 10.0e9]
+            self.tx_sig_sim = 'orthogonal'        # same or orthogonal or shifted
+            # self.sig_gen_mode = 'ZadoffChu'
+            self.save_parameters=True
 
+        elif self.measurement_type == 'ant_calib':
+            self.mode = 'client_master'
+            self.animate_plot_mode=['h01', 'rxfd01']
+            self.save_list = ['signal']           # signal or channel
+            self.rx_chain = ['sync_time', 'channel_est']
+            self.use_turntable = True
+            self.rotation_range_deg = [-90,90]
+            self.rotation_step_deg = 1
+            self.rotation_delay = 0.5
+            self.control_piradio=True
+            self.freq_hop_config['mode'] = 'sweep'
+            self.freq_hop_config['range'] = [6.0e9, 22.5e9]
+            self.freq_hop_config['step'] = 0.5e9
+            self.n_save = 32
+            self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
+            self.sig_gen_mode = 'ZadoffChu'
+
+        elif self.measurement_type == 'nyu_3state':
+            self.mode = 'client_master'
+            self.animate_plot_mode=['h01', 'rxfd01']
+            self.save_list = ['signal']           # signal or channel
+            self.rx_chain = ['sync_time', 'channel_est']
+            self.use_turntable = True
+            self.rotation_range_deg = [-45,45]
+            self.rotation_step_deg = 45
+            self.rotation_delay = 0.5
+            self.control_piradio=True
+            self.freq_hop_config['list'] = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
+            self.n_save = 256
+            self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
+            self.sig_gen_mode = 'ZadoffChu'
+
+            # self.sig_save_postfix = '_calib_1-1_2-2'
+            # self.sig_save_postfix = '_calib_1-2_2-1'
+            
+            # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect-Blockage/NoBlockage
+            # Orientations: alpha: 0, beta: 45, gamma: -45
+
+            # self.sig_save_postfix = '_C_beta_beta_b'
+            # self.sig_save_postfix = '_C_beta_alpha_b'
+            # self.sig_save_postfix = '_C_beta_gamma_b'
+            # self.sig_save_postfix = '_C_alpha_gamma_b'
+            # self.sig_save_postfix = '_C_alpha_alpha_b'
+            # self.sig_save_postfix = '_C_alpha_beta_b'
+            # self.sig_save_postfix = '_C_gamma_beta_b'
+            # self.sig_save_postfix = '_C_gamma_alpha_b'
+            # self.sig_save_postfix = '_C_gamma_gamma_b'
+
+            self.sig_save_postfix = '_C_beta_<rxorient>_b'
+            # self.sig_save_postfix = '_C_alpha_<rxorient>_b'
+            # self.sig_save_postfix = '_C_gamma_<rxorient>_b'
         
+
 
         self.initialize()
 
