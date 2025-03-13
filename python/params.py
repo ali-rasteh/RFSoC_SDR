@@ -436,26 +436,38 @@ class Params_Class(Params_Class_Default):
             self.sig_gen_mode = 'ZadoffChu'
 
             
-            # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect-Blockage/NoBlockage
+            # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect(r/n)-Blockage/NoBlockage(b/n)
             # Orientations: alpha: 0, beta: 45, gamma: -45
 
             self.measurement_configs = []
             # self.measurement_configs.append('_calib_1-1_2-2')
             # self.measurement_configs.append('_calib_1-2_2-1')
 
-            self.measurement_configs.append('C_beta_<rxorient>_b')
-            self.measurement_configs.append('C_alpha_<rxorient>_b')
-            self.measurement_configs.append('C_gamma_<rxorient>_b')
+            self.measurement_configs.append('A_beta_<rxorient>_n')
+            self.measurement_configs.append('A_alpha_<rxorient>_n')
+            self.measurement_configs.append('A_gamma_<rxorient>_n')
+            self.measurement_configs.append('B_gamma_<rxorient>_n')
+            self.measurement_configs.append('B_alpha_<rxorient>_n')
+            self.measurement_configs.append('B_beta_<rxorient>_n')
+            self.measurement_configs.append('C_beta_<rxorient>_n')
+            self.measurement_configs.append('C_alpha_<rxorient>_n')
+            self.measurement_configs.append('C_gamma_<rxorient>_n')
+            self.measurement_configs.append('D_gamma_<rxorient>_n')
+            self.measurement_configs.append('D_alpha_<rxorient>_n')
+            self.measurement_configs.append('D_beta_<rxorient>_n')
+            self.measurement_configs.append('E_beta_<rxorient>_n')
+            self.measurement_configs.append('E_alpha_<rxorient>_n')
+            self.measurement_configs.append('E_gamma_<rxorient>_n')
 
-            # self.measurement_configs.append('_C_beta_beta_b')
-            # self.measurement_configs.append('_C_beta_alpha_b')
-            # self.measurement_configs.append('_C_beta_gamma_b')
-            # self.measurement_configs.append('_C_alpha_gamma_b')
-            # self.measurement_configs.append('_C_alpha_alpha_b')
-            # self.measurement_configs.append('_C_alpha_beta_b')
-            # self.measurement_configs.append('_C_gamma_beta_b')
-            # self.measurement_configs.append('_C_gamma_alpha_b')
-            # self.measurement_configs.append('_C_gamma_gamma_b')
+            # self.measurement_configs.append('_A_beta_beta_n')
+            # self.measurement_configs.append('_A_beta_alpha_n')
+            # self.measurement_configs.append('_A_beta_gamma_n')
+            # self.measurement_configs.append('_A_alpha_gamma_n')
+            # self.measurement_configs.append('_A_alpha_alpha_n')
+            # self.measurement_configs.append('_A_alpha_beta_n')
+            # self.measurement_configs.append('_A_gamma_beta_n')
+            # self.measurement_configs.append('_A_gamma_alpha_n')
+            # self.measurement_configs.append('_A_gamma_gamma_n')
 
         
 
