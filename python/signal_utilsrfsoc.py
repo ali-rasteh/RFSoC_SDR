@@ -383,23 +383,34 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         if 'sparse_est' in self.rx_chain:
             self.rx_chain.remove('sparse_est')
 
-        rotation_time = 1.514 + client_turntable.rotation_delay
-        freq_switch_time = 0.052 + client_piradio.freq_sw_dly
-        total_time = len(self.rotation_angles) * (rotation_time + len(self.freq_hop_list)*(freq_switch_time))
-        self.print("Anticipated time to save signals: {:0.0f} s".format(total_time), thr=0)
 
         for config in self.measurement_configs:
             input('Please change the configuration to: {} and press any key to start...'.format(config))
             self.print("Starting to save signals for configuration: {}".format(config), thr=0)
 
-            for angle_id in range(len(self.rotation_angles)):
+            if 'calib' in config:
+                rotation_angles = [0]
+                use_turntable = False
+                mode = 'calib'
+            else:
+                rotation_angles = self.rotation_angles
+                use_turntable = self.use_turntable
+                mode = 'measurement'
 
-                remaining_time = (len(self.rotation_angles) - angle_id) * (rotation_time + len(self.freq_hop_list)*(freq_switch_time))
+            rotation_time = 1.514 + client_turntable.rotation_delay
+            freq_switch_time = 0.052 + client_piradio.freq_sw_dly
+            total_time = len(rotation_angles) * (rotation_time + len(self.freq_hop_list)*(freq_switch_time))
+            self.print("Anticipated time to save signals: {:0.0f} s".format(total_time), thr=0)
+            
+
+            for angle_id in range(len(rotation_angles)):
+
+                remaining_time = (len(rotation_angles) - angle_id) * (rotation_time + len(self.freq_hop_list)*(freq_switch_time))
                 self.print("Remaining time to save signals: {:0.0f} s".format(remaining_time), thr=0)
 
-                angle = self.rotation_angles[angle_id]
+                angle = rotation_angles[angle_id]
                 self.print("Rotating to angle: {}".format(angle), thr=0)
-                if self.use_turntable:
+                if use_turntable:
                     start_time = time.time()
                     client_turntable.move_to_position(angle)
                     rotation_time = time.time()-start_time
@@ -483,19 +494,24 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
                 postfix = config
                 if self.measurement_type == 'nyu_3state':
-                    if angle == -45:
-                        postfix = postfix.replace('<rxorient>', 'gamma')
-                    elif angle == 0:
-                        postfix = postfix.replace('<rxorient>', 'alpha')
-                    elif angle == 45:
-                        postfix = postfix.replace('<rxorient>', 'beta')
-                    else:
-                        raise ValueError('Unsupported angle: {}'.format(angle))
-                    # save_name = f'{frequency/1e9}' + postfix + '.npz'
+                    if mode != 'calib':
+                        if angle == -45:
+                            postfix = postfix.replace('<rxorient>', 'gamma')
+                        elif angle == 0:
+                            postfix = postfix.replace('<rxorient>', 'alpha')
+                        elif angle == 45:
+                            postfix = postfix.replace('<rxorient>', 'beta')
+                        else:
+                            raise ValueError('Unsupported angle: {}'.format(angle))
+                        # save_name = f'{frequency/1e9}' + postfix + '.npz'
                     save_name = postfix + '.npz'
                 elif self.measurement_type == 'ant_calib':
-                    # save_name = '{}_{}'.format(angle, frequency/1e9) + postfix + '.npz'
-                    save_name = '{}'.format(angle) + postfix + '.npz'
+                    if mode != 'calib':
+                        # save_name = '{}_{}'.format(angle, frequency/1e9) + postfix + '.npz'
+                        save_name = '{}'.format(angle) + postfix + '.npz'
+                    else:
+                        save_name = postfix + '.npz'
+                        
                 if 'signal' in save_list:
                     sig_save_path=os.path.join(self.sig_dir, save_name)
                     # np.savez(sig_save_path, txtd=txtd_save, rxtd=rxtd_save)

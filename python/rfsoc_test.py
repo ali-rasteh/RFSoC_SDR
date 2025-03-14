@@ -40,6 +40,7 @@ def rfsoc_run(params):
         client_turntable = Serial_Comm_TurnTable(params)
         try:
             client_turntable.connect()
+            client_turntable.move_to_position(0)
             client_turntable.calibrate()
         except:
             client_turntable.list_ports()
