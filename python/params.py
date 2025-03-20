@@ -441,6 +441,8 @@ class Params_Class(Params_Class_Default):
             
             # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect(r/n)-Blockage/NoBlockage(b/n)
             # Orientations: alpha: 0, beta: 45, gamma: -45
+            # Good Pi-radio gains for OTA: 20dB for TX channels and 21dB for RX channels
+            # Good Pi-radio gains for cabled calibration: 10dB for TX channels and 15dB for RX channels
 
             self.measurement_configs = []
             # self.measurement_configs.append('calib_1-1_2-2')
