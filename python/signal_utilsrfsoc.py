@@ -391,13 +391,15 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             if 'calib' in config:
                 rotation_angles = [0]
                 use_turntable = False
+                rotation_delay = 0
                 mode = 'calib'
             else:
                 rotation_angles = self.rotation_angles
                 use_turntable = self.use_turntable
+                rotation_delay = client_turntable.rotation_delay if use_turntable else 0
                 mode = 'measurement'
 
-            rotation_time = 1.514 + client_turntable.rotation_delay
+            rotation_time = 1.514 + rotation_delay
             freq_switch_time = 0.052 + client_piradio.freq_sw_dly
             total_time = len(rotation_angles) * (rotation_time + len(self.freq_hop_list)*(freq_switch_time))
             self.print("Anticipated time to save signals: {:0.0f} s".format(total_time), thr=0)
