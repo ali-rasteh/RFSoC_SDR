@@ -30,7 +30,7 @@ class Params_Class_Default(object):
         self.plt_tx_ant_id = 0              # TX antenna ID to plot
         self.plt_rx_ant_id = 0              # RX antenna ID to plot
         self.anim_interval=500              # Animation interval in ms
-        self.animate_plot_mode=['h01', 'rxfd', 'IQ']        # List of plots to animate
+        self.animate_plot_mode=['h', 'rxfd']        # List of plots to animate
 
         # Mixer parameters
         self.mixer_mode='analog'            # Mixer mode, analog or digital
@@ -90,8 +90,8 @@ class Params_Class_Default(object):
         self.n_rd_rep=8                             # Number of read repetitions for RX signal
         self.snr_est_db=40                          # SNR for signal estimation
         self.wb_bw_mode='sc'                        # Wideband signal bandwidth mode, sc or freq
-        self.wb_sc_range=[-250,250]                 # Wideband signal subcarrier range
-        self.wb_bw_range=[-250e6,250e6]             # Wideband signal bandwidth range
+        self.wb_sc_range=[-250,250]                 # Wideband signal subcarrier range, used when wb_bw_mode is sc
+        self.wb_bw_range=[-250e6,250e6]             # Wideband signal bandwidth range, used when wb_bw_mode is freq
         self.wb_null_sc=0                           # Number of carriers to null in the wideband signal
         self.tone_f_mode='sc'                       # Tone signal frequency mode, sc or freq
         self.sc_tone=10                             # Tone signal subcarrier
@@ -376,13 +376,27 @@ class Params_Class(Params_Class_Default):
         self.anim_interval=100
 
 
-        # self.measurement_type = 'demo_simple'
-        # self.measurement_type = 'demo_multi_freq'
-        # self.measurement_type = 'ant_calib'
-        self.measurement_type = 'nyu_3state'
+        self.measurement_type = 'mmw_demo_simple'
+        # self.measurement_type = 'FR3_demo_simple'
+        # self.measurement_type = 'FR3_demo_multi_freq'
+        # self.measurement_type = 'FR3_ant_calib'
+        # self.measurement_type = 'FR3_nyu_3state'
         
 
-        if self.measurement_type == 'demo_simple':
+        if self.measurement_type == 'mmw_demo_simple':
+            self.mode = 'client'
+            self.RFFE='sivers'
+            self.send_signal=False
+            self.recv_signal=True
+            self.animate_plot_mode=['h', 'rxfd']
+            self.rx_chain = ['sync_time', 'channel_est']
+            # self.rx_chain = ['sync_time', 'channel_est', 'channel_eq']
+            self.freq_hop_config['list'] = [57.0e9]
+            self.tx_sig_sim = 'orthogonal'        # same or orthogonal or shifted
+            # self.sig_gen_mode = 'ZadoffChu'
+            self.save_parameters=True
+
+        if self.measurement_type == 'FR3_demo_simple':
             self.mode = 'client'
             self.animate_plot_mode=['h01', 'rxfd01', 'aoa_gauge']
             self.rx_chain = ['sync_time', 'channel_est']
@@ -393,7 +407,7 @@ class Params_Class(Params_Class_Default):
             # self.sig_gen_mode = 'ZadoffChu'
             self.save_parameters=True
 
-        elif self.measurement_type == 'demo_multi_freq':
+        elif self.measurement_type == 'FR3_demo_multi_freq':
             self.mode = 'client_master'
             self.animate_plot_mode=['h01', 'rxfd01', 'aoa_gauge']
             self.rx_chain = ['sync_time', 'channel_est']
@@ -404,7 +418,7 @@ class Params_Class(Params_Class_Default):
             # self.sig_gen_mode = 'ZadoffChu'
             self.save_parameters=True
 
-        elif self.measurement_type == 'ant_calib':
+        elif self.measurement_type == 'FR3_ant_calib':
             self.mode = 'client_master'
             self.animate_plot_mode=['h01', 'rxfd01']
             self.save_list = ['signal']           # signal or channel
@@ -420,8 +434,9 @@ class Params_Class(Params_Class_Default):
             self.n_save = 32
             self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
             self.sig_gen_mode = 'ZadoffChu'
+            self.save_parameters=True
 
-        elif self.measurement_type == 'nyu_3state':
+        elif self.measurement_type == 'FR3_nyu_3state':
             self.mode = 'client_master'
             self.animate_plot_mode=['h01', 'rxfd01']
             # self.animate_plot_mode=['h', 'rxfd']
@@ -437,6 +452,7 @@ class Params_Class(Params_Class_Default):
             self.n_save = 256
             self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
             self.sig_gen_mode = 'ZadoffChu'
+            self.save_parameters=True
 
             
             # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect(r/n)-Blockage/NoBlockage(b/n)

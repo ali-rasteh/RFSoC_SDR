@@ -2,13 +2,12 @@ from backend import *
 from backend import be_np as np, be_scp as scipy
 try:
     from rfsoc import RFSoC
-except:
-    pass
+except Exception as e:
+    print("Error importing RFSoC class: ", e)
 from params import Params_Class
 from signal_utilsrfsoc import Signal_Utils_Rfsoc
 from tcp_comm import Tcp_Comm_RFSoC, Tcp_Comm_LinTrack, ssh_Com_Piradio, REST_Com_Piradio, Tcp_Comm_Controller
 from serial_comm import Serial_Comm_TurnTable
-
 
 
 

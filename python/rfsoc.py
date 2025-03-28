@@ -2,10 +2,7 @@ from backend import *
 from backend import be_np as np, be_scp as scipy
 from signal_utilsrfsoc import Signal_Utils_Rfsoc
 from tcp_comm import Tcp_Comm_RFSoC
-try:
-    from siversController import *
-except:
-    pass
+from Sivers.siversController import *
 
 
 
