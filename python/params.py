@@ -386,17 +386,18 @@ class Params_Class(Params_Class_Default):
         if self.measurement_type == 'mmw_demo_simple':
             self.mode = 'client'
             self.RFFE='sivers'
-            self.send_signal=False
-            self.recv_signal=True
+            self.wb_sc_range=[-300,-100]
+            self.send_signal=True
+            self.recv_signal=False
             self.animate_plot_mode=['h', 'rxfd']
             self.rx_chain = ['sync_time', 'channel_est']
             # self.rx_chain = ['sync_time', 'channel_est', 'channel_eq']
-            self.freq_hop_config['list'] = [57.0e9]
-            self.tx_sig_sim = 'orthogonal'        # same or orthogonal or shifted
+            self.freq_hop_config['list'] = [60.0e9]
+            # self.tx_sig_sim = 'orthogonal'        # same or orthogonal or shifted
             # self.sig_gen_mode = 'ZadoffChu'
             self.save_parameters=True
 
-        if self.measurement_type == 'FR3_demo_simple':
+        elif self.measurement_type == 'FR3_demo_simple':
             self.mode = 'client'
             self.animate_plot_mode=['h01', 'rxfd01', 'aoa_gauge']
             self.rx_chain = ['sync_time', 'channel_est']
