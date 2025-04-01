@@ -118,6 +118,7 @@ class Params_Class_Default(object):
         self.figs_save_path=os.path.join(self.figs_dir, 'plot.pdf')                 # Figures save path
         self.n_save = 100                                                           # Number of samples to save
         self.save_list = ['', '']                                                   # List of items to save, signal or channel
+        self.save_format = 'npz'                                                    # Format to save the data, npz or mat (for MATLAB)
         self.saved_sig_plot = []                                                    # List of saved signal plots
         self.params_dir = os.path.join(os.getcwd(), 'params/')                      # Parameters directory
         self.params_path = os.path.join(self.params_dir, 'params.json')             # Parameters load path
@@ -387,8 +388,8 @@ class Params_Class(Params_Class_Default):
             self.mode = 'client'
             self.RFFE='sivers'
             self.wb_sc_range=[-300,-100]
-            self.send_signal=True
-            self.recv_signal=False
+            self.send_signal=False
+            self.recv_signal=True
             self.animate_plot_mode=['h', 'rxfd']
             self.rx_chain = ['sync_time', 'channel_est']
             # self.rx_chain = ['sync_time', 'channel_est', 'channel_eq']
@@ -442,6 +443,7 @@ class Params_Class(Params_Class_Default):
             self.animate_plot_mode=['h01', 'rxfd01']
             # self.animate_plot_mode=['h', 'rxfd']
             self.save_list = ['signal']           # signal or channel
+            self.save_format = 'mat'
             self.rx_chain = ['sync_time', 'channel_est']
             self.use_turntable = True
             self.rotation_range_deg = [-45,45]

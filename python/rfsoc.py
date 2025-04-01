@@ -2,7 +2,10 @@ from backend import *
 from backend import be_np as np, be_scp as scipy
 from signal_utilsrfsoc import Signal_Utils_Rfsoc
 from tcp_comm import Tcp_Comm_RFSoC
-from Sivers.siversController import *
+try:
+    from Sivers.siversController import *
+except Exception as e:
+    print("Error importing siversController class: ", e)
 
 
 
@@ -150,7 +153,7 @@ class RFSoC(Signal_Utils_Rfsoc):
         self.rxtd = None
 
         if self.RFFE=='sivers':
-            self.init_sivers()
+            self.init_sivers(params=params)
         elif self.RFFE=='piradio':
             pass
         elif self.RFFE=='none':
@@ -196,15 +199,9 @@ class RFSoC(Signal_Utils_Rfsoc):
         self.print("Bit-file loading done", thr=1)
 
 
-    def init_sivers(self):
+    def init_sivers(self, params=None):
         self.print("Starting Sivers EVK controller", thr=1)
-        allDevices=Ftdi.list_devices()
-        Ftdi.show_devices()
-        strFTDIdesc = str(allDevices[0][0])
-        snStr = strFTDIdesc[strFTDIdesc.find('sn=')+4:strFTDIdesc.find('sn=')+14]
-        siverEVKAddr = 'ftdi://ftdi:4232:'+ snStr
-        self.print('siverEVKAddr: {}'.format(siverEVKAddr), thr=1)            
-        self.siversControllerObj = siversController(siverEVKAddr)
+        self.siversControllerObj = siversController(params)
         self.siversControllerObj.init()
         self.print("Sivers EVK controller is loaded", thr=1)
 

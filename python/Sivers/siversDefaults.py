@@ -1,7 +1,10 @@
 from .siversDoc import siversDocClass as doc
+from SigProc_Comm.general import General
 
-class siversDefaults():
-    def __init__(self):
+
+class siversDefaults(General):
+    def __init__(self, params=None):
+        super().__init__(params)
        
         self.freq = 45e6               # XO reference frequency
         self.freq_alt = 40e6           # Alternative XO reference frequency

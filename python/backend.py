@@ -63,6 +63,8 @@ if import_general:
     import json
     import serial
     import serial.tools.list_ports
+    import pickle
+    from math import ceil, log
 
 if import_networking:
     from scp import SCPClient
@@ -157,6 +159,7 @@ if import_pynq:
 
 if import_sivers:
     from pyftdi.ftdi import Ftdi
+    from pyftdi.spi import SpiController
 
 if import_adafruit:
     import board

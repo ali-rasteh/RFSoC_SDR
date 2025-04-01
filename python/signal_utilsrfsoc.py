@@ -39,6 +39,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.channel_save_path = params.channel_save_path
         self.sys_response_path = params.sys_response_path
         self.n_save = params.n_save
+        self.save_format = params.save_format
         self.mixer_mode = params.mixer_mode
         self.mix_freq = params.mix_freq
         self.filter_bw_range = params.filter_bw_range
@@ -516,13 +517,19 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         
                 if 'signal' in save_list:
                     sig_save_path=os.path.join(self.sig_dir, save_name)
-                    # np.savez(sig_save_path, txtd=txtd_save, rxtd=rxtd_save)
-                    np.savez(sig_save_path, **measurements)
+                    if self.save_format == 'npz':
+                        # np.savez(sig_save_path, txtd=txtd_save, rxtd=rxtd_save)
+                        np.savez(sig_save_path, **measurements)
+                    elif self.save_format == 'mat':
+                        scipy.io.savemat(sig_save_path, measurements)
                 if 'channel' in save_list:
                     channel_save_path=os.path.join(self.channel_dir, save_name)
-                    # np.savez(channel_save_path, h_est_full=h_est_full_save, h_est_full_avg=h_est_full_avg, H_est=H_est_save, H_est_max=H_est_max_save)
-                    # np.savez(channel_save_path, h_est_full=h_est_full_save)
-                    np.savez(channel_save_path, **measurements)
+                    if self.save_format == 'npz':
+                        # np.savez(channel_save_path, h_est_full=h_est_full_save, h_est_full_avg=h_est_full_avg, H_est=H_est_save, H_est_max=H_est_max_save)
+                        # np.savez(channel_save_path, h_est_full=h_est_full_save)
+                        np.savez(channel_save_path, **measurements)
+                    elif self.save_format == 'mat':
+                        scipy.io.savemat(channel_save_path, measurements)
 
 
         self.rx_chain = rx_chain_main.copy()
@@ -1089,6 +1096,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         anim = animation.FuncAnimation(fig, update, frames=int(1e9), interval=self.anim_interval, blit=False)
         plt.show()
         fig.savefig(self.figs_save_path, dpi=300)
+
+
 
 
     def rx_operations(self, txtd_base, rxtd):
