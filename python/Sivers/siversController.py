@@ -103,7 +103,7 @@ class siversController(siversDefaults):
             self.set('vco_tune_ctrl',(1<<2))
         else:
             self.clr('vco_tune_ctrl',(1<<2))  
-        self.time.sleep(0.5)                
+        time.sleep(0.5)                
         self.wr('vco_en',0x3c) # Enable VCO
 
         # Set Carrier Frequency
@@ -262,7 +262,7 @@ class siversController(siversDefaults):
             return success, status
         
         self.print('Setting frequency to {} GHz'.format(frequency/1e9), thr=1)
-        start_time = self.time.time()
+        start_time = time.time()
 
         self.t=self.getTemperature('K')-273
         # Set vco amplitude according to temperature 
@@ -283,7 +283,7 @@ class siversController(siversDefaults):
         self.wr('pll_divn',self.freq_to_divn(frequency))
         self.tgl('vco_tune_ctrl', 0x02)
         self.tgl('vco_tune_ctrl', 0x01)
-        self.time.sleep(0.002) 									# Increased to 2 ms from 0.5 ms
+        time.sleep(0.002) 									# Increased to 2 ms from 0.5 ms
         vco_tune_status = self.rd('vco_tune_status')
         vco_tune_det_status = self.rd('vco_tune_det_status')
         vco_tune_freq_cnt = self.rd('vco_tune_freq_cnt')
@@ -350,7 +350,7 @@ class siversController(siversDefaults):
 
     ## ADC
     def getTemperatureRaw(self):
-        self.print('Getting raw temperature', thr=2)
+        self.print('Getting raw temperature', thr=5)
         self.startADC(src1 = 0x83,src2 = None,log2_nsamples = 4)
         temp = self.meanADC()
         self.stopADC()
