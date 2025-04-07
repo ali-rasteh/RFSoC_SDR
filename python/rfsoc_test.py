@@ -8,10 +8,21 @@ from params import Params_Class
 from signal_utilsrfsoc import Signal_Utils_Rfsoc, Animate_Plot
 from tcp_comm import Tcp_Comm_RFSoC, Tcp_Comm_LinTrack, ssh_Com_Piradio, REST_Com_Piradio, Tcp_Comm_Controller
 from serial_comm import Serial_Comm_TurnTable
+from file_utils import File_Utils
 
 
 
 def rfsoc_run(params):
+    
+    # if params.mode=='server':
+    #     file_utils = File_Utils(params)
+    #     # file_utils.download_files()
+    #     changed = file_utils.modify_files()
+    #     if changed:
+    #         print("To handle pre-requisites some files were modified, please run the script again ...")
+    #         return
+
+
     client_rfsoc = None
     client_lintrack = None
     client_turntable = None
@@ -24,7 +35,7 @@ def rfsoc_run(params):
         signals_inst.save_class_attributes_to_json(params, params.params_save_path)
     if params.load_parameters:
         signals_inst.load_class_attributes_from_json(params, params.params_path)
-        params.initialize()
+        params.calc_params()
 
     signals_inst.print("Running the code in mode {}".format(params.mode), thr=1)
     (txtd_base, txtd) = signals_inst.gen_tx_signal()
@@ -86,7 +97,7 @@ def rfsoc_run(params):
 
             if params.send_signal:
                 # client_rfsoc.transmit_data_default()
-                # client_rfsoc.transmit_data(txtd)
+                client_rfsoc.transmit_data(txtd)
                 pass
 
             if params.RFFE=='sivers':

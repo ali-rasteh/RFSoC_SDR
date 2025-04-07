@@ -154,11 +154,11 @@ class Params_Class_Default(object):
         self.rotation_delay = 0.0                       # Turntable between rotations delay in seconds
 
 
-        # self.initialize()
+        # self.calc_params()
 
 
 
-    def initialize(self):
+    def calc_params(self):
 
         if 'h_sparse' in self.animate_plot_mode and 'sparse_est' not in self.rx_chain:
             self.rx_chain.append('sparse_est')
@@ -350,18 +350,18 @@ class Params_Class(Params_Class_Default):
     def __init__(self):
         super().__init__()
 
+        self.init()
+        self.populate_measurement_parameters()
+        self.calc_params()
+
+
+    
+    def init(self):
+
         # parser = argparse.ArgumentParser()
         # parser.add_argument("--bit_file_path", type=str, default="./rfsoc.bit", help="Path to the bit file")
         # params = parser.parse_args()
 
-
-        # FR3 measurements parameters (overwritten)
-        self.turntable_port = '/dev/ttyACM0'
-        # self.turntable_port = 'COM4'
-        # self.params_path = os.path.join(self.params_dir, 'params.json')
-        # self.save_parameters=True
-        # self.load_parameters=True
-        
         self.piradio_freq_sw_dly = 0.1
         self.controller_slave_ip = '10.18.134.22'
         self.ant_dx_m = 0.02               # Antenna spacing in meters
@@ -376,21 +376,31 @@ class Params_Class(Params_Class_Default):
         self.plt_rx_ant_id = 0
         self.anim_interval=100
 
+        self.turntable_port = '/dev/ttyACM0'
+        # self.turntable_port = 'COM4'
+        # self.params_path = os.path.join(self.params_dir, 'params.json')
+        # self.save_parameters=True
+        # self.load_parameters=True
 
-        self.measurement_type = 'mmw_demo_simple'
-        # self.measurement_type = 'FR3_demo_simple'
+        # self.measurement_type = 'RFSoC_demo_simple'
+        # self.measurement_type = 'mmw_demo_simple'
+        self.measurement_type = 'FR3_demo_simple'
         # self.measurement_type = 'FR3_demo_multi_freq'
-        # self.measurement_type = 'FR3_ant_calib'
         # self.measurement_type = 'FR3_nyu_3state'
-        
+        # self.measurement_type = 'FR3_ant_calib'
 
+
+
+
+    def populate_measurement_parameters(self):
+        
         if self.measurement_type == 'mmw_demo_simple':
             self.mode = 'client'
             self.RFFE='sivers'
             self.wb_sc_range=[-300,-100]
             self.send_signal=False
             self.recv_signal=True
-            self.animate_plot_mode=['h', 'rxfd']
+            self.animate_plot_mode=['h_sparse', 'rxfd']
             self.rx_chain = ['sync_time', 'channel_est']
             # self.rx_chain = ['sync_time', 'channel_est', 'channel_eq']
             self.freq_hop_config['list'] = [60.0e9]
@@ -398,9 +408,23 @@ class Params_Class(Params_Class_Default):
             # self.sig_gen_mode = 'ZadoffChu'
             self.save_parameters=True
 
+        elif self.measurement_type == 'RFSoC_demo_simple':
+            self.mode = 'client'
+            self.mix_freq=0e6 
+            self.do_mixer_settings=True
+            self.animate_plot_mode = ['rxtd01', 'rxfd01']
+            self.rx_chain = ['sync_time', 'channel_est']
+            # self.rx_chain = ['sync_time', 'channel_est', 'channel_eq']
+            # self.sig_mode = 'tone_1'
+            self.sc_tone = 100
+            self.wb_sc_range = [10,100]
+            # self.tx_sig_sim = 'orthogonal'        # same or orthogonal or shifted
+            # self.sig_gen_mode = 'ZadoffChu'
+            self.save_parameters = True
+
         elif self.measurement_type == 'FR3_demo_simple':
             self.mode = 'client'
-            self.animate_plot_mode=['h01', 'rxfd01', 'aoa_gauge']
+            self.animate_plot_mode=['h', 'rxfd', 'IQ']
             self.rx_chain = ['sync_time', 'channel_est']
             # self.rx_chain = ['sync_time', 'channel_est', 'channel_eq']
             self.control_piradio=True
@@ -408,6 +432,9 @@ class Params_Class(Params_Class_Default):
             self.tx_sig_sim = 'orthogonal'        # same or orthogonal or shifted
             # self.sig_gen_mode = 'ZadoffChu'
             self.save_parameters=True
+            self.measurement_configs = ["test"]
+            self.save_list = ['signal']           # signal or channel
+            self.n_save = 256
 
         elif self.measurement_type == 'FR3_demo_multi_freq':
             self.mode = 'client_master'
@@ -494,8 +521,5 @@ class Params_Class(Params_Class_Default):
             # self.measurement_configs.append('A_gamma_gamma_n')
 
         
-
-        self.initialize()
-
 
 

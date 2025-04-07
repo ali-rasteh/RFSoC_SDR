@@ -515,6 +515,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         save_name = '{}'.format(angle) + postfix + '.npz'
                     else:
                         save_name = postfix + '.npz'
+                else:
+                    save_name = postfix + '.npz'
+                        
                         
                 if 'signal' in save_list:
                     sig_save_path=os.path.join(self.sig_dir, save_name)
