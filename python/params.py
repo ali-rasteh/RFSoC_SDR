@@ -74,6 +74,7 @@ class Params_Class_Default(object):
 
         # File transfer parameters
         self.update_rfsoc_files = False                     # If True, updates the RFSoC files
+        self.modify_rfsoc_files = True                      # If True, modifies the RFSoC files to be true for the server mode
         self.files_dwnld_target = 'rfsoc'                   # Target for file download, rfsoc or raspi
         self.host_files_base_addr = '~/RFSoC_SDR/python/'   # Base address for the host files
         self.host_ip = '192.168.3.100'                      # Host IP address
@@ -425,8 +426,8 @@ class Params_Class(Params_Class_Default):
         # self.measurement_type = 'FR3_demo_simple'
         # self.measurement_type = 'FR3_demo_multi_freq'
         # self.measurement_type = 'FR3_nyu_3state'
-        self.measurement_type = 'FR3_nyu_13state'
-        # self.measurement_type = 'FR3_ant_calib'
+        # self.measurement_type = 'FR3_nyu_13state'
+        self.measurement_type = 'FR3_ant_calib'
 
 
 
@@ -450,8 +451,8 @@ class Params_Class(Params_Class_Default):
         elif self.measurement_type == 'RFSoC_demo_simple':
             self.mode = 'client'
             self.send_signal=True
-            self.mix_freq=0e6 
-            self.do_mixer_settings=True
+            # self.mix_freq=0e6 
+            # self.do_mixer_settings=True
             self.animate_plot_mode = ['rxtd01', 'rxfd01']
             self.rx_chain = ['sync_time', 'channel_est']
             # self.rx_chain = ['sync_time', 'channel_est', 'channel_eq']
@@ -501,13 +502,14 @@ class Params_Class(Params_Class_Default):
             self.rotation_delay = 0.5
             self.control_piradio=True
             self.freq_hop_config['mode'] = 'sweep'
-            self.freq_hop_config['range'] = [6.0e9, 22.5e9]
+            # self.freq_hop_config['range'] = [6.0e9, 22.5e9]
+            self.freq_hop_config['range'] = [6.0e9, 7.0e9]
             self.freq_hop_config['step'] = 0.5e9
             self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
             self.sig_gen_mode = 'ZadoffChu'
             self.save_parameters=True
 
-            self.save_list = ['signal']           # signal or channel
+            # self.save_list = ['signal']           # signal or channel
             self.n_save = 32
             self.measurement_configs = []
             # self.measurement_configs.append('calib_1-1_2-2')

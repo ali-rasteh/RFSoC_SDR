@@ -17,23 +17,29 @@ from backend import *
 from backend import be_np as np, be_scp as scipy
 from params import Params_Class
 from tcp_comm import Scp_Com
+from SigProc_Comm.general import General
 
 
 
 
 
-class File_Utils(Scp_Com):
+class File_Utils(General):
 
-    def __init__(self, params):
-        params = params.copy()
-        params.username = getattr(params, 'host_username', 'root')
-        params.password = getattr(params, 'host_password', 'root')
-        # params.host_ip = getattr(params, 'host_ip', '192.168.3.100')
+    def __init__(self, params, scp_connect=False):
+
         super().__init__(params)
 
-        # self.verbose_level = 5
 
-        # self.target = getattr(params, 'files_dwnld_target', 'rfsoc')
+        if scp_connect:
+            params = params.copy()
+            params.username = getattr(params, 'host_username', 'root')
+            params.password = getattr(params, 'host_password', 'root')
+            # params.host_ip = getattr(params, 'host_ip', '192.168.3.100')
+            self.scp_client = Scp_Com(params)
+        else:
+            self.scp_client = None
+
+
         self.host_files_base_addr = getattr(params, 'host_files_base_addr', '~/RFSoC_SDR/python/')
         self.local_base_addr = getattr(params, 'local_base_addr', './')
 
@@ -82,7 +88,7 @@ class File_Utils(Scp_Com):
         # self.download_files(files_to_download_, local_base_addr)
         temp_dir = "/tmp/rfsoc/"
         os.makedirs(temp_dir, exist_ok=True)
-        self.download_files_with_pattern(self.host_files_base_addr, self.files_to_download_, temp_dir)
+        self.scp_client.download_files_with_pattern(self.host_files_base_addr, self.files_to_download_, temp_dir)
         self.modify_files(base_dir=temp_dir)
         self.changed_files = self.sync_directories(temp_dir, self.local_base_addr)
         for file in self.params_to_modify:
