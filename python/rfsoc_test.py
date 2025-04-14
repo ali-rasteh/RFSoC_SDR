@@ -14,7 +14,7 @@ from file_utils import File_Utils
 
 def rfsoc_run(params):
     
-    if params.mode=='server':
+    if params.mode=='server' and params.update_rfsoc_files:
         file_utils = File_Utils(params)
         changed_1 = file_utils.download_files()
         changed_2 = file_utils.modify_files()

@@ -19,7 +19,7 @@ class Params_Class_Default(object):
         # self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-62_20241019-173825.bit')     # Path to the bit file for the RFSoC (With DAC MTS)
         self.mode='client'                  # Mode of operation, server or client or client_master or client_slave
         self.run_tcp_server=True            # If True, runs the TCP server
-        self.send_signal=True               # If True, sends TX signal
+        self.send_signal=False               # If True, sends TX signal
         self.recv_signal=True               # If True, receives and plots RX signal
 
         # Plots and logs parameters
@@ -73,6 +73,7 @@ class Params_Class_Default(object):
         self.piradio_freq_sw_dly = 0.0              # PIRadio frequency switch delay
 
         # File transfer parameters
+        self.update_rfsoc_files = False                     # If True, updates the RFSoC files
         self.files_dwnld_target = 'rfsoc'                   # Target for file download, rfsoc or raspi
         self.host_files_base_addr = '~/RFSoC_SDR/python/'   # Base address for the host files
         self.host_ip = '192.168.3.100'                      # Host IP address
@@ -198,6 +199,7 @@ class Params_Class_Default(object):
             pass
         elif self.mode == 'client_master':
             self.piradio_freq_sw_dly = 0.0
+            # self.send_signal=False
             pass
         elif self.mode == 'client_slave':
             self.control_rfsoc=False
@@ -402,8 +404,9 @@ class Params_Class(Params_Class_Default):
         self.plt_tx_ant_id = 0
         self.plt_rx_ant_id = 0
         self.anim_interval=100
+        # self.update_rfsoc_files = True
 
-        self.turntable_port = '/dev/ttyACM0'
+        self.turntable_port = '/dev/ttyACM1'
         # self.turntable_port = 'COM4'
         # self.params_path = os.path.join(self.params_dir, 'params.json')
         # self.save_parameters=True
@@ -446,6 +449,7 @@ class Params_Class(Params_Class_Default):
 
         elif self.measurement_type == 'RFSoC_demo_simple':
             self.mode = 'client'
+            self.send_signal=True
             self.mix_freq=0e6 
             self.do_mixer_settings=True
             self.animate_plot_mode = ['rxtd01', 'rxfd01']
@@ -460,6 +464,7 @@ class Params_Class(Params_Class_Default):
 
         elif self.measurement_type == 'FR3_demo_simple':
             self.mode = 'client'
+            self.send_signal=True
             self.animate_plot_mode=['h', 'rxfd', 'IQ']
             self.rx_chain = ['sync_time', 'channel_est']
             # self.rx_chain = ['sync_time', 'channel_est', 'channel_eq']
@@ -475,6 +480,7 @@ class Params_Class(Params_Class_Default):
 
         elif self.measurement_type == 'FR3_demo_multi_freq':
             self.mode = 'client_master'
+            self.send_signal=True
             self.animate_plot_mode=['h01', 'rxfd01', 'aoa_gauge']
             self.rx_chain = ['sync_time', 'channel_est']
             # self.rx_chain = ['sync_time', 'channel_est', 'channel_eq']
@@ -486,6 +492,7 @@ class Params_Class(Params_Class_Default):
 
         elif self.measurement_type == 'FR3_ant_calib':
             self.mode = 'client_master'
+            self.send_signal=False
             self.animate_plot_mode=['h01', 'rxfd01']
             self.rx_chain = ['sync_time', 'channel_est']
             self.use_turntable = True
@@ -509,6 +516,7 @@ class Params_Class(Params_Class_Default):
 
         elif self.measurement_type == 'FR3_nyu_3state':
             self.mode = 'client_master'
+            self.send_signal=True
             self.animate_plot_mode=['h01', 'rxfd01']
             # self.animate_plot_mode=['h', 'rxfd']
             self.save_list = ['signal']           # signal or channel
@@ -565,6 +573,7 @@ class Params_Class(Params_Class_Default):
         
         elif self.measurement_type == 'FR3_nyu_13state':
             self.mode = 'client_master'
+            self.send_signal=True
             self.animate_plot_mode=['h01', 'rxfd01']
             # self.animate_plot_mode=['h', 'rxfd']
             self.save_list = ['signal']           # signal or channel
@@ -588,9 +597,9 @@ class Params_Class(Params_Class_Default):
             # self.measurement_configs.append('calib_1-1_2-2')
             # self.measurement_configs.append('calib_1-2_2-1')
 
-            self.measurement_configs.append('A_beta_<rxorient>_n')
+            # self.measurement_configs.append('A_beta_<rxorient>_n')
             self.measurement_configs.append('A_alpha_<rxorient>_n')
-            self.measurement_configs.append('A_gamma_<rxorient>_n')
+            # self.measurement_configs.append('A_gamma_<rxorient>_n')
 
 
 
