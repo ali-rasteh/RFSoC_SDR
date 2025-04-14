@@ -493,6 +493,7 @@ class Params_Class(Params_Class_Default):
 
         elif self.measurement_type == 'FR3_ant_calib':
             self.mode = 'client_master'
+            # self.mode = 'client_slave'
             self.send_signal=False
             self.animate_plot_mode=['h01', 'rxfd01']
             self.rx_chain = ['sync_time', 'channel_est']
