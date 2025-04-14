@@ -836,10 +836,10 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                 # sigs.append([np.real(rxtd_base[0,:self.n_samples_rx01]), np.real(rxtd_base[1,:self.n_samples_rx01])])
                 # sigs.append([np.imag(rxtd_base[0,:self.n_samples_rx01]), np.imag(rxtd_base[1,:self.n_samples_rx01])])
             elif item=='rxfd01':
-                rxfd_base_0 = np.angle(fftshift(fft(rxtd_base[0, :self.plt_n_samples_rx])))
-                rxfd_base_1 = np.angle(fftshift(fft(rxtd_base[1, :self.plt_n_samples_rx])))
-                # rxfd_base_0 = self.lin_to_db(np.abs(fftshift(fft(rxtd_base[0, :self.plt_n_samples_rx]))), mode='mag')
-                # rxfd_base_1 = self.lin_to_db(np.abs(fftshift(fft(rxtd_base[1, :self.plt_n_samples_rx]))), mode='mag')
+                # rxfd_base_0 = np.angle(fftshift(fft(rxtd_base[0, :self.plt_n_samples_rx])))
+                # rxfd_base_1 = np.angle(fftshift(fft(rxtd_base[1, :self.plt_n_samples_rx])))
+                rxfd_base_0 = self.lin_to_db(np.abs(fftshift(fft(rxtd_base[0, :self.plt_n_samples_rx]))), mode='mag')
+                rxfd_base_1 = self.lin_to_db(np.abs(fftshift(fft(rxtd_base[1, :self.plt_n_samples_rx]))), mode='mag')
                 sigs.append([rxfd_base_0, rxfd_base_1])
             elif item=='IQ':
                 rxfd_base = fftshift(fft(rxtd_base[self.plt_rx_ant_id], axis=-1))

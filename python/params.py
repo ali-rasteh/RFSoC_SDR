@@ -494,7 +494,7 @@ class Params_Class(Params_Class_Default):
         elif self.measurement_type == 'FR3_ant_calib':
             self.mode = 'client_master'
             # self.mode = 'client_slave'
-            self.send_signal=False
+            self.send_signal=True
             self.animate_plot_mode=['h01', 'rxfd01']
             self.rx_chain = ['sync_time', 'channel_est']
             self.use_turntable = True
@@ -503,14 +503,14 @@ class Params_Class(Params_Class_Default):
             self.rotation_delay = 0.5
             self.control_piradio=True
             self.freq_hop_config['mode'] = 'sweep'
-            # self.freq_hop_config['range'] = [6.0e9, 22.5e9]
-            self.freq_hop_config['range'] = [6.0e9, 7.0e9]
+            self.freq_hop_config['range'] = [6.0e9, 22.5e9]
+            # self.freq_hop_config['range'] = [6.0e9, 7.0e9]
             self.freq_hop_config['step'] = 0.5e9
             self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
             self.sig_gen_mode = 'ZadoffChu'
             self.save_parameters=True
 
-            # self.save_list = ['signal']           # signal or channel
+            self.save_list = ['signal']           # signal or channel
             self.n_save = 32
             self.measurement_configs = []
             # self.measurement_configs.append('calib_1-1_2-2')
