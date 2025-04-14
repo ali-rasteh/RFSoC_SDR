@@ -500,7 +500,7 @@ class ssh_Com(General):
     def __init__(self, params):
         super().__init__(params)
 
-        self.host = getattr(params, 'host', '0.0.0.0')
+        self.host_ip = getattr(params, 'host_ip', '0.0.0.0')
         self.port = getattr(params, 'port', 22)
         self.username = getattr(params, 'username', 'root')
         self.password = getattr(params, 'password', ' root')
@@ -515,10 +515,11 @@ class ssh_Com(General):
             self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
             # Connect to the remote server
-            self.client.connect(hostname=self.host, port=self.port, username=self.username, password=self.password)
+            self.client.connect(hostname=self.host_ip, port=self.port, username=self.username, password=self.password, look_for_keys=False, allow_agent=False)
 
         except paramiko.AuthenticationException:
             print("Authentication failed. Please check your credentials.")
+            traceback.print_exc()
         except paramiko.SSHException as e:
             print(f"SSH Error: {e}")
         except Exception as e:
@@ -565,7 +566,7 @@ class ssh_Com(General):
 class ssh_Com_Piradio(ssh_Com):
     def __init__(self, params):
         params = params.copy()
-        params.host = params.piradio_host
+        params.host_ip = params.piradio_host
         params.port = params.piradio_ssh_port
         params.username = params.piradio_username
         params.password = params.piradio_password
@@ -655,7 +656,7 @@ class REST_Com(General):
     def __init__(self, params):
         super().__init__(params)
 
-        self.host = getattr(params, 'host', '0.0.0.0')
+        self.host_ip = getattr(params, 'host_ip', '0.0.0.0')
         self.port = getattr(params, 'port', 5000)
         self.protocol = getattr(params, 'protocol', 'http')
         self.timeout = getattr(params, 'timeout', 5)
@@ -677,7 +678,7 @@ class REST_Com(General):
 
 
     def call_rest_api(self, command, verif_keyword=''):
-        url = f"{self.protocol}://{self.host}:{self.port}/{command}"
+        url = f"{self.protocol}://{self.host_ip}:{self.port}/{command}"
 
         try:
             response = requests.get(url, timeout=self.timeout)
@@ -706,7 +707,7 @@ class REST_Com(General):
 class REST_Com_Piradio(REST_Com):
     def __init__(self, params):
         params = params.copy()
-        params.host = params.piradio_host
+        params.host_ip = params.piradio_host
         params.port = params.piradio_rest_port
         params.protocol = getattr(params, 'piradio_rest_protocol', 'http')
         super().__init__(params)

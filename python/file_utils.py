@@ -25,110 +25,100 @@ from tcp_comm import Scp_Com
 class File_Utils(Scp_Com):
 
     def __init__(self, params):
+        params = params.copy()
+        params.username = getattr(params, 'host_username', 'root')
+        params.password = getattr(params, 'host_password', 'root')
+        # params.host_ip = getattr(params, 'host_ip', '192.168.3.100')
         super().__init__(params)
 
-        # Configuration
-        self.target = 'rfsoc'        # 'rfsoc' or 'raspi'
+        # self.verbose_level = 5
 
-        self.host_base_addr = "/home/wirelesslab914/ali/sounder_rfsoc/RFSoC_SDR/python/"
-        # self.host_base_addr = "/Users/alira/OneDrive/Desktop/Current_works/Channel_sounding/RFSoC_SDR_copy/"
-        # self.host_base_addr = "/home/wirelesslab914/ali/RFSoC_SDR/python"
+        # self.target = getattr(params, 'files_dwnld_target', 'rfsoc')
+        self.host_files_base_addr = getattr(params, 'host_files_base_addr', '~/RFSoC_SDR/python/')
+        self.local_base_addr = getattr(params, 'local_base_addr', './')
 
-        self.host = ""
-        self.username = "wirelesslab914"
-        # self.username = "alira"
-
-        self.password = ""
-
-
-
-
-        self.local_dir = "./"
-        self.verbose_level = 5
-
-        if self.target == 'rfsoc':
-            self.remote_files = ["*.py", "*.txt", "SigProc_Comm/*.py"]
-            # self.remote_files.extend(["../vivado/sounder_fr3_if_ddr4_mimo_4x2/builds/project_v1-0-58_20241001-150336.bit", 
-            #                 "../vivado/sounder_fr3_if_ddr4_mimo_4x2/builds/project_v1-0-58_20241001-150336.hwh"])
-        elif self.target == 'raspi':
-            self.remote_files = ["*.py", "*.txt", "SigProc_Comm/*.py", "linear_track/*.py", "linear_track/*.txt"]
-        
-        if self.target == 'rfsoc':
-            self.params_to_modify = {"backend.py": {"import_pynq": True, "import_torch": False,
-                                "import_sklearn": False, "import_cv2": False, "import_sivers": False, "import_adafruit": False}}  
-        elif self.target == 'raspi':
-            self.params_to_modify = {"backend.py": {"import_pynq": False, "import_torch": False,
-                            "import_sklearn": False, "import_cv2": False, "import_sivers": False, "import_adafruit": True}}
-            
-        if self.target == 'rfsoc':
-            self.files_to_convert = {"rfsoc_test.py": "rfsoc_test.ipynb"}
-
-
+        self.files_to_download = getattr(params, 'files_to_download', None)
+        self.params_to_modify = getattr(params, 'params_to_modify', None)
+        self.files_to_convert = getattr(params, 'files_to_convert', None)
 
 
 
     def download_files(self):
 
         # Ensure the local directory exists
-        if not os.path.exists(self.local_dir):
-            print(f"Local directory {self.local_dir} does not exist. Creating it.")
-            os.makedirs(self.local_dir, exist_ok=True)
+        if not os.path.exists(self.local_base_addr):
+            self.print(f"Local directory {self.local_base_addr} does not exist. Creating it.", thr=0)
+            os.makedirs(self.local_base_addr, exist_ok=True)
+
+        # self.files_to_download_ = [os.path.join(host_files_base_addr, file) for file in files_to_download]
+        self.files_to_download_ = self.files_to_download.copy()
 
 
-        # self.remote_files_ = [os.path.join(host_base_addr, file) for file in remote_files]
-        self.remote_files_ = self.remote_files.copy()
+        # for pattern in self.files_to_download:
+        #     local_files = glob.glob(os.path.join(self.local_base_addr, pattern))
+        #     # file = file.split('/')[-1]
+        #     for file in local_files:
+        #         if os.path.exists(file):
+        #             os.remove(file)
+        #             self.print(f"Deleted: {file}", thr=1)
+
+        # for item in os.listdir(self.local_base_addr):
+        #     item_path = os.path.join(self.local_base_addr, item)
+        #     try:
+        #         # Remove directories
+        #         if os.path.isdir(item_path):
+        #             shutil.rmtree(item_path)
+        #         # Remove files
+        #         elif os.path.isfile(item_path):
+        #             continue
+        #             # os.remove(item_path)
+        #         elif os.path.islink(item_path):
+        #             os.unlink(item_path)
+        #         self.print(f"Deleted: {item_path}", thr=1)
+        #     except Exception as e:
+        #         self.print(f"Error deleting {item_path}: {e}", thr=0)
+
+
+        # self.download_files(files_to_download_, local_base_addr)
+        temp_dir = "/tmp/rfsoc/"
+        os.makedirs(temp_dir, exist_ok=True)
+        self.download_files_with_pattern(self.host_files_base_addr, self.files_to_download_, temp_dir)
+        self.modify_files(base_dir=temp_dir)
+        self.changed_files = self.sync_directories(temp_dir, self.local_base_addr)
+        for file in self.params_to_modify:
+            if file in self.changed_files:
+                self.changed_files.remove(file)
+        changed = (len(self.changed_files) > 0)
+        
+        return changed
 
 
 
-        for pattern in self.remote_files:
-            local_files = glob.glob(os.path.join(self.local_dir, pattern))
-            # file = file.split('/')[-1]
-            for file in local_files:
-                if os.path.exists(file):
-                    os.remove(file)
-                    print(f"Deleted: {file}")
-
-        for item in os.listdir(self.local_dir):
-            item_path = os.path.join(self.local_dir, item)
-            try:
-                # Remove directories
-                if os.path.isdir(item_path):
-                    shutil.rmtree(item_path)
-                # Remove files
-                elif os.path.isfile(item_path):
-                    continue
-                    # os.remove(item_path)
-                elif os.path.islink(item_path):
-                    os.unlink(item_path)
-                print(f"Deleted: {item_path}")
-            except Exception as e:
-                print(f"Error deleting {item_path}: {e}")
-
-        # self.download_files(remote_files_, local_dir)
-        self.download_files_with_pattern(self.host_base_addr, self.remote_files_, self.local_dir)
-
-
-
-
-    def modify_files(self):
-
+    def modify_files(self, base_dir=None):
+        if base_dir is None:
+            base_dir = self.local_base_addr
         changed = False
         for file in self.params_to_modify:
-            local_script_path = os.path.join(self.local_dir, file)
+            local_script_path = os.path.join(base_dir, file)
             for param in self.params_to_modify[file]:
                 result = self.modify_text_file(local_script_path, param, self.params_to_modify[file][param])
                 if result:
                     changed = True
 
-
-        for file in self.files_to_convert:
-            file_1 = os.path.join(self.local_dir, file)
-            file_2 = os.path.join(self.local_dir, self.files_to_convert[file])
-            self.convert_file_format(file_1, file_2)
-
-        
         return changed
 
+
+
+    def convert_files(self):
+        changed = False
+        for file in self.files_to_convert:
+            file_1 = os.path.join(self.local_base_addr, file)
+            file_2 = os.path.join(self.local_base_addr, self.files_to_convert[file])
+            if file_1 in self.changed_files:
+                self.convert_file_format(file_1, file_2)
+                changed = True
+
+        return changed
 
 
 

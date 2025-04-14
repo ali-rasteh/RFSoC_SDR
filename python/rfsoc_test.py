@@ -14,13 +14,20 @@ from file_utils import File_Utils
 
 def rfsoc_run(params):
     
-    # if params.mode=='server':
-    #     file_utils = File_Utils(params)
-    #     # file_utils.download_files()
-    #     changed = file_utils.modify_files()
-    #     if changed:
-    #         print("To handle pre-requisites some files were modified, please run the script again ...")
-    #         return
+    if params.mode=='server':
+        file_utils = File_Utils(params)
+        changed_1 = file_utils.download_files()
+        changed_2 = file_utils.modify_files()
+        changed_3 = file_utils.convert_files()
+        if changed_1:
+            print("Some files were updated from the Host server ...")
+        if changed_2:
+            print("To handle pre-requisites some files were modified ...")
+        if changed_3:
+            print("Some files were converted ...")
+        if changed_1 or changed_2 or changed_3:
+            print("Please run the script again ...")
+            return
 
 
     client_rfsoc = None

@@ -65,6 +65,8 @@ if import_general:
     import serial.tools.list_ports
     import pickle
     from math import ceil, log
+    import traceback
+    import hashlib
 
 if import_networking:
     from scp import SCPClient

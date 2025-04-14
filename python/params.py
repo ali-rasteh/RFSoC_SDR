@@ -13,7 +13,7 @@ class Params_Class_Default(object):
 
         # Board and RFSoC FPGA project parameters
         self.project='sounder_if_ddr4'      # Type of the project, sounder_bbf_ddr4 or sounder_if_ddr4 or sounder_bbf or sounder_if
-        self.measurement_type=''            # Type of the measurement, ant_calib or nyu_3state
+        self.measurement_type=''            # Type of the measurement
         self.board='rfsoc_4x2'              # Type of the RFSoC board, rfsoc_4x2 or rfsoc_2x2
         self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-58_20241001-150336.bit')       # Path to the bit file for the RFSoC (Without DAC MTS)
         # self.bit_file_path=os.path.join(os.getcwd(), 'project_v1-0-62_20241019-173825.bit')     # Path to the bit file for the RFSoC (With DAC MTS)
@@ -71,6 +71,14 @@ class Params_Class_Default(object):
         self.host_password = ''                     # Host password
         self.controller_slave_ip = '192.168.1.1'    # Controller slave IP
         self.piradio_freq_sw_dly = 0.0              # PIRadio frequency switch delay
+
+        # File transfer parameters
+        self.files_dwnld_target = 'rfsoc'                   # Target for file download, rfsoc or raspi
+        self.host_files_base_addr = '~/RFSoC_SDR/python/'   # Base address for the host files
+        self.host_ip = '192.168.3.100'                      # Host IP address
+        self.host_username = 'root'                         # Host username
+        self.host_password = 'root'                         # Host password
+        self.local_base_addr = "./"                         # Local base address for the files
         
         # Signals information
         self.freq_hop_config = {'mode': 'discrete', 'list': [10.0e9], 'range': [10.0e9, 10.0e9], 'step': 1.0e9}    # Frequency hopping configuration, modes: discrete or sweep
@@ -334,6 +342,25 @@ class Params_Class_Default(object):
         for f in [self.calib_params_dir, self.sig_dir, self.channel_dir, self.figs_dir, self.params_dir]:
             if not os.path.exists(f):
                 os.makedirs(f)
+
+
+        if self.files_dwnld_target == 'rfsoc':
+            self.files_to_download = ["*.py", "*.txt", "SigProc_Comm/*.py"]
+            # self.files_to_download.extend(["../vivado/sounder_fr3_if_ddr4_mimo_4x2/builds/project_v1-0-58_20241001-150336.bit", 
+            #                 "../vivado/sounder_fr3_if_ddr4_mimo_4x2/builds/project_v1-0-58_20241001-150336.hwh"])
+        elif self.files_dwnld_target == 'raspi':
+            self.files_to_download = ["*.py", "*.txt", "SigProc_Comm/*.py", "linear_track/*.py", "linear_track/*.txt"]
+        
+        if self.files_dwnld_target == 'rfsoc':
+            self.params_to_modify = {"backend.py": {"import_pynq": True, "import_torch": False,
+                                "import_sklearn": False, "import_cv2": False, "import_sivers": False, "import_adafruit": False}}  
+        elif self.files_dwnld_target == 'raspi':
+            self.params_to_modify = {"backend.py": {"import_pynq": False, "import_torch": False,
+                            "import_sklearn": False, "import_cv2": False, "import_sivers": False, "import_adafruit": True}}
+            
+        if self.files_dwnld_target == 'rfsoc':
+            self.files_to_convert = {"rfsoc_test.py": "rfsoc_test.ipynb"}
+
         
 
 
@@ -382,11 +409,20 @@ class Params_Class(Params_Class_Default):
         # self.save_parameters=True
         # self.load_parameters=True
 
+        self.host_files_base_addr = "/home/wirelesslab914/ali/sounder_rfsoc/RFSoC_SDR/python/"
+        # self.host_files_base_addr = "/Users/alira/OneDrive/Desktop/Current_works/Channel_sounding/RFSoC_SDR_copy/"
+        self.host_ip = '192.168.3.136'
+        self.host_username = 'wirelesslab914'
+        # self.host_username = 'alira'
+        self.host_password = 'nyu@1234'
+
+
         # self.measurement_type = 'RFSoC_demo_simple'
         # self.measurement_type = 'mmw_demo_simple'
-        self.measurement_type = 'FR3_demo_simple'
+        # self.measurement_type = 'FR3_demo_simple'
         # self.measurement_type = 'FR3_demo_multi_freq'
         # self.measurement_type = 'FR3_nyu_3state'
+        self.measurement_type = 'FR3_nyu_13state'
         # self.measurement_type = 'FR3_ant_calib'
 
 
@@ -400,7 +436,7 @@ class Params_Class(Params_Class_Default):
             self.wb_sc_range=[-300,-100]
             self.send_signal=False
             self.recv_signal=True
-            self.animate_plot_mode=['h_sparse', 'rxfd']
+            self.animate_plot_mode=['h', 'rxfd']
             self.rx_chain = ['sync_time', 'channel_est']
             # self.rx_chain = ['sync_time', 'channel_est', 'channel_eq']
             self.freq_hop_config['list'] = [60.0e9]
@@ -432,8 +468,9 @@ class Params_Class(Params_Class_Default):
             self.tx_sig_sim = 'orthogonal'        # same or orthogonal or shifted
             # self.sig_gen_mode = 'ZadoffChu'
             self.save_parameters=True
-            self.measurement_configs = ["test"]
+            
             self.save_list = ['signal']           # signal or channel
+            self.measurement_configs = ["test"]
             self.n_save = 256
 
         elif self.measurement_type == 'FR3_demo_multi_freq':
@@ -450,7 +487,6 @@ class Params_Class(Params_Class_Default):
         elif self.measurement_type == 'FR3_ant_calib':
             self.mode = 'client_master'
             self.animate_plot_mode=['h01', 'rxfd01']
-            self.save_list = ['signal']           # signal or channel
             self.rx_chain = ['sync_time', 'channel_est']
             self.use_turntable = True
             self.rotation_range_deg = [-90,90]
@@ -460,10 +496,16 @@ class Params_Class(Params_Class_Default):
             self.freq_hop_config['mode'] = 'sweep'
             self.freq_hop_config['range'] = [6.0e9, 22.5e9]
             self.freq_hop_config['step'] = 0.5e9
-            self.n_save = 32
             self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
             self.sig_gen_mode = 'ZadoffChu'
             self.save_parameters=True
+
+            self.save_list = ['signal']           # signal or channel
+            self.n_save = 32
+            self.measurement_configs = []
+            # self.measurement_configs.append('calib_1-1_2-2')
+            # self.measurement_configs.append('calib_1-2_2-1')
+            self.measurement_configs.append("")
 
         elif self.measurement_type == 'FR3_nyu_3state':
             self.mode = 'client_master'
@@ -521,5 +563,35 @@ class Params_Class(Params_Class_Default):
             # self.measurement_configs.append('A_gamma_gamma_n')
 
         
+        elif self.measurement_type == 'FR3_nyu_13state':
+            self.mode = 'client_master'
+            self.animate_plot_mode=['h01', 'rxfd01']
+            # self.animate_plot_mode=['h', 'rxfd']
+            self.save_list = ['signal']           # signal or channel
+            self.save_format = 'mat'
+            self.rx_chain = ['sync_time', 'channel_est']
+            self.use_turntable = True
+            self.rotation_range_deg = [-60,60]
+            self.rotation_step_deg = 10
+            self.rotation_delay = 0.5
+            self.control_piradio=True
+            self.freq_hop_config['list'] = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
+            # self.freq_hop_config['list'] = [10.0e9]
+            self.n_save = 256
+            self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
+            self.sig_gen_mode = 'ZadoffChu'
+            self.save_parameters=True
+
+            
+            # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect(r/n)-Blockage/NoBlockage(b/n)
+            self.measurement_configs = []
+            # self.measurement_configs.append('calib_1-1_2-2')
+            # self.measurement_configs.append('calib_1-2_2-1')
+
+            self.measurement_configs.append('A_beta_<rxorient>_n')
+            self.measurement_configs.append('A_alpha_<rxorient>_n')
+            self.measurement_configs.append('A_gamma_<rxorient>_n')
+
+
 
 

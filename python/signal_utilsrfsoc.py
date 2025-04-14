@@ -497,19 +497,18 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
                 postfix = config
-                if self.measurement_type == 'nyu_3state':
+                if self.measurement_type == 'FR3_nyu_3state':
                     if mode != 'calib':
-                        if angle == -45:
-                            postfix = postfix.replace('<rxorient>', 'gamma')
-                        elif angle == 0:
-                            postfix = postfix.replace('<rxorient>', 'alpha')
-                        elif angle == 45:
-                            postfix = postfix.replace('<rxorient>', 'beta')
-                        else:
-                            raise ValueError('Unsupported angle: {}'.format(angle))
+                        angles_dict = {0: 'alpha', 45: 'beta', -45: 'gamma'}
+                        postfix = postfix.replace('<rxorient>', angles_dict[angle])
                         # save_name = f'{frequency/1e9}' + postfix + '.npz'
                     save_name = postfix + '.npz'
-                elif self.measurement_type == 'ant_calib':
+                elif self.measurement_type == 'FR3_nyu_13state':
+                    if mode != 'calib':
+                        postfix = postfix.replace('<rxorient>', str(angle))
+                        # save_name = f'{frequency/1e9}' + postfix + '.npz'
+                    save_name = postfix + '.npz'
+                elif self.measurement_type == 'FR3_ant_calib':
                     if mode != 'calib':
                         # save_name = '{}_{}'.format(angle, frequency/1e9) + postfix + '.npz'
                         save_name = '{}'.format(angle) + postfix + '.npz'
