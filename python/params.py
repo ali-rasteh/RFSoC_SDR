@@ -421,13 +421,13 @@ class Params_Class(Params_Class_Default):
         self.host_password = 'nyu@1234'
 
 
-        # self.measurement_type = 'RFSoC_demo_simple'
+        self.measurement_type = 'RFSoC_demo_simple'
         # self.measurement_type = 'mmw_demo_simple'
         # self.measurement_type = 'FR3_demo_simple'
         # self.measurement_type = 'FR3_demo_multi_freq'
         # self.measurement_type = 'FR3_nyu_3state'
         # self.measurement_type = 'FR3_nyu_13state'
-        self.measurement_type = 'FR3_ant_calib'
+        # self.measurement_type = 'FR3_ant_calib'
 
 
 
@@ -453,14 +453,15 @@ class Params_Class(Params_Class_Default):
             self.send_signal=True
             # self.mix_freq=0e6 
             # self.do_mixer_settings=True
-            self.animate_plot_mode = ['rxtd01', 'rxfd01']
+            # self.animate_plot_mode = ['rxtd01', 'rxfd01']
+            self.animate_plot_mode = ['rxfd', 'h']
             self.rx_chain = ['sync_time', 'channel_est']
             # self.rx_chain = ['sync_time', 'channel_est', 'channel_eq']
             # self.sig_mode = 'tone_1'
-            self.sc_tone = 100
-            self.wb_sc_range = [10,100]
+            # self.sc_tone = 100
+            # self.wb_sc_range = [10,100]
             # self.tx_sig_sim = 'orthogonal'        # same or orthogonal or shifted
-            # self.sig_gen_mode = 'ZadoffChu'
+            self.sig_gen_mode = 'ZadoffChu'
             self.save_parameters = True
 
         elif self.measurement_type == 'FR3_demo_simple':
@@ -503,14 +504,14 @@ class Params_Class(Params_Class_Default):
             self.rotation_delay = 0.5
             self.control_piradio=True
             self.freq_hop_config['mode'] = 'sweep'
-            self.freq_hop_config['range'] = [6.0e9, 22.5e9]
-            # self.freq_hop_config['range'] = [6.0e9, 7.0e9]
+            # self.freq_hop_config['range'] = [6.0e9, 22.5e9]
+            self.freq_hop_config['range'] = [10.0e9, 10.5e9]
             self.freq_hop_config['step'] = 0.5e9
             self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
             self.sig_gen_mode = 'ZadoffChu'
             self.save_parameters=True
 
-            self.save_list = ['signal']           # signal or channel
+            # self.save_list = ['signal']           # signal or channel
             self.n_save = 32
             self.measurement_configs = []
             # self.measurement_configs.append('calib_1-1_2-2')
