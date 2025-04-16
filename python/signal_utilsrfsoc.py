@@ -349,10 +349,14 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             os.makedirs(output_folder)
 
         for file_name in os.listdir(input_folder):
-            if file_name.endswith('.npz'):
+            if file_name.endswith('.npz') or file_name.endswith('.mat'):
                 file_path = os.path.join(input_folder, file_name)
-                data = np.load(file_path)
-                data_dict = {key: data[key] for key in data.files}
+                if file_name.endswith('.npz'):
+                    data = np.load(file_path)
+                    data_dict = {key: data[key] for key in data.files}
+                elif file_name.endswith('.mat'):
+                    data = scipy.io.loadmat(file_path)
+                    data_dict = {key: value for key, value in data.items() if not key.startswith('__')}
 
                 collected_data = {}
                 for key, value in data_dict.items():

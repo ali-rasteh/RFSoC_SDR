@@ -237,6 +237,13 @@ class Params_Class_Default(object):
             self.freq_hop_list = np.arange(self.freq_hop_config['range'][0], self.freq_hop_config['range'][1]+self.freq_hop_config['step'], self.freq_hop_config['step'])
         else:
             raise ValueError('Invalid freq_hop_config mode: ' + self.freq_hop_config['mode'])
+        
+        
+        if self.save_format != 'npz':
+            self.sig_save_path = self.sig_save_path.replace('.npz', '.'+self.save_format)
+            self.channel_save_path = self.channel_save_path.replace('.npz', '.'+self.save_format)
+        
+
         self.fc = self.freq_hop_list[0]
         self.wl = self.c / self.fc
         self.ant_dx = self.ant_dx_m/self.wl             # Antenna spacing in wavelengths (lambda)
@@ -392,8 +399,12 @@ class Params_Class(Params_Class_Default):
         # parser.add_argument("--bit_file_path", type=str, default="./rfsoc.bit", help="Path to the bit file")
         # params = parser.parse_args()
 
+        self.rfsoc_server_ip='192.168.2.99'
+        self.controller_slave_ip = '192.168.10.2'
+        # self.turntable_port = '/dev/ttyACM1'
+        self.turntable_port = 'COM4'
+
         self.piradio_freq_sw_dly = 0.1
-        self.controller_slave_ip = '10.18.134.22'
         self.ant_dx_m = 0.02               # Antenna spacing in meters
         self.n_rx_ch_eq=1
         self.wb_sc_range=[-250,250]
@@ -404,30 +415,29 @@ class Params_Class(Params_Class_Default):
         self.n_rd_rep=1
         self.plt_tx_ant_id = 0
         self.plt_rx_ant_id = 0
-        self.anim_interval=100
+        self.anim_interval = 100
         # self.update_rfsoc_files = True
-
-        self.turntable_port = '/dev/ttyACM1'
-        # self.turntable_port = 'COM4'
-        # self.params_path = os.path.join(self.params_dir, 'params.json')
         # self.save_parameters=True
         # self.load_parameters=True
-
         self.host_files_base_addr = "/home/wirelesslab914/ali/sounder_rfsoc/RFSoC_SDR/python/"
         # self.host_files_base_addr = "/Users/alira/OneDrive/Desktop/Current_works/Channel_sounding/RFSoC_SDR_copy/"
         self.host_ip = '192.168.3.136'
         self.host_username = 'wirelesslab914'
         # self.host_username = 'alira'
-        self.host_password = 'nyu@1234'
+        self.host_password = ''
 
 
-        self.measurement_type = 'RFSoC_demo_simple'
+        # self.measurement_type = 'RFSoC_demo_simple'
         # self.measurement_type = 'mmw_demo_simple'
         # self.measurement_type = 'FR3_demo_simple'
         # self.measurement_type = 'FR3_demo_multi_freq'
         # self.measurement_type = 'FR3_nyu_3state'
         # self.measurement_type = 'FR3_nyu_13state'
-        # self.measurement_type = 'FR3_ant_calib'
+        self.measurement_type = 'FR3_ant_calib'
+
+        # self.mode = 'client'
+        self.mode = 'client_master'
+        # self.mode = 'client_slave'
 
 
 
@@ -448,6 +458,8 @@ class Params_Class(Params_Class_Default):
             # self.sig_gen_mode = 'ZadoffChu'
             self.save_parameters=True
 
+
+
         elif self.measurement_type == 'RFSoC_demo_simple':
             self.mode = 'client'
             self.send_signal=True
@@ -463,6 +475,8 @@ class Params_Class(Params_Class_Default):
             # self.tx_sig_sim = 'orthogonal'        # same or orthogonal or shifted
             self.sig_gen_mode = 'ZadoffChu'
             self.save_parameters = True
+
+
 
         elif self.measurement_type == 'FR3_demo_simple':
             self.mode = 'client'
@@ -480,9 +494,14 @@ class Params_Class(Params_Class_Default):
             self.measurement_configs = ["test"]
             self.n_save = 256
 
+
+
         elif self.measurement_type == 'FR3_demo_multi_freq':
-            self.mode = 'client_master'
-            self.send_signal=True
+            if self.mode == 'client_master':
+                self.send_signal=False   
+            elif self.mode == 'client_slave':
+                self.send_signal=True
+
             self.animate_plot_mode=['h01', 'rxfd01', 'aoa_gauge']
             self.rx_chain = ['sync_time', 'channel_est']
             # self.rx_chain = ['sync_time', 'channel_est', 'channel_eq']
@@ -492,10 +511,14 @@ class Params_Class(Params_Class_Default):
             # self.sig_gen_mode = 'ZadoffChu'
             self.save_parameters=True
 
+
+
         elif self.measurement_type == 'FR3_ant_calib':
-            self.mode = 'client_master'
-            # self.mode = 'client_slave'
-            self.send_signal=True
+            if self.mode == 'client_master':
+                self.send_signal=False   
+            elif self.mode == 'client_slave':
+                self.send_signal=True
+
             self.animate_plot_mode=['h01', 'rxfd01']
             self.rx_chain = ['sync_time', 'channel_est']
             self.use_turntable = True
@@ -505,7 +528,7 @@ class Params_Class(Params_Class_Default):
             self.control_piradio=True
             self.freq_hop_config['mode'] = 'sweep'
             # self.freq_hop_config['range'] = [6.0e9, 22.5e9]
-            self.freq_hop_config['range'] = [10.0e9, 10.5e9]
+            self.freq_hop_config['range'] = [6.0e9, 7.0e9]
             self.freq_hop_config['step'] = 0.5e9
             self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
             self.sig_gen_mode = 'ZadoffChu'
@@ -516,14 +539,21 @@ class Params_Class(Params_Class_Default):
             self.measurement_configs = []
             # self.measurement_configs.append('calib_1-1_2-2')
             # self.measurement_configs.append('calib_1-2_2-1')
-            self.measurement_configs.append("")
+            self.measurement_configs.append("tx1_rx1_rx_rotate")
+            # self.measurement_configs.append("tx1_rx1_tx_rotate")
+            # self.measurement_configs.append("tx2_rx2_rx_rotate")
+            # self.measurement_configs.append("tx2_rx2_tx_rotate")
+
+
 
         elif self.measurement_type == 'FR3_nyu_3state':
-            self.mode = 'client_master'
-            self.send_signal=True
+            if self.mode == 'client_master':
+                self.send_signal=False   
+            elif self.mode == 'client_slave':
+                self.send_signal=True
+
             self.animate_plot_mode=['h01', 'rxfd01']
             # self.animate_plot_mode=['h', 'rxfd']
-            self.save_list = ['signal']           # signal or channel
             self.save_format = 'mat'
             self.rx_chain = ['sync_time', 'channel_est']
             self.use_turntable = True
@@ -533,11 +563,12 @@ class Params_Class(Params_Class_Default):
             self.control_piradio=True
             self.freq_hop_config['list'] = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
             # self.freq_hop_config['list'] = [10.0e9]
-            self.n_save = 256
             self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
             self.sig_gen_mode = 'ZadoffChu'
             self.save_parameters=True
 
+            self.save_list = ['signal']           # signal or channel
+            self.n_save = 256
             
             # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect(r/n)-Blockage/NoBlockage(b/n)
             # Orientations: alpha: 0, beta: 45, gamma: -45
@@ -575,12 +606,16 @@ class Params_Class(Params_Class_Default):
             # self.measurement_configs.append('A_gamma_gamma_n')
 
         
+
+
         elif self.measurement_type == 'FR3_nyu_13state':
-            self.mode = 'client_master'
-            self.send_signal=True
+            if self.mode == 'client_master':
+                self.send_signal=False   
+            elif self.mode == 'client_slave':
+                self.send_signal=True
+
             self.animate_plot_mode=['h01', 'rxfd01']
             # self.animate_plot_mode=['h', 'rxfd']
-            self.save_list = ['signal']           # signal or channel
             self.save_format = 'mat'
             self.rx_chain = ['sync_time', 'channel_est']
             self.use_turntable = True
@@ -590,12 +625,13 @@ class Params_Class(Params_Class_Default):
             self.control_piradio=True
             self.freq_hop_config['list'] = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
             # self.freq_hop_config['list'] = [10.0e9]
-            self.n_save = 256
             self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
             self.sig_gen_mode = 'ZadoffChu'
             self.save_parameters=True
-
             
+            self.save_list = ['signal']           # signal or channel
+            self.n_save = 256
+
             # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect(r/n)-Blockage/NoBlockage(b/n)
             self.measurement_configs = []
             # self.measurement_configs.append('calib_1-1_2-2')
