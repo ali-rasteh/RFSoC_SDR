@@ -159,6 +159,7 @@ class Params_Class_Default(object):
 
         # Antenna calibration parameters
         self.use_turntable = False                      # If True, uses the turntable for calibration
+        self.calibrate_turntable = False                # If True, calibrates the turntable
         self.rotation_range_deg = [-90,90]              # Turntable Rotation range in degrees
         self.rotation_step_deg = 1                      # Turntable Rotation step in degrees
         self.rotation_delay = 0.0                       # Turntable between rotations delay in seconds
@@ -399,7 +400,6 @@ class Params_Class(Params_Class_Default):
         # parser.add_argument("--bit_file_path", type=str, default="./rfsoc.bit", help="Path to the bit file")
         # params = parser.parse_args()
 
-        self.rfsoc_server_ip='192.168.2.99'
         self.controller_slave_ip = '192.168.10.2'
         # self.turntable_port = '/dev/ttyACM1'
         self.turntable_port = 'COM4'
@@ -407,10 +407,10 @@ class Params_Class(Params_Class_Default):
         self.piradio_freq_sw_dly = 0.1
         self.ant_dx_m = 0.02               # Antenna spacing in meters
         self.n_rx_ch_eq=1
-        self.wb_sc_range=[-250,250]
+        self.wb_sc_range=[-260,260]
         self.rx_same_delay=False
-        self.sparse_ch_samp_range=[-5,100]
-        self.sparse_ch_n_ignore=5
+        # self.sparse_ch_samp_range=[-5,100]
+        # self.sparse_ch_n_ignore=5
         self.n_frame_rd=32
         self.n_rd_rep=1
         self.plt_tx_ant_id = 0
@@ -419,12 +419,13 @@ class Params_Class(Params_Class_Default):
         # self.update_rfsoc_files = True
         # self.save_parameters=True
         # self.load_parameters=True
-        self.host_files_base_addr = "/home/wirelesslab914/ali/sounder_rfsoc/RFSoC_SDR/python/"
-        # self.host_files_base_addr = "/Users/alira/OneDrive/Desktop/Current_works/Channel_sounding/RFSoC_SDR_copy/"
-        self.host_ip = '192.168.3.136'
-        self.host_username = 'wirelesslab914'
-        # self.host_username = 'alira'
+        # self.host_files_base_addr = "/home/wirelesslab914/ali/sounder_rfsoc/RFSoC_SDR/python/"
+        self.host_files_base_addr = "/Users/alira/OneDrive/Desktop/Current_works/Channel_sounding/RFSoC_SDR_copy/"
+        self.host_ip = '192.168.2.1'
+        # self.host_username = 'wirelesslab914'
+        self.host_username = 'alira'
         self.host_password = ''
+        self.calibrate_turntable = True
 
 
         # self.measurement_type = 'RFSoC_demo_simple'
@@ -515,10 +516,13 @@ class Params_Class(Params_Class_Default):
 
         elif self.measurement_type == 'FR3_ant_calib':
             if self.mode == 'client_master':
-                self.send_signal=False   
+                self.send_signal=False
+                self.rfsoc_server_ip='192.168.2.99'
             elif self.mode == 'client_slave':
                 self.send_signal=True
+                self.rfsoc_server_ip='192.168.2.98'
 
+            self.wb_sc_range=[-260,260]
             self.animate_plot_mode=['h01', 'rxfd01']
             self.rx_chain = ['sync_time', 'channel_est']
             self.use_turntable = True

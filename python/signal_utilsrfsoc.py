@@ -142,7 +142,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         if self.tx_sig_sim == 'shifted':
             # txtd_base[1,:] = txtd_base[0,:].copy()
             # txtd_base[1,:] = np.roll(txtd_base[0,:], shift=(self.n_samples_tx//2), axis=-1)
-            txtd_base[1,:] = np.roll(txtd_base[0,:], shift=(469), axis=-1)
+            txtd_base[1,:] = np.roll(txtd_base[0,:], shift=(384), axis=-1)
 
             # dot_prod = []
             # for i in range(0, self.n_samples_tx, 1):

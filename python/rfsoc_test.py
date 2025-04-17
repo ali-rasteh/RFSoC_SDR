@@ -66,7 +66,9 @@ def rfsoc_run(params):
         try:
             client_turntable.connect()
             client_turntable.move_to_position(0)
-            client_turntable.calibrate()
+            if params.calibrate_turntable:
+                client_turntable.calibrate()
+            client_turntable.interactive_move()
         except:
             client_turntable.list_ports()
             raise Exception("Turntable not connected or wrong port, please check the port list")

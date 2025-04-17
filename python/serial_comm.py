@@ -153,8 +153,9 @@ class Serial_Comm_TurnTable(Serial_Comm):
 
     def calibrate(self, mode='start'):
         self.print("Calibrating the turn-table with mode {}".format(mode), thr=1)
+        self.print("Try to set the angle at zero ...", thr=1)
         while True:
-            angle_str = input("Enter the angle to move in deg, empty if need to break: ")
+            angle_str = input("Enter the angle to move in deg, empty if need to finish calibration: ")
             if angle_str == '':
                 # if mode == 'start':
                 #     self.position = 0.0
