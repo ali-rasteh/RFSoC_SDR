@@ -437,8 +437,8 @@ class Params_Class(Params_Class_Default):
         self.measurement_type = 'FR3_ant_calib'
 
         # self.mode = 'client'
-        self.mode = 'client_master'
-        # self.mode = 'client_slave'
+        # self.mode = 'client_master'
+        self.mode = 'client_slave'
 
 
 
@@ -520,7 +520,8 @@ class Params_Class(Params_Class_Default):
                 self.rfsoc_server_ip='192.168.2.99'
             elif self.mode == 'client_slave':
                 self.send_signal=True
-                self.rfsoc_server_ip='192.168.2.98'
+                self.rfsoc_server_ip='192.168.2.99'
+                # self.rfsoc_server_ip='192.168.2.98'
 
             self.wb_sc_range=[-260,260]
             self.animate_plot_mode=['h01', 'rxfd01']
