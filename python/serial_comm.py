@@ -177,7 +177,7 @@ class Serial_Comm_TurnTable(Serial_Comm):
         self.print("Starting interactive move for TurnTable", thr=1)
         while True:
             angle_str = input("Enter the angle to move in degrees, empty if need to break: ")
-            if angle_str == 0:
+            if angle_str == '':
                 break
             try:
                 angle = float(angle_str)

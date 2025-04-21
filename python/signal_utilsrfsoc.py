@@ -214,6 +214,78 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.print("Near field model created", thr=1)
     
 
+
+    def handle_nf(self, h_est_full, sparse_est_params):
+        if self.nf_param_estimate:
+            # h_index = self.animate_plot_mode.index('h')
+            if self.nf_loc_idx==0:
+                self.nf_sep_idx = 0
+
+                if self.use_linear_track:
+                    self.client_lintrack.return2home(lin_track_id=0)
+                    self.client_lintrack.return2home(lin_track_id=1)
+                    time.sleep(0.5)
+                    # distance = -1000*(len(self.nf_rx_loc)-1)
+                    # distance = np.round(distance, 2)
+                    # client_lintrack.move(lin_track_id=0, distance=distance)
+                    # time.sleep(0.1)
+                self.h_nf = []
+                self.dly_est_nf = []
+                self.peaks_nf = []
+                self.npaths_nf = []
+                self.nf_loc_idx+=1
+                self.nf_sep_idx+=1
+
+            elif self.nf_loc_idx==len(self.nf_rx_loc)+1:
+                self.h_nf = np.array(self.h_nf)
+                self.dly_est_nf = np.array(self.dly_est_nf)
+                self.peaks_nf = np.array(self.peaks_nf)
+                self.npaths_nf = np.array(self.npaths_nf)
+                self.est_nf_param(self.h_nf, self.dly_est_nf, self.peaks_nf, self.npaths_nf)
+                self.nf_loc_idx = 0
+                self.nf_sep_idx = 0
+            else:
+
+                if self.nf_sep_idx==0:
+                    if self.use_linear_track:
+                        distance = 1000*(self.nf_rx_ant_sep[0]*self.wl - self.nf_rx_ant_sep[-1]*self.wl)
+                        distance = np.round(distance, 2)
+                        self.client_lintrack.move(lin_track_id=1, distance=distance)
+                        time.sleep(0.5)
+                        self.ant_dx = self.nf_rx_ant_sep[0]
+
+                        if self.nf_loc_idx < len(self.nf_rx_loc):
+                            distance = 1000*(self.nf_rx_loc[self.nf_loc_idx,0] - self.nf_rx_loc[self.nf_loc_idx-1,0])
+                            distance = np.round(distance, 2)
+                            self.client_lintrack.move(lin_track_id=1, distance=distance)
+                            self.client_lintrack.move(lin_track_id=0, distance=distance)
+                            time.sleep(0.5)
+                            
+                    self.nf_sep_idx+=1
+                    self.nf_loc_idx+=1
+                elif self.nf_sep_idx==len(self.nf_rx_ant_sep)+1:
+                    self.nf_sep_idx = 0
+                else:
+                    self.h_nf.append(h_est_full)
+                    (h_tr, dly_est, peaks, npath_est) = sparse_est_params
+                    self.dly_est_nf.append(dly_est)
+                    self.peaks_nf.append(peaks)
+                    self.npaths_nf.append(npath_est)
+
+                    if self.use_linear_track:
+                        if self.nf_sep_idx < len(self.nf_rx_ant_sep):
+                            distance = 1000*(self.nf_rx_ant_sep[self.nf_sep_idx]*self.wl - self.nf_rx_ant_sep[self.nf_sep_idx-1]*self.wl)
+                            distance = np.round(distance, 2)
+                            self.client_lintrack.move(lin_track_id=1, distance=distance)
+                            time.sleep(0.5)
+                            self.ant_dx = self.nf_rx_ant_sep[self.nf_sep_idx]
+                    
+                    self.nf_sep_idx+=1
+            
+                self.ant_dx_m = self.ant_dx * self.wl
+
+
+
     def est_nf_param(self, h, dly_est, peaks, npaths):
         """
         Parameters
@@ -290,8 +362,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             phase_diff_list = []
             delay_list = []
             for i in range(self.calib_iter):
-                rxtd = client_rfsoc.receive_data(mode='once')
-                rxtd = rxtd.squeeze(axis=0)
+                rxtd = self.receive_data(client_rfsoc, mode='once')
                 phase_diff = self.calc_phase_offset(rxtd[0,:], rxtd[1,:])
                 delay = phase_diff / (2*np.pi*self.fc)
                 phase_diff_list.append(phase_diff)
@@ -339,10 +410,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
     def collect_signals(self):
-        collect_count = 256
+        collect_count = 32
         ignore_less_count = False
         # input_folder = self.channel_dir
-        input_folder = self.sig_dir
+        # input_folder = self.sig_dir
+        input_folder = "./sigs_tx1_rx1_rx_rotate"
         output_folder = os.path.join(input_folder, 'collected')
 
         if not os.path.exists(output_folder):
@@ -350,6 +422,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
         for file_name in os.listdir(input_folder):
             if file_name.endswith('.npz') or file_name.endswith('.mat'):
+                self.print("Processing file: {}".format(file_name), thr=0)
                 file_path = os.path.join(input_folder, file_name)
                 if file_name.endswith('.npz'):
                     data = np.load(file_path)
@@ -555,21 +628,94 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
     def hop_freq(self, client_piradio, client_controller, fc_id=None):
-        if self.control_piradio:
             if fc_id is not None:
                 fc_id = fc_id
             else:
                 fc_id = (self.fc_id + 1) % len(self.freq_hop_list)
             fc = self.freq_hop_list[int(fc_id)]
             if self.fc != fc:
-                client_piradio.set_frequency(fc=fc)
-                if 'master' in self.mode:
-                    client_controller.set_frequency(fc=fc)
+                if self.control_piradio:
+                    client_piradio.set_frequency(fc=fc)
+                    if 'master' in self.mode:
+                        client_controller.set_frequency(fc=fc)
                 self.fc_id = fc_id
                 self.fc = fc
                 self.wl = self.c / self.fc
-        else:
-            self.fc_id = 0
+
+
+
+    def set_optimal_gain_piradio(self, client_rfsoc, client_piradio, client_controller):
+        self.print("Setting optimal gain for TX and RX in Pi-Radio", thr=1)
+
+        max_total_gain = 64
+        min_tx_gain = 10
+        max_tx_gain = 45
+        min_rx_gain = 10
+        max_rx_gain = 45
+        gain_step = 1
+        snr_optimal = 0
+        tx_gain_optimal = 0
+        rx_gain_optimal = 0
+
+        tx_gain_list = np.arange(min_tx_gain, max_tx_gain+gain_step, gain_step)
+        rx_gain_list = np.arange(min_rx_gain, max_rx_gain+gain_step, gain_step)
+        for tx_gain in tx_gain_list:
+            if tx_gain < min_tx_gain or tx_gain > max_tx_gain:
+                continue
+            self.print("Setting TX gain to {} dB".format(tx_gain), thr=0)
+            if 'master' in self.mode:
+                client_controller.set_gain(port='tx-0', gain_db=tx_gain)
+                client_controller.set_gain(port='tx-1', gain_db=tx_gain)
+
+            for rx_gain in rx_gain_list:
+                if rx_gain < min_rx_gain or rx_gain > max_rx_gain:
+                    continue
+                if tx_gain + rx_gain > max_total_gain:
+                    continue
+
+                self.print("Setting RX gain to {} dB".format(rx_gain), thr=0)
+                client_piradio.set_gain(port='rx-0', gain_db=rx_gain)
+                client_piradio.set_gain(port='rx-1', gain_db=rx_gain)
+
+                rxtd = self.receive_data(client_rfsoc, mode='once')
+                snr = self.calculate_snr(sig=rxtd[0], sig_sc_range=self.sc_range)
+                if snr > snr_optimal:
+                    snr_optimal = snr
+                    tx_gain_optimal = tx_gain
+                    rx_gain_optimal = rx_gain
+
+        self.print("Optimal TX gain: {} dB".format(tx_gain_optimal), thr=1)
+        self.print("Optimal RX gain: {} dB".format(rx_gain_optimal), thr=1)
+        self.print("Optimal SNR: {} dB".format(snr_optimal), thr=1)
+        client_piradio.set_gain(port='rx-0', gain_db=rx_gain_optimal)
+        client_piradio.set_gain(port='rx-1', gain_db=rx_gain_optimal)
+        if 'master' in self.mode:
+            client_controller.set_gain(port='tx-0', gain_db=tx_gain_optimal)
+            client_controller.set_gain(port='tx-1', gain_db=tx_gain_optimal)
+
+
+        return (tx_gain_optimal, rx_gain_optimal)
+    
+
+    def set_optimal_losupp_piradio(self, client_piradio, client_controller):
+        self.print("Setting optimal LO suppression for TX and RX in Pi-Radio", thr=1)
+        
+        lo_supp_lut = {6: [0.0, 0.0, 0.0, 0.0], 6.5: [0.0, 0.0, 0.0, 0.0], 7: [0.0, 0.0, 0.0, 0.0], 7.5: [0.0, 0.0, 0.0, 0.0], 8: [0.0, 0.0, 0.0, 0.0], 8.5: [0.0, 0.0, 0.0, 0.0], \
+                       9: [0.0, 0.0, 0.0, 0.0], 9.5: [0.0, 0.0, 0.0, 0.0], 10: [0.0, 0.0, 0.0, 0.0], 10.5: [0.0, 0.0, 0.0, 0.0], 11: [0.0, 0.0, 0.0, 0.0], 11.5: [0.0, 0.0, 0.0, 0.0], \
+                        12: [0.0, 0.0, 0.0, 0.0], 12.5: [0.0, 0.0, 0.0, 0.0], 13: [0.0, 0.0, 0.0, 0.0], 13.5: [0.0, 0.0, 0.0, 0.0], 14: [0.0, 0.0, 0.0, 0.0], 14.5: [0.0, 0.0, 0.0, 0.0], \
+                        15: [0.0, 0.0, 0.0, 0.0], 15.5: [0.0, 0.0, 0.0, 0.0], 16: [0.0, 0.0, 0.0, 0.0], 16.5: [0.0, 0.0, 0.0, 0.0], 17: [0.0, 0.0, 0.0, 0.0], 17.5: [0.0, 0.0, 0.0, 0.0], \
+                        18: [0.0, 0.0, 0.0, 0.0], 18.5: [0.0, 0.0, 0.0, 0.0], 19: [0.0, 0.0, 0.0, 0.0], 19.5: [0.0, 0.0, 0.0, 0.0], 20: [0.0, 0.0, 0.0, 0.0], \
+                        20.5: [0.0, 0.0, 0.0, 0.0], 21: [0.0, 0.0, 0.0, 0.0], 21.5: [0.0, 0.0, 0.0, 0.0], 22: [0.0, 0.0, 0.0, 0.0], 22.5: [0.0, 0.0, 0.0, 0.0]}
+        
+        nearest_fc = min(lo_supp_lut.keys(), key=lambda x: abs(x - self.fc / 1e9))
+        optimal_lo_supp = lo_supp_lut[nearest_fc]
+
+        self.print("Nearest frequency: {} GHz, Optimal LO suppression: {}".format(nearest_fc, optimal_lo_supp), thr=1)
+        client_piradio.set_lo_suppression(port='rx-0', bias_voltage=optimal_lo_supp[0])
+        client_piradio.set_lo_suppression(port='rx-1', bias_voltage=optimal_lo_supp[1])
+        if 'master' in self.mode:
+            client_controller.set_lo_suppression(port='tx-0', bias_voltage=optimal_lo_supp[2])
+            client_controller.set_lo_suppression(port='tx-1', bias_voltage=optimal_lo_supp[3])
 
 
 
@@ -719,32 +865,294 @@ class Signal_Utils_Rfsoc(Signal_Utils):
     
 
 
+    def process_sig(self, sig=None, process_list=[]):
+        if sig is None:
+            return None
+        
+        sig = sig.copy()
+        title = ""
+        for item in process_list:
+            if item in ['tx', 'rx', 'h', 'H']:
+                continue
+            elif item == 'fft':
+                sig = fft(sig, axis=-1)
+                # title += "-FFT"
+                title += "-FD"
+            elif item == 'ifft':
+                sig = ifft(sig, axis=-1)
+                title += "-IFFT"
+            elif item == 'fftshift':
+                sig = fftshift(sig, axes=-1)
+            elif item == 'ifftshift':
+                sig = ifftshift(sig, axes=-1)
+            elif item == 'mag':
+                sig = np.abs(sig)
+                title += "-Mag"
+            elif item == 'phase':
+                sig = np.angle(sig)
+                title += "-Phase"
+            elif item == 'real':
+                sig = np.real(sig)
+                title += "-Real"
+            elif item == 'imag':
+                sig = np.imag(sig)
+                title += "-Imag"
+            elif item == 'IQ':
+                n_samples = sig.shape[-1]
+                sig = sig[self.sc_range[0]+n_samples//2:self.sc_range[1]+n_samples//2+1]
+                title += "-IQ"
+            elif item == 'conj':
+                sig = np.conj(sig)
+                title += "-Conj"
+            elif item == 'dbmag':
+                sig = self.lin_to_db(sig, mode='mag')
+                title += "-dBMag"
+            elif item == 'dbpow':
+                sig = self.lin_to_db(sig, mode='pow')
+                title += "-dBPow"
+            elif item == 'circshift':
+                im = np.argmax(np.abs(sig), axis=-1)
+                sig = np.roll(sig, -im + len(sig)//4, axis=-1)
+            else:
+                raise ValueError("Invalid operation: {}".format(item))
+            
+        return sig, title
+
+    
+
+
 
 class Animate_Plot(Signal_Utils_Rfsoc):
-    def __init__(self, params, client_rfsoc, client_lintrack, client_turntable, client_piradio, client_controller, txtd_base):
+    def __init__(self, params, txtd_base):
         super().__init__(params)
 
-        self.animate_plot_mode = getattr(params, 'animate_plot_mode', ['rxtd', 'rxfd', 'h'])
-        self.client_rfsoc = client_rfsoc
-        self.client_lintrack = client_lintrack
-        self.client_turntable = client_turntable
-        self.client_piradio = client_piradio
-        self.client_controller = client_controller
+        self.animate_plot_mode = getattr(params, 'animate_plot_mode', [])
+        self.plot_fonts_dict = getattr(params, 'plot_fonts_dict', None)
         self.txtd_base = txtd_base
 
+        self.mag_filter_list = {"process_list": ['fft'], "signal_name": ['h', 'H']}
+        self.untoched_plot_list = {"process_list": ['IQ'], "signal_name": ['aoa_gauge', 'nf_loc']}
+
         self.anim_paused = False
-        self.mag_filter_list = ['rxfd01', 'txfd', 'rxfd', 'H', 'h01', 'h']
-        self.untoched_plot_list = ['aoa_gauge', 'nf_loc', 'IQ']
         self.read_id = -1
         self.n_plots_row = len(self.animate_plot_mode)
         self.n_plots_col = len(self.freq_hop_list)
+
         self.plt_n_samples_rx = self.n_samples_trx
-        self.n_samples_rx01 = 50
         self.n_samp_ch_sp = self.n_samples_ch // 2
 
 
+    
+    def process_signals_for_plot(self, txtd_base, rxtd_base, h_est_full, H_est_full, sparse_est_params):
+
+        '''
+        Instructions to build signals for plots:
+
+        h :         ["h|0|0|circshift|mag|dbmag"]
+        h01 :       ["h|0|0|circshift|mag|dbmag", "h|1|0|circshift|mag|dbmag"]
+        h_sparse :  ["h_sparse|0|0"]
+        H :         ["H|0|0|fftshift|mag|dbmag"]
+        H_phase :   ["H|0|0|fftshift|phase"]
+        rxtd :      ["rxtd|0|0|real", "rxtd|0|0|imag"]
+        rxtd01 :    ["rxtd|0|0|mag", "rxtd|1|0|mag"]
+        rxtd_phase :["rxtd|0|0|phase"]
+        rxfd :      ["rxtd|0|0|fft|fftshift|mag|dbmag"]
+        rxfd01 :    ["rxtd|0|0|fft|fftshift|mag|dbmag", "rxtd|1|0|fft|fftshift|mag|dbmag"]
+        txtd :      ["txtd|0|0"]
+        txfd :      ["txtd|0|0|fft|fftshift|mag|dbmag"]
+        IQ :        ["rxtd|0|0|fft|fftshift|IQ"]
+        aoa_gauge : ["aoa_gauge|0|0"]
+        nf_loc :    ["nf_loc|0|0"]
+        '''
+
+        signals=[]
+        for plot in self.animate_plot_mode:
+            plot_signals = []
+            rx_ids = []
+            tx_ids = []
+            title = ""
+
+            sig_final = None
+            label_final = None
+
+            for index, signal_str in enumerate(plot):
+                x = None
+                sig = None
+                if index != 0:
+                    title += ", "
+
+                signal_desc = signal_str.strip().split('|')
+
+                signal_name = signal_desc[0]
+                rx_id = int(signal_desc[1])
+                tx_id = int(signal_desc[2])
+                rx_ids.append(rx_id)
+                tx_ids.append(tx_id)
+
+                if len(signal_desc)>3:
+                    signal_process_list = signal_desc[3:]
+                else:
+                    signal_process_list = []
+
+                xlabel_mode = 'time'
+                if 'mag' in signal_process_list:
+                    ylabel_mode = 'mag'
+                    if 'dbmag' in signal_process_list:
+                        ylabel_mode += '_db'
+                elif 'phase' in signal_process_list:
+                    ylabel_mode = 'phase'
+                if 'IQ' in signal_process_list:
+                    xlabel_mode = 'IQ'
+                    ylabel_mode = 'IQ'
+
+
+                if signal_name == 'txtd':
+                    x = self.t_tx[:self.n_samples_tx]
+                    sig = txtd_base[tx_id]
+                    title += "TX"
+                    if 'fft' in signal_process_list:
+                        x = self.freq_tx
+                        xlabel_mode = 'freq'
+                        title += "-FD"
+                    else:
+                        x = self.t_tx*1e9
+                        xlabel_mode = 'time'
+                        title += "-TD"
+                elif signal_name == 'rxtd':
+                    sig = rxtd_base[rx_id]
+                    title += "RX"
+                    if 'fft' in signal_process_list:
+                        x = self.freq_trx
+                        xlabel_mode = 'freq'
+                        title += "-FD"
+                    else:
+                        x = self.t_rx[:self.plt_n_samples_rx]*1e9
+                        xlabel_mode = 'time'
+                        title += "-TD"
+                elif signal_name == 'h':
+                    x = self.t_trx[:self.n_samples_ch]*1e9
+                    sig = h_est_full[rx_id, tx_id]
+                    title += "Channel"
+                    if 'fft' in signal_process_list:
+                        xlabel_mode = 'freq'
+                        title += "-FD"
+                    else:
+                        xlabel_mode = 'time'
+                        title += "-TD"
+                elif signal_name == 'H':
+                    x = self.freq_trx[(self.sc_range_ch[0]+self.n_samples_trx//2):(self.sc_range_ch[1]+self.n_samples_trx//2+1)]
+                    sig = H_est_full[rx_id, tx_id]
+                    title += "Channel-FD"
+                    if 'ifft' in signal_process_list:
+                        xlabel_mode = 'time'
+                        title += "-TD"
+                    else:
+                        xlabel_mode = 'freq'
+                        title += "-FD"
+                elif signal_name == 'h_sparse':
+                    sig = sparse_est_params
+                    title += "Multipath Channel PDP"
+                    xlabel_mode = 'time_h_sparse'
+                    ylabel_mode = 'snr'
+                elif signal_name == 'rx_ph_diff':
+                    sig = self.rx_phase_list
+                    title += "RX-Phase Diff-TD"
+                    xlabel_mode = 'id'
+                    ylabel_mode = 'phase'
+                elif signal_name == 'aoa_gauge':
+                    sig = self.aoa_list[-1]
+                    title += "AOA Gauge"
+                    xlabel_mode = 'aoa_gauge'
+                    ylabel_mode = 'aoa_gauge'
+                elif signal_name == 'nf_loc':
+                    sig = None
+                    title += 'Heatmap of TX Location probability in the room'
+                    xlabel_mode = 'nf_loc'
+                    ylabel_mode = 'nf_loc'
+                else:
+                    raise ValueError('Unsupported signal name: {}'.format(signal_name))
+                
+                
+                sig, title_post = self.process_sig(sig, process_list=signal_process_list)
+                title += title_post
+                label = "RX {}/TX {}".format(rx_id, tx_id)
+                if 'real' in signal_process_list:
+                    label += "-Real"
+                if 'imag' in signal_process_list:
+                    label += "-Imag"
+
+
+                # if sig_final is None:
+                #     sig_final = sig.copy()
+                #     label_final = label
+                sig_final = sig.copy()
+                label_final = label
+
+                supported_operations = ['+', '-', '*', '/']
+                if index>0 and plot[index-1] in supported_operations:
+                    operation = plot[index-1]
+                    if operation == '+':
+                        sig_final += sig
+                    elif operation == '-':
+                        sig_final -= sig
+                    elif operation == '*':
+                        sig_final *= sig
+                    elif operation == '/':
+                        sig_final /= sig
+
+                    label_final += operation + label
+
+                if not (len(plot) > index+1 and plot[index+1] in supported_operations):
+                    plot_signals.append({'signal_name': signal_name, 'process_list': signal_process_list, 'x': x, 'data': sig_final, 'label': label_final})
+                    # sig_final = None
+                    # label_final = None
+
+            title += ", RX/TX: "
+            for rx_id, tx_id in zip(rx_ids, tx_ids):
+                title += "{}/{}-".format(rx_id, tx_id)
+            title = title[:-1]
+
+
+            if xlabel_mode == 'time':
+                xlabel = "Time (ns)"
+            elif xlabel_mode == 'freq':
+                xlabel = "Frequency (MHz)"
+            elif xlabel_mode == 'time_h_sparse':
+                xlabel = "Time (ns)"
+            elif xlabel_mode == 'IQ':
+                xlabel = "In-phase (I)"
+            elif xlabel_mode == 'id':
+                xlabel = "Experiment ID"
+            elif xlabel_mode == 'aoa_gauge':
+                xlabel = "Angle of Arrival (Deg)"
+            elif xlabel_mode == 'nf_loc':
+                xlabel = "X (m)"
+
+
+            if ylabel_mode == 'mag':
+                ylabel = "Magnitude"
+            elif ylabel_mode == 'mag_db':
+                ylabel = "Magnitude (dB)"
+            elif ylabel_mode == 'phase':
+                ylabel = "Phase (rad)"
+            elif ylabel_mode == 'IQ':
+                ylabel = "Quadrature (Q)"
+            elif ylabel_mode == 'snr':
+                ylabel = "SNR (dB)"
+            elif ylabel_mode == 'aoa_gauge':
+                ylabel = "Angle of Arrival (Deg)"
+            elif ylabel_mode == 'nf_loc':
+                ylabel = "Y (m)"
+
+
+            signals.append({'plot_signals': plot_signals, 'title': title, 'x_label': xlabel, 'y_label': ylabel})
+
+        return signals
+    
+
 
     def receive_data_anim(self, txtd_base):
+
         self.read_id+=1
         sigs_save = None
         channels_save = None
@@ -759,12 +1167,13 @@ class Animate_Plot(Signal_Utils_Rfsoc):
             else:
                 rxtd = None
         else:
-            rxtd = sigs_save['rxtd'][self.read_id*self.n_rd_rep:(self.read_id+1)*self.n_rd_rep]
+            rxtd = sigs_save['rxtd_{:.1f}'.format(self.fc/1e9)][self.read_id*self.n_rd_rep:(self.read_id+1)*self.n_rd_rep]
             txtd_base = sigs_save['txtd'][0]
 
         if channels_save is None:
             while True:
                 (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd)
+                H_est_full = fft(h_est_full, axis=-1)
                 if sparse_est_params is not None:
                     (h_tr, dly_est, peaks, npath_est) = sparse_est_params
                     if np.min(npath_est) > 0:
@@ -774,11 +1183,8 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                         rxtd = self.receive_data(self.client_rfsoc, n_rd_rep=self.n_rd_rep, mode='once')
                 else:
                     break
-                H_est_full = fft(h_est_full, axis=-1)
         else:
-            h_est_full = channels_save['h_est_full']
-            H_est = channels_save['H_est']
-            H_est_max = channels_save['H_est_max']
+            h_est_full = channels_save['h_est_full_{:.1f}'.format(self.fc/1e9)]
 
             h = h_est_full.copy()[self.read_id*self.n_rd_rep:(self.read_id+1)*self.n_rd_rep]
             h = h.transpose(3,1,2,0)
@@ -788,101 +1194,12 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
             h_est_full = h_est_full[self.read_id]
             H_est_full = fft(h_est_full, axis=-1)
-            H_est = H_est[self.read_id]
-            H_est_max = H_est_max[self.read_id]
 
 
-        sigs=[]
-        for item in self.animate_plot_mode:
-            if item=='h':
-                h_est_full_ = h_est_full[self.plt_rx_ant_id, self.plt_tx_ant_id].copy()
-                im = np.argmax(np.abs(h_est_full_))
-                h_est_full_ = np.roll(h_est_full_, -im + len(h_est_full_)//4)
-                h_est_full_ = self.lin_to_db(np.abs(h_est_full_), mode='mag')
-                # h_est_full_ = self.lin_to_db(np.abs(h_est_full_) / np.max(np.abs(h_est_full_)), mode='mag')
-                # p = np.percentile(h_est_full_, 25)
-                # h_est_full_ = h_est_full_ - p
-                sigs.append(h_est_full_)
-            elif item=='h01':
-                h_est_full_ = h_est_full[:, self.plt_tx_ant_id, :].copy()
-                im = np.argmax(np.abs(h_est_full_[0]), axis=-1)
-                h_est_full_ = np.roll(h_est_full_, -im + len(h_est_full_[0])//4, axis=-1)
-                h_est_full_ = self.lin_to_db(np.abs(h_est_full_), mode='mag')
-                # p = np.percentile(h_est_full_[0], 25, axis=-1)
-                # h_est_full_ = h_est_full_ - p
-                sigs.append([h_est_full_[0], h_est_full_[1]])
-            elif item=='h_sparse':
-                sigs.append(sparse_est_params)
-            elif item=='H':
-                H_est_full_ = H_est_full[self.plt_rx_ant_id, self.plt_tx_ant_id]
-                sigs.append(self.lin_to_db(np.abs(fftshift(H_est_full_)), mode='mag'))
-            elif item=='H_phase':
-                H_est_full_ = H_est_full[self.plt_rx_ant_id, self.plt_tx_ant_id]
-                phi = np.angle(fftshift(H_est_full_))
-                # phi = np.unwrap(phi)
-                sigs.append(phi)
-            elif item=='rxtd':
-                sigs.append(rxtd_base[self.plt_rx_ant_id, :self.plt_n_samples_rx])
-            elif item=='rxfd':
-                sigs.append(self.lin_to_db(np.abs(fftshift(fft(rxtd_base[self.plt_rx_ant_id, :self.plt_n_samples_rx]))), mode='mag'))
-                # sigs.append(self.lin_to_db(np.abs(fftshift(fft(rxtd[0, self.plt_rx_ant_id, 0*self.plt_n_samples_rx:16*self.plt_n_samples_rx]))), mode='mag'))
-            elif item=='txtd':
-                sigs.append(txtd_base[self.plt_tx_ant_id])
-            elif item=='txfd':
-                # sigs.append(self.lin_to_db(np.abs(fftshift(fft(txtd_base[self.plt_tx_ant_id]))), mode='mag'))
-                sigs.append(self.lin_to_db(np.abs(fftshift(fft(txtd_base[self.plt_tx_ant_id]))), mode='mag'))
-            elif item=='rxtd01':
-                # phase_offset = self.calc_phase_offset(rxtd_base[0], rxtd_base[1])
-                # rxtd_base[0], rxtd_base[1] = self.adjust_phase(rxtd_base[0], rxtd_base[1], phase_offset)
-                sigs.append([np.abs(rxtd_base[0,:self.n_samples_rx01]), np.abs(rxtd_base[1,:self.n_samples_rx01])])
-                # sigs.append([np.angle(rxtd_base[0,:self.n_samples_rx01]), np.angle(rxtd_base[1,:self.n_samples_rx01])])
-                # print(np.mean(np.angle(rxtd_base[0,:self.n_samples_rx01])-np.angle(rxtd_base[1,:self.n_samples_rx01])))
-                # sigs.append([np.real(rxtd_base[0,:self.n_samples_rx01]), np.real(rxtd_base[1,:self.n_samples_rx01])])
-                # sigs.append([np.imag(rxtd_base[0,:self.n_samples_rx01]), np.imag(rxtd_base[1,:self.n_samples_rx01])])
-            elif item=='rxfd01':
-                # rxfd_base_0 = np.angle(fftshift(fft(rxtd_base[0, :self.plt_n_samples_rx])))
-                # rxfd_base_1 = np.angle(fftshift(fft(rxtd_base[1, :self.plt_n_samples_rx])))
-                rxfd_base_0 = self.lin_to_db(np.abs(fftshift(fft(rxtd_base[0, :self.plt_n_samples_rx]))), mode='mag')
-                rxfd_base_1 = self.lin_to_db(np.abs(fftshift(fft(rxtd_base[1, :self.plt_n_samples_rx]))), mode='mag')
-                sigs.append([rxfd_base_0, rxfd_base_1])
-            elif item=='IQ':
-                rxfd_base = fftshift(fft(rxtd_base[self.plt_rx_ant_id], axis=-1))
-                rxfd_base = rxfd_base[self.sc_range[0]+self.plt_n_samples_rx//2:self.sc_range[1]+self.plt_n_samples_rx//2+1]
-                sigs.append(rxfd_base)
-            elif item=='rxtd_phase':
-                phi = np.angle(rxtd_base[self.plt_rx_ant_id, :self.plt_n_samples_rx])
-                # phi = np.unwrap(phi)
-                sigs.append(phi)
-            elif item=='rxfd_phase':
-                phi = np.angle(fftshift(fft(rxtd_base[self.plt_rx_ant_id, :self.plt_n_samples_rx], axis=-1)))
-                # phi = np.unwrap(phi)
-                sigs.append(phi)
-            elif item=='txtd_phase':
-                phi = np.angle(txtd_base[self.plt_tx_ant_id])
-                # phi = np.unwrap(phi)
-                sigs.append(phi)
-            elif item=='txfd_phase':
-                phi = np.angle(fftshift(fft(txtd_base[self.plt_tx_ant_id], axis=-1)))
-                # phi = np.unwrap(phi)
-                sigs.append(phi)
-            elif item=='trxtd_phase_diff':
-                phi = np.angle(rxtd_base[self.plt_rx_ant_id,:self.n_samples_trx] * np.conj(txtd_base[self.plt_tx_ant_id,:self.n_samples_trx]))
-                # phi = np.unwrap(phi)
-                sigs.append(phi)
-            elif item=='trxfd_phase_diff':
-                phi = np.angle(fftshift(fft(rxtd_base[self.plt_rx_ant_id,:self.n_samples_trx], axis=-1)) * np.conj(fftshift(fft(txtd_base[self.plt_tx_ant_id,:self.n_samples_trx], axis=-1))))
-                # phi = np.unwrap(phi)
-                sigs.append(phi)
-            elif item=='rx_phase_diff':
-                sigs.append(self.rx_phase_list)
-            elif item=='aoa_gauge':
-                sigs.append(self.aoa_list[-1])
-            elif item=='nf_loc':
-                pass
-            else:
-                raise ValueError('Unsupported plot mode: ' + item)
+        signals = self.process_signals_for_plot(txtd_base, rxtd_base, h_est_full, H_est_full, sparse_est_params)
+        
+        return signals, h_est_full, sparse_est_params
 
-        return (sigs, h_est_full, sparse_est_params)
 
 
     def toggle_pause(self, event):
@@ -890,11 +1207,13 @@ class Animate_Plot(Signal_Utils_Rfsoc):
             self.anim_paused = not self.anim_paused
 
 
+
     def update(self, frame):
+
         if self.anim_paused:
             return self.line
-        sigs, h_est_full, sparse_est_params = self.receive_data_anim(self.txtd_base)
-
+        
+        signals, h_est_full, sparse_est_params = self.receive_data_anim(self.txtd_base)
 
         self.hop_freq(self.client_piradio, self.client_controller)
 
@@ -903,171 +1222,105 @@ class Animate_Plot(Signal_Utils_Rfsoc):
         #     client_turntable.move_to_position(angle)
         #     self.rot_angle_id = (self.rot_angle_id + 1) % len(self.rotation_angles)
 
+        self.handle_nf(h_est_full, sparse_est_params)
 
-        if self.nf_param_estimate:
-            # h_index = self.animate_plot_mode.index('h')
-            if self.nf_loc_idx==0:
-                self.nf_sep_idx = 0
-
-                if self.use_linear_track:
-                    self.client_lintrack.return2home(lin_track_id=0)
-                    self.client_lintrack.return2home(lin_track_id=1)
-                    time.sleep(0.5)
-                    # distance = -1000*(len(self.nf_rx_loc)-1)
-                    # distance = np.round(distance, 2)
-                    # client_lintrack.move(lin_track_id=0, distance=distance)
-                    # time.sleep(0.1)
-                self.h_nf = []
-                self.dly_est_nf = []
-                self.peaks_nf = []
-                self.npaths_nf = []
-                self.nf_loc_idx+=1
-                self.nf_sep_idx+=1
-
-            elif self.nf_loc_idx==len(self.nf_rx_loc)+1:
-                self.h_nf = np.array(self.h_nf)
-                self.dly_est_nf = np.array(self.dly_est_nf)
-                self.peaks_nf = np.array(self.peaks_nf)
-                self.npaths_nf = np.array(self.npaths_nf)
-                self.est_nf_param(self.h_nf, self.dly_est_nf, self.peaks_nf, self.npaths_nf)
-                self.nf_loc_idx = 0
-                self.nf_sep_idx = 0
-            else:
-
-                if self.nf_sep_idx==0:
-                    if self.use_linear_track:
-                        distance = 1000*(self.nf_rx_ant_sep[0]*self.wl - self.nf_rx_ant_sep[-1]*self.wl)
-                        distance = np.round(distance, 2)
-                        self.client_lintrack.move(lin_track_id=1, distance=distance)
-                        time.sleep(0.5)
-                        self.ant_dx = self.nf_rx_ant_sep[0]
-
-                        if self.nf_loc_idx < len(self.nf_rx_loc):
-                            distance = 1000*(self.nf_rx_loc[self.nf_loc_idx,0] - self.nf_rx_loc[self.nf_loc_idx-1,0])
-                            distance = np.round(distance, 2)
-                            self.client_lintrack.move(lin_track_id=1, distance=distance)
-                            self.client_lintrack.move(lin_track_id=0, distance=distance)
-                            time.sleep(0.5)
-                            
-                    self.nf_sep_idx+=1
-                    self.nf_loc_idx+=1
-                elif self.nf_sep_idx==len(self.nf_rx_ant_sep)+1:
-                    self.nf_sep_idx = 0
-                else:
-                    self.h_nf.append(h_est_full)
-                    (h_tr, dly_est, peaks, npath_est) = sparse_est_params
-                    self.dly_est_nf.append(dly_est)
-                    self.peaks_nf.append(peaks)
-                    self.npaths_nf.append(npath_est)
-
-                    if self.use_linear_track:
-                        if self.nf_sep_idx < len(self.nf_rx_ant_sep):
-                            distance = 1000*(self.nf_rx_ant_sep[self.nf_sep_idx]*self.wl - self.nf_rx_ant_sep[self.nf_sep_idx-1]*self.wl)
-                            distance = np.round(distance, 2)
-                            self.client_lintrack.move(lin_track_id=1, distance=distance)
-                            time.sleep(0.5)
-                            self.ant_dx = self.nf_rx_ant_sep[self.nf_sep_idx]
-                    
-                    self.nf_sep_idx+=1
-            
-                self.ant_dx_m = self.ant_dx * self.wl
 
         line_id = 0
         for i in range(self.n_plots_row):
             j = self.fc_id - 1
-            if self.animate_plot_mode[i]=='rxtd' or self.animate_plot_mode[i]=='txtd':
-                self.line[line_id][j].set_ydata(sigs[i].real)
-                line_id+=1
-                self.line[line_id][j].set_ydata(sigs[i].imag)
-                line_id+=1
-            elif self.animate_plot_mode[i]=='rxtd01' or self.animate_plot_mode[i]=='rxfd01' or self.animate_plot_mode[i]=='h01' or self.animate_plot_mode[i]=='h01':
-                self.line[line_id][j].set_ydata(sigs[i][0])
-                line_id+=1
-                self.line[line_id][j].set_ydata(sigs[i][1])
-                line_id+=1
-            elif self.animate_plot_mode[i]=='IQ':
-                self.line[line_id][j].set_offsets(np.column_stack((sigs[i].real, sigs[i].imag)))
-                line_id+=1
-                margin = max(np.abs(sigs[i])) * 0.1
-                self.ax[i][j].set_xlim(min(sigs[i].real) - margin, max(sigs[i].real) + margin)
-                self.ax[i][j].set_ylim(min(sigs[i].imag) - margin, max(sigs[i].imag) + margin)
-            elif self.animate_plot_mode[i]=='rx_phase_diff':
-                self.line[line_id][j].set_data(np.arange(len(sigs[i])), sigs[i])
-                line_id+=1
-            elif self.animate_plot_mode[i]=='aoa_gauge':
-                self.gauge_update_needle(self.ax[i][j], np.rad2deg(sigs[i]))
-                self.ax[i][j].set_xlim(0, 1)
-                self.ax[i][j].set_ylim(0.5, 1)
-                self.ax[i][j].axis('off')
-            elif self.animate_plot_mode[i]=='h_sparse':
-                (h_tr, dly_est, peaks, npath_est) = sigs[i]
-                h_tr = h_tr[self.plt_rx_ant_id, self.plt_tx_ant_id]
-                dly_est = dly_est[self.plt_rx_ant_id, self.plt_tx_ant_id]
-                peaks = peaks[self.plt_rx_ant_id, self.plt_tx_ant_id]
+
+            for signal in signals[i]['plot_signals']:
+
+                signal_name = signal['signal_name']
+                signal_data = signal['data']
+                signal_process_list = signal['process_list']
                 
-                # Plot the raw response
-                dly = np.arange(self.n_samples_ch)
-                dly = dly - self.n_samples_ch*(dly > self.n_samples_ch/2)
-                dly = dly / self.fs_trx *1e9
-                chan_pow = self.lin_to_db(np.abs(h_tr), mode='mag')
+                if 'IQ' in signal_process_list:
+                    self.line[line_id][j].set_offsets(np.column_stack((signal_data.real, signal_data.imag)))
+                    line_id+=1
+                    margin = max(np.abs(signal_data)) * 0.1
+                    self.ax[i][j].set_xlim(min(signal_data.real) - margin, max(signal_data.real) + margin)
+                    self.ax[i][j].set_ylim(min(signal_data.imag) - margin, max(signal_data.imag) + margin)
+                elif signal_name == 'rx_ph_diff':
+                    self.line[line_id][j].set_data(np.arange(len(signal_data)), signal_data)
+                    line_id+=1
+                elif signal_name == 'aoa_gauge':
+                    self.gauge_update_needle(self.ax[i][j], np.rad2deg(signal_data))
+                    self.ax[i][j].set_xlim(0, 1)
+                    self.ax[i][j].set_ylim(0.5, 1)
+                    self.ax[i][j].axis('off')
+                elif signal_name == 'h_sparse':
+                    (h_tr, dly_est, peaks, npath_est) = signal_data
+                    h_tr = h_tr[self.plt_rx_ant_id, self.plt_tx_ant_id]
+                    dly_est = dly_est[self.plt_rx_ant_id, self.plt_tx_ant_id]
+                    peaks = peaks[self.plt_rx_ant_id, self.plt_tx_ant_id]
+                    
+                    # Plot the raw response
+                    dly = np.arange(self.n_samples_ch)
+                    dly = dly - self.n_samples_ch*(dly > self.n_samples_ch/2)
+                    dly = dly / self.fs_trx *1e9
+                    chan_pow = self.lin_to_db(np.abs(h_tr), mode='mag')
 
-                # Roll the response and shift the response
-                rots = self.n_samp_ch_sp//4
-                yshift = np.percentile(chan_pow, 25)
-                chan_powr = np.roll(chan_pow, rots) - yshift
-                dlyr = np.roll(dly, rots)
-                self.line[line_id][j].set_data(dlyr[:self.n_samp_ch_sp], chan_powr[:self.n_samp_ch_sp])
-                line_id+=1
+                    # Roll the response and shift the response
+                    rots = self.n_samp_ch_sp//4
+                    yshift = np.percentile(chan_pow, 25)
+                    chan_powr = np.roll(chan_pow, rots) - yshift
+                    dlyr = np.roll(dly, rots)
+                    self.line[line_id][j].set_data(dlyr[:self.n_samp_ch_sp], chan_powr[:self.n_samp_ch_sp])
+                    line_id+=1
 
-                # Compute the axes
-                ymax = np.max(chan_powr)+5
-                ymin = -10
+                    # Compute the axes
+                    ymax = np.max(chan_powr)+5
+                    ymin = -10
 
-                # Plot the locations of the detected peaks
-                peaks_ = np.abs(peaks)**2
-                peaks_  = self.lin_to_db(peaks_, mode='pow')-yshift
-                dly_est = dly_est*1e9
-                dly_est = dly_est[dly_est<=np.max(dlyr[:self.n_samp_ch_sp])]
-                self.line[line_id][j].set_data(dly_est, peaks_)
-                line_id+=1
-                # for dly, peak in zip(dly_est, peaks_):
-                #     # self.line[line_id][j].set_ydata([dly, peak])
-                #     self.line[line_id][j].set_segments([[[dly, ymin], [dly, peak]]])
-                self.line[line_id][j].set_segments([[[i,ymin], [i,j]] for i,j in zip(dly_est, peaks_)])
-                line_id+=1
-                self.ax[i][j].set_ylim([ymin, ymax])
-            elif self.animate_plot_mode[i]=='nf_loc':
-                self.nf_model.plot_results(self.ax[i][j], RoomModel=self.RoomModel, plot_type='init_est')
-            else:
-                self.line[line_id][j].set_ydata(sigs[i])
-                line_id+=1
-
-            if self.animate_plot_mode[i] in self.mag_filter_list:
-                if len(np.array(sigs[i]).shape)>1:
-                    sig = sigs[i][0]
+                    # Plot the locations of the detected peaks
+                    peaks_ = np.abs(peaks)**2
+                    peaks_  = self.lin_to_db(peaks_, mode='pow')-yshift
+                    dly_est = dly_est*1e9
+                    dly_est = dly_est[dly_est<=np.max(dlyr[:self.n_samp_ch_sp])]
+                    self.line[line_id][j].set_data(dly_est, peaks_)
+                    line_id+=1
+                    # for dly, peak in zip(dly_est, peaks_):
+                    #     # self.line[line_id][j].set_ydata([dly, peak])
+                    #     self.line[line_id][j].set_segments([[[dly, ymin], [dly, peak]]])
+                    self.line[line_id][j].set_segments([[[i,ymin], [i,j]] for i,j in zip(dly_est, peaks_)])
+                    line_id+=1
+                    self.ax[i][j].set_ylim([ymin, ymax])
+                elif signal_name == 'nf_loc':
+                    self.nf_model.plot_results(self.ax[i][j], RoomModel=self.RoomModel, plot_type='init_est')
                 else:
-                    sig = sigs[i].copy()
+                    self.line[line_id][j].set_ydata(signal_data)
+                    line_id+=1
+
+
+            if signal_name in self.mag_filter_list['signal_name'] or any(item in signal_process_list for item in self.mag_filter_list['process_list']):
+                if len(np.array(signal_data).shape)>1:
+                    sig = signal_data[0]
+                else:
+                    sig = signal_data.copy()
                 y_min = np.percentile(sig, 10)
                 y_max = np.max(sig) + 0.1*(np.max(sig)-y_min)
                 self.ax[i][j].set_ylim(y_min, y_max)
-            elif not (self.animate_plot_mode[i] in self.untoched_plot_list):
+            elif not (signal_name in self.untoched_plot_list['signal_name'] or any(item in signal_process_list for item in self.untoched_plot_list['process_list'])):
                 try:
                     self.ax[i][j].relim()
                     self.ax[i][j].autoscale_view()
                 except Exception as e:
                     print("Error in autoscale {}".format(e))
-            # if self.animate_plot_mode[i]=='h' or self.animate_plot_mode[i]=='h01' or self.animate_plot_mode[i]=='h_sparse':
-            #     ax[i][j].set_ylim(-10,60)
+
 
         return self.line
+
+
 
 
     def init_plots(self):
         if self.plot_level<0:
             return
         
+        signals, _, _ = self.receive_data_anim(self.txtd_base)
+        
         # Set up the figure and plot
-        sigs, _, _ = self.receive_data_anim(self.txtd_base)
         self.line = [[None for j in range(self.n_plots_col)] for i in range(3*self.n_plots_row)]
         self.fig, self.ax = plt.subplots(self.n_plots_row, self.n_plots_col)
         if type(self.ax) is not np.ndarray:
@@ -1076,180 +1329,78 @@ class Animate_Plot(Signal_Utils_Rfsoc):
             self.ax = self.ax.reshape(-1, 1)
         self.fig.canvas.mpl_connect('key_press_event', self.toggle_pause)
 
+
         for j in range(self.n_plots_col):
             line_id = 0
             for i in range(self.n_plots_row):
-                # self.ax[i].set_autoscale_on(True)
-                if self.animate_plot_mode[i]=='h':
-                    self.line[line_id][j], = self.ax[i][j].plot(self.t_trx[:self.n_samples_ch]*1e9, sigs[i])
-                    line_id+=1
-                    self.ax[i][j].set_title("Channel-Mag-TD, Freq {}GHz, TX ant {}, RX ant {}".format(self.freq_hop_list[j]/1e9, self.plt_tx_ant_id, self.plt_rx_ant_id))
-                    self.ax[i][j].set_xlabel("Time (ns)")
-                    self.ax[i][j].set_ylabel("Normalized Magnitude (dB)")
-                elif self.animate_plot_mode[i]=='h01':
-                    self.line[line_id][j], = self.ax[i][j].plot(self.t_trx[:self.n_samples_ch]*1e9, sigs[i][0], label='Antenna 0')
-                    line_id+=1
-                    self.line[line_id][j], = self.ax[i][j].plot(self.t_trx[:self.n_samples_ch]*1e9, sigs[i][1], label='Antenna 1')
-                    line_id+=1
-                    self.ax[i][j].set_title("Channel-Mag-TD, Freq {}GHz, RX ant 0/1".format(self.freq_hop_list[j]/1e9))
-                    self.ax[i][j].set_xlabel("Time (ns)")
-                    self.ax[i][j].set_ylabel("Normalized Magnitude (dB)")
-                elif self.animate_plot_mode[i]=='h_sparse':
-                    # (h_tr, dly_est, peaks) = sigs[i]
-                    self.line[line_id][j], = self.ax[i][j].plot([], [])
-                    line_id+=1
-                    # (markerline, stemlines, baseline)
-                    self.line[line_id][j], self.line[line_id+1][j], _ = self.ax[i][j].stem([0], [1], 'r-', basefmt='', bottom=-10)
-                    # self.line[line_id][j], self.line[line_id+1][j], _ = self.ax[i][j].stem([0], [1], use_line_collection=True)
-                    line_id+=2
-                    # self.ax[i][j].set_title("Channel-Mag-TD, Freq {}, TX ant {}, RX ant {}".format(self.freq_hop_list[j]/1e9, self.plt_tx_ant_id, self.plt_rx_ant_id))
-                    self.ax[i][j].set_title("Multipath Channel PDP, Freq {}GHz".format(self.freq_hop_list[j]/1e9))
-                    self.ax[i][j].set_xlabel('Time (ns)')
-                    self.ax[i][j].set_ylabel('SNR (dB)')
-                elif self.animate_plot_mode[i]=='H':
-                    self.line[line_id][j], = self.ax[i][j].plot(self.freq_trx[(self.sc_range_ch[0]+self.n_samples_trx//2):(self.sc_range_ch[1]+self.n_samples_trx//2+1)], sigs[i])
-                    line_id+=1
-                    # self.ax[i][j].set_title("Channel-Mag-FD, Freq {}GHz, TX ant {}, RX ant {}".format(self.freq_hop_list[j]/1e9, self.plt_tx_ant_id, self.plt_rx_ant_id))
-                    self.ax[i][j].set_title("Multipath Channel Freq Response, {}GHz".format(self.freq_hop_list[j]/1e9))
-                    self.ax[i][j].set_xlabel("Frequency (MHz)")
-                    self.ax[i][j].set_ylabel("Magnitude (dB)")
-                elif self.animate_plot_mode[i]=='H_phase':
-                    self.line[line_id][j], = self.ax[i][j].plot(self.freq_trx[(self.sc_range_ch[0]+self.n_samples_trx//2):(self.sc_range_ch[1]+self.n_samples_trx//2+1)], sigs[i])
-                    line_id+=1
-                    self.ax[i][j].set_title("Channel-Phase-FD, Freq {}GHz, TX ant {}, RX ant {}".format(self.freq_hop_list[j]/1e9, self.plt_tx_ant_id, self.plt_rx_ant_id))
-                    self.ax[i][j].set_xlabel("Frequency (MHz)")
-                    self.ax[i][j].set_ylabel("Phase (Rad)")
-                elif self.animate_plot_mode[i]=='rxtd':
-                    self.line[line_id][j], = self.ax[i][j].plot(self.t_rx[:self.plt_n_samples_rx]*1e9, sigs[i].real, label='I')
-                    line_id+=1
-                    self.line[line_id][j], = self.ax[i][j].plot(self.t_rx[:self.plt_n_samples_rx]*1e9, sigs[i].imag, label='Q')
-                    line_id+=1
-                    self.ax[i][j].set_title("RX-TD-IQ, Freq {}GHz, RX ant {}".format(self.freq_hop_list[j]/1e9, self.plt_rx_ant_id))
-                    self.ax[i][j].set_xlabel("Time (ns)")
-                    self.ax[i][j].set_ylabel("Magnitude")
-                elif self.animate_plot_mode[i]=='rxfd':
-                    self.line[line_id][j], = self.ax[i][j].plot(self.freq_trx, sigs[i])
-                    # self.line[line_id][j], = self.ax[i][j].plot(np.arange(len(sigs[i])), sigs[i])
-                    line_id+=1
-                    self.ax[i][j].set_title("RX-FD, Freq {}GHz, RX ant {}".format(self.freq_hop_list[j]/1e9, self.plt_rx_ant_id))
-                    self.ax[i][j].set_xlabel("Freq (MHz)")
-                    self.ax[i][j].set_ylabel("Magnitude (dB)")
-                elif self.animate_plot_mode[i]=='txtd':
-                    self.line[line_id][j], = self.ax[i][j].plot(self.t_tx*1e9, sigs[i].real, label='I')
-                    line_id+=1
-                    self.line[line_id][j], = self.ax[i][j].plot(self.t_tx*1e9, sigs[i].imag, label='Q')
-                    line_id+=1
-                    self.ax[i][j].set_title("TX-TD-IQ, Freq {}GHz, TX ant {}".format(self.freq_hop_list[j]/1e9, self.plt_tx_ant_id))
-                    self.ax[i][j].set_xlabel("Time (ns)")
-                    self.ax[i][j].set_ylabel("Magnitude")
-                elif self.animate_plot_mode[i]=='txfd':
-                    self.line[line_id][j], = self.ax[i][j].plot(self.freq_tx, sigs[i])
-                    line_id+=1
-                    self.ax[i][j].set_title("TX-FD, Freq {}GHz, TX ant {}".format(self.freq_hop_list[j]/1e9, self.plt_tx_ant_id))
-                    self.ax[i][j].set_xlabel("Freq (MHz)")
-                    self.ax[i][j].set_ylabel("Magnitude (dB)")
-                elif self.animate_plot_mode[i]=='rxtd01':
-                    self.line[line_id][j], = self.ax[i][j].plot(self.t_rx[:self.n_samples_rx01]*1e9, sigs[i][0], label='Antenna 0')
-                    line_id+=1
-                    self.line[line_id][j], = self.ax[i][j].plot(self.t_rx[:self.n_samples_rx01]*1e9, sigs[i][1], label='Antenna 1')
-                    line_id+=1
-                    self.ax[i][j].set_title("Aligned RX-TD, Freq {}GHz, RX ant 0-1".format(self.freq_hop_list[j]/1e9))
-                    self.ax[i][j].set_xlabel("Time (ns)")
-                    self.ax[i][j].set_ylabel("Magnitude")
-                elif self.animate_plot_mode[i]=='rxfd01':
-                    self.line[line_id][j], = self.ax[i][j].plot(self.freq_trx, sigs[i][0], label='Antenna 0')
-                    line_id+=1
-                    self.line[line_id][j], = self.ax[i][j].plot(self.freq_trx, sigs[i][1], label='Antenna 1')
-                    line_id+=1
-                    self.ax[i][j].set_title("Aligned RX-FD, Freq {}GHz, RX ant 0-1".format(self.freq_hop_list[j]/1e9))
-                    self.ax[i][j].set_xlabel("Freq (MHz)")
-                    self.ax[i][j].set_ylabel("Magnitude (dB)")
-                elif self.animate_plot_mode[i]=='IQ':
-                    self.line[line_id][j] = self.ax[i][j].scatter(sigs[i].real, sigs[i].imag, facecolors='none', edgecolors='b', s=10)
-                    line_id+=1
-                    self.ax[i][j].set_title("RX Constellation, Freq {}GHz, RX ant {}".format(self.freq_hop_list[j]/1e9, self.plt_rx_ant_id))
-                    self.ax[i][j].set_xlabel("In-phase (I)")
-                    self.ax[i][j].set_ylabel("Quadrature (Q)")
-                    self.ax[i][j].axhline(0, color='black',linewidth=0.5)
-                    self.ax[i][j].axvline(0, color='black',linewidth=0.5)
-                    self.ax[i][j].set_aspect('equal')
-                    margin = max(np.abs(sigs[i])) * 0.1
-                    self.ax[i][j].set_xlim(min(sigs[i].real)-margin, max(sigs[i].real+margin))
-                    self.ax[i][j].set_ylim(min(sigs[i].imag)-margin, max(sigs[i].imag+margin))
-                elif self.animate_plot_mode[i]=='rxtd_phase':
-                    self.line[line_id][j], = self.ax[i][j].plot(self.t_rx[:self.plt_n_samples_rx]*1e9, sigs[i])
-                    line_id+=1
-                    self.ax[i][j].set_title("RX-Phase-TD, Freq {}GHz, RX ant {}".format(self.freq_hop_list[j]/1e9, self.plt_rx_ant_id))
-                    self.ax[i][j].set_xlabel("Time (ns)")
-                    self.ax[i][j].set_ylabel("Phase (Rad)")
-                elif self.animate_plot_mode[i]=='rxfd_phase':
-                    self.line[line_id][j], = self.ax[i][j].plot(self.freq_trx, sigs[i])
-                    line_id+=1
-                    self.ax[i][j].set_title("RX-Phase-FD, Freq {}GHz, RX ant {}".format(self.freq_hop_list[j]/1e9, self.plt_rx_ant_id))
-                    self.ax[i][j].set_xlabel("Freq (MHz)")
-                    self.ax[i][j].set_ylabel("Phase (Rad)")
-                elif self.animate_plot_mode[i]=='txtd_phase':
-                    self.line[line_id][j], = self.ax[i][j].plot(self.t_tx*1e9, sigs[i])
-                    line_id+=1
-                    self.ax[i][j].set_title("TX-Phase-TD, Freq {}GHz, TX ant {}".format(self.freq_hop_list[j]/1e9, self.plt_tx_ant_id))
-                    self.ax[i][j].set_xlabel("Time (ns)")
-                    self.ax[i][j].set_ylabel("Phase (radians)")
-                elif self.animate_plot_mode[i]=='txfd_phase':
-                    self.line[line_id][j], = self.ax[i][j].plot(self.freq_tx, sigs[i])
-                    line_id+=1
-                    self.ax[i][j].set_title("RX-Phase-FD, Freq {}GHz, TX ant {}".format(self.freq_hop_list[j]/1e9, self.plt_tx_ant_id))
-                    self.ax[i][j].set_xlabel("Freq (MHz)")
-                    self.ax[i][j].set_ylabel("Phase (Rad)")
-                elif self.animate_plot_mode[i]=='trxtd_phase_diff':
-                    self.line[line_id][j], = self.ax[i][j].plot(self.t_trx*1e9, sigs[i])
-                    line_id+=1
-                    self.ax[i][j].set_title("TRX-Phase Diff-TD, Freq {}GHz, TX ant {}, RX ant {}".format(self.freq_hop_list[j]/1e9, self.plt_tx_ant_id, self.plt_rx_ant_id))
-                    self.ax[i][j].set_xlabel("Time (ns)")
-                    self.ax[i][j].set_ylabel("Phase (Rad)")
-                elif self.animate_plot_mode[i]=='trxfd_phase_diff':
-                    self.line[line_id][j], = self.ax[i][j].plot(self.freq_trx, sigs[i])
-                    line_id+=1
-                    self.ax[i][j].set_title("TRX-Phase Diff-FD, Freq {}GHz, TX ant {}, RX ant {}".format(self.freq_hop_list[j]/1e9, self.plt_tx_ant_id, self.plt_rx_ant_id))
-                    self.ax[i][j].set_xlabel("Freq (MHz)")
-                    self.ax[i][j].set_ylabel("Phase (Rad)")
-                elif self.animate_plot_mode[i]=='rx_phase_diff':
-                    self.line[line_id][j], = self.ax[i][j].plot([], [])
-                    line_id+=1
-                    self.ax[i][j].set_title("RX-Phase Diff-TD, Freq {}GHz".format(self.freq_hop_list[j]/1e9))
-                    self.ax[i][j].set_xlabel("Experiment ID")
-                    self.ax[i][j].set_ylabel("Calibrated Phase (Rad)")
-                elif self.animate_plot_mode[i]=='aoa_gauge':
-                    self.draw_half_gauge(self.ax[i][j], min_val=-90, max_val=90)
-                    self.gauge_update_needle(self.ax[i][j], 0, min_val=-90, max_val=90)
-                    self.ax[i][j].set_xlim(0, 1)
-                    self.ax[i][j].set_ylim(0.5, 1)
-                    self.ax[i][j].axis('off')
-                elif self.animate_plot_mode[i]=='nf_loc':
-                    self.ax[i][j] = self.nf_model.plot_results(self.ax[i][j], RoomModel=self.RoomModel, plot_type='init_est')
-                    self.ax[i][j].set_title('Heatmap of TX Location probability in the room')
-                    self.ax[i][j].set_xlabel("X (m)")
-                    self.ax[i][j].set_ylabel("Y (m)")
-                    self.ax[i][j].set_yticks([])
+                for signal in signals[i]['plot_signals']:
 
-                    self.ax[i][j].set_xlim(self.nf_region[0])
-                    self.ax[i][j].set_ylim(self.nf_region[1])
-                    self.ax[i][j].set_xticks(np.arange(self.nself.n_plots_rowf_region[0,0], self.nf_region[0,1], 1.0))
-                    self.ax[i][j].set_yticks(np.arange(self.nf_region[1,0], self.nf_region[1,1], 2.0))
+                    signal_name = signal['signal_name']
+                    label = signal['label']
+                    signal_process_list = signal['process_list']
+                    signal_data = signal['data']
+                    x_data = signal['x']
+                
+                    if 'IQ' in signal_process_list:
+                        self.line[line_id][j] = self.ax[i][j].scatter(signal_data.real, signal_data.imag, facecolors='none', edgecolors='b', s=10)
+                        line_id+=1
+                        self.ax[i][j].axhline(0, color='black',linewidth=0.5)
+                        self.ax[i][j].axvline(0, color='black',linewidth=0.5)
+                        self.ax[i][j].set_aspect('equal')
+                        margin = max(np.abs(signal_data)) * 0.1
+                        self.ax[i][j].set_xlim(min(signal_data.real)-margin, max(signal_data.real+margin))
+                        self.ax[i][j].set_ylim(min(signal_data.imag)-margin, max(signal_data.imag+margin))
+
+                    elif signal_name=='h_sparse':
+                        # (h_tr, dly_est, peaks) = signal_data
+                        self.line[line_id][j], = self.ax[i][j].plot([], [])
+                        line_id+=1
+                        # (markerline, stemlines, baseline)
+                        self.line[line_id][j], self.line[line_id+1][j], _ = self.ax[i][j].stem([0], [1], 'r-', basefmt='', bottom=-10)
+                        line_id+=2
+
+                    elif signal_name=='aoa_gauge':
+                        self.draw_half_gauge(self.ax[i][j], min_val=-90, max_val=90)
+                        self.gauge_update_needle(self.ax[i][j], 0, min_val=-90, max_val=90)
+                        self.ax[i][j].set_xlim(0, 1)
+                        self.ax[i][j].set_ylim(0.5, 1)
+                        self.ax[i][j].axis('off')
+                        
+                    elif signal_name=='nf_loc':
+                        self.ax[i][j] = self.nf_model.plot_results(self.ax[i][j], RoomModel=self.RoomModel, plot_type='init_est')
+                        self.ax[i][j].set_yticks([])
+
+                        self.ax[i][j].set_xlim(self.nf_region[0])
+                        self.ax[i][j].set_ylim(self.nf_region[1])
+                        self.ax[i][j].set_xticks(np.arange(self.nself.n_plots_rowf_region[0,0], self.nf_region[0,1], 1.0))
+                        self.ax[i][j].set_yticks(np.arange(self.nf_region[1,0], self.nf_region[1,1], 2.0))
+
+                    else:
+                        self.line[line_id][j], = self.ax[i][j].plot(x_data, signal_data, label=label)
+                        line_id+=1
+
+
+                title = signals[i]['title'] + "\n Carrier Frequency: {} GHz".format(self.freq_hop_list[j]/1e9)
+                x_label = signals[i]['x_label']
+                y_label = signals[i]['y_label']
+                self.ax[i][j].set_title(title)
+                self.ax[i][j].set_xlabel(x_label)
+                self.ax[i][j].set_ylabel(y_label)
+
 
                 # self.ax[i][j].title.set_fontsize(35-5*self.n_plots_row-3*self.n_plots_col)
-                self.ax[i][j].title.set_fontsize(15)
                 # self.ax[i][j].xaxis.label.set_fontsize(30-4*self.n_plots_row-2*self.n_plots_col)
-                self.ax[i][j].xaxis.label.set_fontsize(17)
                 # self.ax[i][j].yaxis.label.set_fontsize(30-4*self.n_plots_row-2*self.n_plots_col)
-                self.ax[i][j].yaxis.label.set_fontsize(15)
                 # self.ax[i][j].tick_params(axis='both', which='major', labelsize=25-4*self.n_plots_row-2*self.n_plots_col)  # For major ticks
-                self.ax[i][j].tick_params(axis='both', which='major', labelsize=15)  # For major ticks
                 # self.ax[i][j].legend(fontsize=30-4*self.n_plots_row-2.5*self.n_plots_col)
-                self.ax[i][j].legend(fontsize=15)
+                self.ax[i][j].title.set_fontsize(self.plot_fonts_dict['title_size'])
+                self.ax[i][j].xaxis.label.set_fontsize(self.plot_fonts_dict['xaxis_size'])
+                self.ax[i][j].yaxis.label.set_fontsize(self.plot_fonts_dict['yaxis_size'])
+                self.ax[i][j].tick_params(axis='both', which='major', labelsize=self.plot_fonts_dict['ticks_size'])  # For major ticks
+                self.ax[i][j].legend(fontsize=self.plot_fonts_dict['legend_size'])
 
-                # self.ax[i].autoscale()
                 self.ax[i][j].grid(True)
-                if not (self.animate_plot_mode[i] in self.untoched_plot_list):
+                if not (signal_name in self.untoched_plot_list['signal_name'] or any(item in signal_process_list for item in self.untoched_plot_list['process_list'])):
                     self.ax[i][j].relim()
                     self.ax[i][j].autoscale_view()
                 self.ax[i][j].minorticks_on()
@@ -1258,11 +1409,11 @@ class Animate_Plot(Signal_Utils_Rfsoc):
             for i in range(len(self.line)):
                 if self.line[i][j] is not None:
                     # self.line[i][j].set_linewidth(3.0-0.5*self.n_plots_row-0.3*self.n_plots_col)
-                    self.line[i][j].set_linewidth(1.2)
+                    self.line[i][j].set_linewidth(self.plot_fonts_dict['line_width'])
 
         # Create the animation
         plt.tight_layout()
-        plt.subplots_adjust(hspace=0.4, wspace=0.4)
+        plt.subplots_adjust(hspace=self.plot_fonts_dict['hspace'], wspace=self.plot_fonts_dict['wspace'])
         anim = animation.FuncAnimation(self.fig, self.update, frames=int(1e9), interval=self.anim_interval, blit=False)
         plt.show()
         self.fig.savefig(self.figs_save_path, dpi=300)

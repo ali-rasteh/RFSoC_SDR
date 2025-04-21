@@ -713,6 +713,8 @@ class REST_Com_Piradio(REST_Com):
         super().__init__(params)
 
         self.freq_sw_dly = getattr(params, 'piradio_freq_sw_dly', 1.0)
+        self.gain_sw_dly = getattr(params, 'piradio_gain_sw_dly', 1.0)
+        self.losupp_sw_dly = getattr(params, 'piradio_losupp_sw_dly', 1.0)
 
         self.print("REST_Com_Piradio object init done", thr=1)
 
@@ -733,6 +735,36 @@ class REST_Com_Piradio(REST_Com):
             self.print(f"Frequency set to {fc/1e9} GHz", thr=3)
         else:
             self.print(f"Failed to set frequency to {fc/1e9} GHz", thr=0)
+        return result, response
+    
+
+    def set_gain(self, port, gain_db, verif_keyword=''):
+        command = f''
+        result, response = self.call_rest_api(command, verif_keyword=verif_keyword)
+        if response == '':
+            result = False
+        else:
+            result = (float(response) == gain_db)
+        if result:
+            time.sleep(self.gain_sw_dly)
+            self.print(f"Gain set to {gain_db} dB", thr=3)
+        else:
+            self.print(f"Failed to set gain to {gain_db} dB", thr=0)
+        return result, response
+    
+
+    def set_lo_suppression(self, port, bias_voltage, verif_keyword=''):
+        command = f''
+        result, response = self.call_rest_api(command, verif_keyword=verif_keyword)
+        if response == '':
+            result = False
+        else:
+            result = (float(response) == bias_voltage)
+        if result:
+            time.sleep(self.losupp_sw_dly)
+            self.print(f"Bias voltage set to {bias_voltage} V", thr=3)
+        else:
+            self.print(f"Failed to set bias voltage to {bias_voltage} V", thr=0)
         return result, response
 
 
