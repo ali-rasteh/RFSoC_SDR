@@ -176,4 +176,5 @@ python/other
 *.npz
 *.npy
 *.7z
+*.zip
 python/params/params.json
