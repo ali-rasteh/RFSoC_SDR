@@ -435,21 +435,20 @@ class Params_Class(Params_Class_Default):
         self.host_password = ''
         # self.plot_fonts_dict = {'title_size': 15, 'xaxis_size': 17, 'yaxis_size': 15, 'ticks_size': 15, 'legend_size': 15, 'line_width': 1.2, 'marker_size': 8, 'hspace': 0.4, 'wspace': 0.4}
         self.plot_fonts_dict = {'title_size': 11, 'title_max_chars': 35, 'xaxis_size': 10, 'yaxis_size': 10, 'ticks_size': 10, 'legend_size': 10, 'line_width': 1.0, 'marker_size': 8, 'hspace': 0.5, 'wspace': 0.5}
-        self.saved_sig_plot = ['signal']
         # self.calibrate_turntable = True
 
 
-        self.measurement_type = 'plot_saved_signal'
+        # self.measurement_type = 'plot_saved_signal'
         # self.measurement_type = 'RFSoC_demo_simple'
         # self.measurement_type = 'mmw_demo_simple'
         # self.measurement_type = 'FR3_demo_simple'
         # self.measurement_type = 'FR3_demo_multi_freq'
         # self.measurement_type = 'FR3_nyu_3state'
-        # self.measurement_type = 'FR3_nyu_13state'
+        self.measurement_type = 'FR3_nyu_13state'
         # self.measurement_type = 'FR3_ant_calib'
 
-        self.mode = 'client'
-        # self.mode = 'client_master'
+        # self.mode = 'client'
+        self.mode = 'client_master'
         # self.mode = 'client_slave'
 
 
@@ -458,6 +457,7 @@ class Params_Class(Params_Class_Default):
     def populate_measurement_parameters(self):
         
         if self.measurement_type == 'plot_saved_signal':
+            self.saved_sig_plot = ['signal']
             self.sig_save_path=os.path.join(self.sig_dir, '0_tx1_rx1_rx_rotate.npz')
             self.wb_sc_range=[-260,260]
             self.animate_plot_mode=[]
@@ -645,37 +645,47 @@ class Params_Class(Params_Class_Default):
 
 
         elif self.measurement_type == 'FR3_nyu_13state':
+
             if self.mode == 'client_master':
-                self.send_signal=False   
+                self.send_signal=False
+                self.rfsoc_server_ip='192.168.2.99'
             elif self.mode == 'client_slave':
                 self.send_signal=True
+                # self.rfsoc_server_ip='192.168.3.1'
 
-            self.animate_plot_mode=['h01', 'rxfd01']
-            # self.animate_plot_mode=['h', 'rxfd']
-            self.save_format = 'mat'
+            self.wb_sc_range=[-260,260]
+            self.animate_plot_mode=[]
+            self.animate_plot_mode.append(["h|0|0|circshift|mag|dbmag"])
+            self.animate_plot_mode.append(["rxtd|0|0|real", "rxtd|0|0|imag"])
+            self.animate_plot_mode.append(["rxtd|0|0|fft|fftshift|mag|dbmag"])
+
+
             self.rx_chain = ['sync_time', 'channel_est']
             self.use_turntable = True
             self.rotation_range_deg = [-60,60]
             self.rotation_step_deg = 10
             self.rotation_delay = 0.5
+            self.save_parameters=True
+
             self.control_piradio=True
             self.freq_hop_config['list'] = [6.5e9, 8.75e9, 10.0e9, 15.0e9, 21.7e9]
-            # self.freq_hop_config['list'] = [10.0e9]
+
             self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
             self.sig_gen_mode = 'ZadoffChu'
-            self.save_parameters=True
-            
-            self.save_list = ['signal']           # signal or channel
-            self.n_save = 256
 
+            self.save_list = ['signal']           # signal or channel
+            self.save_format = 'mat'
+            self.n_save = 256
+            
             # Naming: _Position_TX-Orient_RX-Orient_Reflect/NoReflect(r/n)-Blockage/NoBlockage(b/n)
             self.measurement_configs = []
             # self.measurement_configs.append('calib_1-1_2-2')
             # self.measurement_configs.append('calib_1-2_2-1')
 
-            # self.measurement_configs.append('A_beta_<rxorient>_n')
+            self.measurement_configs.append('A_beta_<rxorient>_n')
             self.measurement_configs.append('A_alpha_<rxorient>_n')
-            # self.measurement_configs.append('A_gamma_<rxorient>_n')
+            self.measurement_configs.append('A_gamma_<rxorient>_n')
+
 
 
 
