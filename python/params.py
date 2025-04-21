@@ -434,7 +434,7 @@ class Params_Class(Params_Class_Default):
         self.host_username = 'alira'
         self.host_password = ''
         # self.plot_fonts_dict = {'title_size': 15, 'xaxis_size': 17, 'yaxis_size': 15, 'ticks_size': 15, 'legend_size': 15, 'line_width': 1.2, 'marker_size': 8, 'hspace': 0.4, 'wspace': 0.4}
-        self.plot_fonts_dict = {'title_size': 8, 'xaxis_size': 10, 'yaxis_size': 10, 'ticks_size': 10, 'legend_size': 10, 'line_width': 1.0, 'marker_size': 8, 'hspace': 0.5, 'wspace': 0.5}
+        self.plot_fonts_dict = {'title_size': 11, 'title_max_chars': 35, 'xaxis_size': 10, 'yaxis_size': 10, 'ticks_size': 10, 'legend_size': 10, 'line_width': 1.0, 'marker_size': 8, 'hspace': 0.5, 'wspace': 0.5}
         self.saved_sig_plot = ['signal']
         # self.calibrate_turntable = True
 
@@ -458,14 +458,15 @@ class Params_Class(Params_Class_Default):
     def populate_measurement_parameters(self):
         
         if self.measurement_type == 'plot_saved_signal':
+            self.sig_save_path=os.path.join(self.sig_dir, '0_tx1_rx1_rx_rotate.npz')
             self.wb_sc_range=[-260,260]
             self.animate_plot_mode=[]
             # self.animate_plot_mode.append(["h|0|0|circshift|mag|dbmag", "h|1|0|circshift|mag|dbmag"])
             # self.animate_plot_mode.append(["rxtd|0|0|real", "rxtd|0|0|imag"])
             # self.animate_plot_mode.append(["rxtd|0|0|fft|fftshift|mag|dbmag", "rxtd|1|0|fft|fftshift|mag|dbmag"])
-            self.animate_plot_mode.append(["h|1|0|circshift|mag|dbmag"])
-            self.animate_plot_mode.append(["rxtd|1|0|real", "rxtd|1|0|imag"])
-            self.animate_plot_mode.append(["rxtd|1|0|fft|fftshift|mag|dbmag"])
+            self.animate_plot_mode.append(["h|0|0|circshift|mag|dbmag"])
+            self.animate_plot_mode.append(["rxtd|0|0|real", "rxtd|0|0|imag"])
+            self.animate_plot_mode.append(["rxtd|0|0|fft|fftshift|mag|dbmag"])
             self.rx_chain = ['sync_time', 'channel_est']
             self.control_rfsoc=False
             self.freq_hop_config['list'] = [6.5e9, 10e9, 15.0e9, 20.0e9]

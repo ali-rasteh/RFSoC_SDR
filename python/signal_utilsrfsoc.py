@@ -878,6 +878,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 sig = fft(sig, axis=-1)
                 # title += "-FFT"
                 title += "-FD"
+            elif item == 'psd':
+                nfft = 2**int(np.ceil(np.log2(len(sig))))
+                sig = self.psd(sig, fs=self.fs_rx, nfft=nfft)
             elif item == 'ifft':
                 sig = ifft(sig, axis=-1)
                 title += "-IFFT"
@@ -913,6 +916,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             elif item == 'circshift':
                 im = np.argmax(np.abs(sig), axis=-1)
                 sig = np.roll(sig, -im + len(sig)//4, axis=-1)
+            elif item == 'normalize':
+                sig = sig / np.max(np.abs(sig))
+                title += "-Norm"
             else:
                 raise ValueError("Invalid operation: {}".format(item))
             
@@ -948,6 +954,8 @@ class Animate_Plot(Signal_Utils_Rfsoc):
         '''
         Instructions to build signals for plots:
 
+        template:   ["signal_name|rx_id|tx_id|process_list"]
+
         h :         ["h|0|0|circshift|mag|dbmag"]
         h01 :       ["h|0|0|circshift|mag|dbmag", "h|1|0|circshift|mag|dbmag"]
         h_sparse :  ["h_sparse|0|0"]
@@ -965,6 +973,7 @@ class Animate_Plot(Signal_Utils_Rfsoc):
         nf_loc :    ["nf_loc|0|0"]
         '''
 
+        supported_operations = ['+', '-', '*', '/']
         signals=[]
         for plot in self.animate_plot_mode:
             plot_signals = []
@@ -976,6 +985,9 @@ class Animate_Plot(Signal_Utils_Rfsoc):
             label_final = None
 
             for index, signal_str in enumerate(plot):
+                if signal_str in supported_operations:
+                    continue
+
                 x = None
                 sig = None
                 if index != 0:
@@ -1082,13 +1094,10 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                     label += "-Imag"
 
 
-                # if sig_final is None:
-                #     sig_final = sig.copy()
-                #     label_final = label
-                sig_final = sig.copy()
-                label_final = label
+                if sig_final is None:
+                    sig_final = sig.copy()
+                    label_final = label
 
-                supported_operations = ['+', '-', '*', '/']
                 if index>0 and plot[index-1] in supported_operations:
                     operation = plot[index-1]
                     if operation == '+':
@@ -1104,8 +1113,8 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
                 if not (len(plot) > index+1 and plot[index+1] in supported_operations):
                     plot_signals.append({'signal_name': signal_name, 'process_list': signal_process_list, 'x': x, 'data': sig_final, 'label': label_final})
-                    # sig_final = None
-                    # label_final = None
+                    sig_final = None
+                    label_final = None
 
             title += ", RX/TX: "
             for rx_id, tx_id in zip(rx_ids, tx_ids):
@@ -1380,7 +1389,9 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                         line_id+=1
 
 
-                title = signals[i]['title'] + "\n Carrier Frequency: {} GHz".format(self.freq_hop_list[j]/1e9)
+                # Truncate the title to a maximum of 30 characters
+                title = (signals[i]['title'][:self.plot_fonts_dict['title_max_chars']] + '...') if len(signals[i]['title']) > self.plot_fonts_dict['title_max_chars'] else signals[i]['title']
+                title = title + "\n Carrier Frequency: {} GHz".format(self.freq_hop_list[j]/1e9)
                 x_label = signals[i]['x_label']
                 y_label = signals[i]['y_label']
                 self.ax[i][j].set_title(title)
