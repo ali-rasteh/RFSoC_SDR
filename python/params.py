@@ -456,17 +456,30 @@ class Params_Class(Params_Class_Default):
 
 
     def populate_measurement_parameters(self):
+
+        h00 = "h|0|0|circshift|mag|dbmag"
+        h01 = "h|0|1|circshift|mag|dbmag"
+        h10 = "h|1|0|circshift|mag|dbmag"
+        h11 = "h|1|1|circshift|mag|dbmag"
+        rxtd00_real = "rxtd|0|0|real"
+        rxtd00_imag = "rxtd|0|0|imag"
+        rxtd01_real = "rxtd|0|1|real"
+        rxtd01_imag = "rxtd|0|1|imag"
+        rxtd10_real = "rxtd|1|0|real"
+        rxtd10_imag = "rxtd|1|0|imag"
+        rxtd11_real = "rxtd|1|1|real"
+        rxtd11_imag = "rxtd|1|1|imag"
+        rxfd00 = "rxtd|0|0|fft|fftshift|mag|dbmag"
+        rxfd01 = "rxtd|0|1|fft|fftshift|mag|dbmag"
+        rxfd10 = "rxtd|1|0|fft|fftshift|mag|dbmag"
+        rxfd11 = "rxtd|1|1|fft|fftshift|mag|dbmag"
         
+
+
         if self.measurement_type == 'plot_saved_signal':
-            self.sig_save_path=os.path.join(self.sig_dir, '0_tx1_rx1_rx_rotate.npz')
+            self.sig_save_path=os.path.join(self.sig_dir, '-90_tx1_rx1_rx_rotate.npz')
             self.wb_sc_range=[-260,260]
-            self.animate_plot_mode=[]
-            # self.animate_plot_mode.append(["h|0|0|circshift|mag|dbmag", "h|1|0|circshift|mag|dbmag"])
-            # self.animate_plot_mode.append(["rxtd|0|0|real", "rxtd|0|0|imag"])
-            # self.animate_plot_mode.append(["rxtd|0|0|fft|fftshift|mag|dbmag", "rxtd|1|0|fft|fftshift|mag|dbmag"])
-            self.animate_plot_mode.append(["h|0|0|circshift|mag|dbmag"])
-            self.animate_plot_mode.append(["rxtd|0|0|real", "rxtd|0|0|imag"])
-            self.animate_plot_mode.append(["rxtd|0|0|fft|fftshift|mag|dbmag"])
+            self.animate_plot_mode=[[h00], [rxtd00_real, rxtd00_imag], [rxfd00]]
             self.rx_chain = ['sync_time', 'channel_est']
             self.control_rfsoc=False
             self.freq_hop_config['list'] = [6.5e9, 10e9, 15.0e9, 20.0e9]
@@ -481,7 +494,7 @@ class Params_Class(Params_Class_Default):
             self.wb_sc_range=[-300,-100]
             self.send_signal=False
             self.recv_signal=True
-            self.animate_plot_mode=['h', 'rxfd']
+            self.animate_plot_mode=[[h00], [rxtd00_real, rxtd00_imag], [rxfd00]]
             self.rx_chain = ['sync_time', 'channel_est']
             # self.rx_chain = ['sync_time', 'channel_est', 'channel_eq']
             self.freq_hop_config['list'] = [60.0e9]
@@ -496,8 +509,7 @@ class Params_Class(Params_Class_Default):
             self.send_signal=True
             # self.mix_freq=0e6 
             # self.do_mixer_settings=True
-            # self.animate_plot_mode = ['rxtd01', 'rxfd01']
-            self.animate_plot_mode = ['rxfd', 'h']
+            self.animate_plot_mode = [[h00], [rxtd00_real, rxtd00_imag], [rxfd00]]
             self.rx_chain = ['sync_time', 'channel_est']
             # self.rx_chain = ['sync_time', 'channel_est', 'channel_eq']
             # self.sig_mode = 'tone_1'
@@ -512,7 +524,7 @@ class Params_Class(Params_Class_Default):
         elif self.measurement_type == 'FR3_demo_simple':
             self.mode = 'client'
             self.send_signal=True
-            self.animate_plot_mode=['h', 'rxfd', 'IQ']
+            self.animate_plot_mode=[[h00], [rxtd00_real, rxtd00_imag], [rxfd00]]
             self.rx_chain = ['sync_time', 'channel_est']
             # self.rx_chain = ['sync_time', 'channel_est', 'channel_eq']
             self.control_piradio=True
@@ -533,7 +545,7 @@ class Params_Class(Params_Class_Default):
             elif self.mode == 'client_slave':
                 self.send_signal=True
 
-            self.animate_plot_mode=['h01', 'rxfd01', 'aoa_gauge']
+            self.animate_plot_mode=[[h00], [rxtd00_real, rxtd00_imag], [rxfd00]]
             self.rx_chain = ['sync_time', 'channel_est']
             # self.rx_chain = ['sync_time', 'channel_est', 'channel_eq']
             self.control_piradio=True
@@ -554,8 +566,7 @@ class Params_Class(Params_Class_Default):
                 # self.rfsoc_server_ip='192.168.2.98'
 
             self.wb_sc_range=[-260,260]
-            # self.animate_plot_mode=['h01', 'rxfd01']
-            self.animate_plot_mode=['h', 'rxfd', 'rxtd']
+            self.animate_plot_mode=[[h00], [rxtd00_real, rxtd00_imag], [rxfd00]]
             self.rx_chain = ['sync_time', 'channel_est']
             self.use_turntable = True
             self.rotation_range_deg = [-90,90]
@@ -588,8 +599,7 @@ class Params_Class(Params_Class_Default):
             elif self.mode == 'client_slave':
                 self.send_signal=True
 
-            self.animate_plot_mode=['h01', 'rxfd01']
-            # self.animate_plot_mode=['h', 'rxfd']
+            self.animate_plot_mode=[[h00], [rxtd00_real, rxtd00_imag], [rxfd00]]
             self.save_format = 'mat'
             self.rx_chain = ['sync_time', 'channel_est']
             self.use_turntable = True
@@ -650,8 +660,7 @@ class Params_Class(Params_Class_Default):
             elif self.mode == 'client_slave':
                 self.send_signal=True
 
-            self.animate_plot_mode=['h01', 'rxfd01']
-            # self.animate_plot_mode=['h', 'rxfd']
+            self.animate_plot_mode=[[h00], [rxtd00_real, rxtd00_imag], [rxfd00]]
             self.save_format = 'mat'
             self.rx_chain = ['sync_time', 'channel_est']
             self.use_turntable = True
