@@ -36,6 +36,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.sig_save_path = params.sig_save_path
         self.measurement_configs = params.measurement_configs
         self.calib_params_path = params.calib_params_path
+        self.optimal_gains_path = params.optimal_gains_path
         self.channel_dir = params.channel_dir
         self.channel_save_path = params.channel_save_path
         self.sys_response_path = params.sys_response_path
@@ -60,6 +61,10 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.use_turntable = params.use_turntable
         self.rotation_angles = params.rotation_angles
         self.control_piradio = params.control_piradio
+        self.stable_fc_piradio = params.stable_fc_piradio
+        self.piradio_freq_sw_dly = params.piradio_freq_sw_dly
+        self.piradio_gain_sw_dly = params.piradio_gain_sw_dly
+        self.piradio_losupp_sw_dly = params.piradio_losupp_sw_dly
         self.anim_interval = params.anim_interval
         self.freq_hop_list = params.freq_hop_list
         self.snr_est_db = params.snr_est_db
@@ -92,6 +97,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.rx_phase_list = []
         self.aoa_list = []
         self.lin_track_dir = 'forward'
+        self.tx_rx_distance = 0
 
         self.print("signals object initialization done", thr=1)
         
@@ -353,10 +359,15 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         input_ = input("Press Y for phase offset calibration (and position the TX/RX at AoA = 0) or any key to use the saved phase offset: ")
 
         if input_.lower()!='y':
-            self.rx_phase_offset = np.load(self.calib_params_path)['rx_phase_offset']
-            self.rx_delay_offset = np.load(self.calib_params_path)['rx_delay_offset']
-            # self.print("Using saved phase offset between RX ports: {:0.3f} Rad".format(self.rx_phase_offset), thr=1)
-            self.print("Using saved delay offset between RX ports: {:0.3f} s".format(self.rx_delay_offset), thr=1)
+            if os.path.exists(self.calib_params_path):
+                self.rx_phase_offset = np.load(self.calib_params_path)['rx_phase_offset']
+                self.rx_delay_offset = np.load(self.calib_params_path)['rx_delay_offset']
+                # self.print("Using saved phase offset between RX ports: {:0.3f} Rad".format(self.rx_phase_offset), thr=1)
+                self.print("Using saved delay offset between RX ports: {:0.3f} s".format(self.rx_delay_offset), thr=1)
+            else:
+                self.print("No saved calibration found, please calibrate the phase offset", thr=0)
+                self.rx_phase_offset = 0
+                self.rx_delay_offset = 0
             return
         else:
             phase_diff_list = []
@@ -410,6 +421,40 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.sys_response /= np.max(np.abs(self.sys_response))
 
 
+    def compute_sys_response(self):
+        # input_folder = self.sig_dir
+        sys_response_folder = os.path.join(os.getcwd(), 'sigs/')
+
+        if not os.path.exists(sys_response_folder):
+            os.makedirs(sys_response_folder)
+
+        for file_name in os.listdir(sys_response_folder):
+            if file_name.endswith('.npz') or file_name.endswith('.mat'):
+                self.print("Processing file: {}".format(file_name), thr=0)
+                file_path = os.path.join(sys_response_folder, file_name)
+                if file_name.endswith('.npz'):
+                    data = np.load(file_path)
+                    data_dict = {key: data[key] for key in data.files}
+                elif file_name.endswith('.mat'):
+                    data = scipy.io.loadmat(file_path)
+                    data_dict = {key: value for key, value in data.items() if not key.startswith('__')}
+
+                spec_list = file_name.split('_')
+                angle = spec_list[0]
+
+                txtd_base = data_dict['txtd']
+
+                rxtd_dict = {}
+                for key, value in data_dict.items():
+                    if 'rxtd_' in key:
+                        frequency = key.split('_')[-1]
+                    rxtd_dict[frequency] = value
+                    
+                for frequency, rxtd in rxtd_dict.items():
+                    (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd)
+
+
+
     def collect_signals(self):
         collect_count = 512
         ignore_less_count = False
@@ -435,7 +480,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 collected_data = {}
                 for key, value in data_dict.items():
                     # print(key, value.shape)
-                    if not key in ['h_est_full', 'txtd', 'rxtd'] and not any (x in key for x in ['rxtd', 'h_est_full']):
+                    if not any (x in key for x in ['rxtd', 'h_est_full']):
                         continue
                     elif ignore_less_count and value.shape[0] < collect_count:
                         continue
@@ -465,7 +510,17 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
         for config in self.measurement_configs:
-            input('Please change the configuration to: {} and press any key to start...'.format(config))
+            tx_rx_distance = input('Please change the configuration to: {} and enter the TX to RX distance in meters (empty for default): '.format(config))
+            if tx_rx_distance != '':
+                try:
+                    tx_rx_distance = float(tx_rx_distance)
+                except:
+                    raise ValueError('Invalid distance value: {}'.format(tx_rx_distance))
+                self.tx_rx_distance = tx_rx_distance
+            self.find_optimal_gain_piradio(client_rfsoc, client_piradio, client_controller)
+            self.set_optimal_gain_piradio(client_piradio, client_controller)
+
+
             self.print("Starting to save signals for configuration: {}".format(config), thr=0)
 
             if 'calib' in config:
@@ -506,8 +561,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
                     start_time = time.time()
                     self.hop_freq(client_piradio, client_controller, fc_id=freq_id)
-                    if client_piradio.freq_sw_dly == 0:
-                        time.sleep(0.1)
 
                     # test = np.load(self.sig_save_path)
                     rxtd_save=[]
@@ -524,7 +577,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     
                     if 'channel' in save_list:
                         for i in range(self.n_save):
-                            # time.sleep(0.01)
                             self.print("Channel Save Iteration: {}".format(i+1), thr=0)
                             rxtd = self.receive_data(client_rfsoc, n_rd_rep=n_rd_rep, mode='once')
 
@@ -628,12 +680,15 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         return rxtd
 
 
-    def hop_freq(self, client_piradio, client_controller, fc_id=None):
+    def hop_freq(self, client_piradio, client_controller, fc_id=None, freq=None):
             if fc_id is not None:
                 fc_id = fc_id
             else:
                 fc_id = (self.fc_id + 1) % len(self.freq_hop_list)
-            fc = self.freq_hop_list[int(fc_id)]
+            if freq is not None:
+                fc = freq
+            else:
+                fc = self.freq_hop_list[int(fc_id)]
             if self.fc != fc:
                 if self.control_piradio:
                     client_piradio.set_frequency(fc=fc)
@@ -643,10 +698,29 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 self.fc = fc
                 self.wl = self.c / self.fc
 
+                self.set_optimal_losupp_piradio(client_piradio, client_controller)
+
+                if client_piradio.freq_sw_dly == 0:
+                    sleep_time = max(self.piradio_losupp_sw_dly, self.piradio_freq_sw_dly)
+                    time.sleep(self.piradio_freq_sw_dly)
 
 
-    def set_optimal_gain_piradio(self, client_rfsoc, client_piradio, client_controller):
-        self.print("Setting optimal gain for TX and RX in Pi-Radio", thr=1)
+
+    def find_optimal_gain_piradio(self, client_rfsoc, client_piradio, client_controller):
+
+        if os.path.exists(self.optimal_gains_path):
+            self.optimal_gains = self.load_dict_from_json(self.optimal_gains_path)
+        else:
+            self.optimal_gains = {}
+
+        input_ = input("Press Y for TX/RX optimal gains calibration or any key to use the saved data: ")
+        if input_.lower()!='y':
+            self.print("Using saved TX/RX optimal gains...", thr=0)
+            return
+
+        self.print("Finding optimal gain for TX/RX in Pi-Radio", thr=1)
+        self.tx_rx_distance = input("Enter the distance between the TX and RX in meters: ")
+        self.optimal_gains[self.tx_rx_distance] = {}
 
         max_total_gain = 64
         min_tx_gain = 10
@@ -654,49 +728,86 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         min_rx_gain = 10
         max_rx_gain = 45
         gain_step = 1
-        snr_optimal = 0
-        tx_gain_optimal = 0
-        rx_gain_optimal = 0
-
+        
         tx_gain_list = np.arange(min_tx_gain, max_tx_gain+gain_step, gain_step)
         rx_gain_list = np.arange(min_rx_gain, max_rx_gain+gain_step, gain_step)
-        for tx_gain in tx_gain_list:
-            if tx_gain < min_tx_gain or tx_gain > max_tx_gain:
-                continue
-            self.print("Setting TX gain to {} dB".format(tx_gain), thr=0)
-            if 'master' in self.mode:
-                client_controller.set_gain(port='tx-0', gain_db=tx_gain)
-                client_controller.set_gain(port='tx-1', gain_db=tx_gain)
 
-            for rx_gain in rx_gain_list:
-                if rx_gain < min_rx_gain or rx_gain > max_rx_gain:
+        freq_step = 0.5
+        # freq_list = np.arange(client_piradio.freq_range[0], client_piradio.freq_range[1]+freq_step, freq_step)
+        freq_list = [self.stable_fc_piradio]
+        for frequency in freq_list:
+            self.print("Finding gains for frequency: {} GHz".format(frequency), thr=3)
+            self.hop_freq(client_piradio, client_controller, freq=frequency)
+
+            self.optimal_gains[self.tx_rx_distance][frequency] = {}
+        
+            snr_optimal = 0
+            tx_gain_optimal = 0
+            rx_gain_optimal = 0
+
+            for tx_gain in tx_gain_list:
+                if tx_gain < min_tx_gain or tx_gain > max_tx_gain:
                     continue
-                if tx_gain + rx_gain > max_total_gain:
-                    continue
+                self.print("Setting TX gain to {} dB".format(tx_gain), thr=3)
+                if 'master' in self.mode:
+                    client_controller.set_gain(port='tx-0', gain_db=tx_gain)
+                    client_controller.set_gain(port='tx-1', gain_db=tx_gain)
 
-                self.print("Setting RX gain to {} dB".format(rx_gain), thr=0)
-                client_piradio.set_gain(port='rx-0', gain_db=rx_gain)
-                client_piradio.set_gain(port='rx-1', gain_db=rx_gain)
+                for rx_gain in rx_gain_list:
+                    if rx_gain < min_rx_gain or rx_gain > max_rx_gain:
+                        continue
+                    if tx_gain + rx_gain > max_total_gain:
+                        continue
 
-                rxtd = self.receive_data(client_rfsoc, mode='once')
-                snr = self.calculate_snr(sig=rxtd[0], sig_sc_range=self.sc_range)
-                if snr > snr_optimal:
-                    snr_optimal = snr
-                    tx_gain_optimal = tx_gain
-                    rx_gain_optimal = rx_gain
+                    self.print("Setting RX gain to {} dB".format(rx_gain), thr=3)
+                    client_piradio.set_gain(port='rx-0', gain_db=rx_gain)
+                    client_piradio.set_gain(port='rx-1', gain_db=rx_gain)
+                    if client_piradio.gain_sw_dly == 0:
+                        time.sleep(2*self.piradio_gain_sw_dly)
 
-        self.print("Optimal TX gain: {} dB".format(tx_gain_optimal), thr=1)
-        self.print("Optimal RX gain: {} dB".format(rx_gain_optimal), thr=1)
-        self.print("Optimal SNR: {} dB".format(snr_optimal), thr=1)
+                    rxtd = self.receive_data(client_rfsoc, mode='once')
+                    snr = self.calculate_snr(sig=rxtd[0], sig_sc_range=self.sc_range)
+                    if snr > snr_optimal:
+                        snr_optimal = snr
+                        tx_gain_optimal = tx_gain
+                        rx_gain_optimal = rx_gain
+
+            self.print("Optimal TX gain for frequency {}: {} dB".format(frequency,tx_gain_optimal), thr=3)
+            self.print("Optimal RX gain for frequency {}: {} dB".format(frequency,rx_gain_optimal), thr=3)
+            self.print("Optimal SNR for frequency {}: {} dB".format(frequency,snr_optimal), thr=3)
+
+            self.optimal_gains[self.tx_rx_distance][frequency]['tx_gain'] = tx_gain_optimal
+            self.optimal_gains[self.tx_rx_distance][frequency]['rx_gain'] = rx_gain_optimal
+
+
+        self.save_dict_to_json(self.optimal_gains, self.optimal_gains_path)
+        self.print("Calculated and saved optimal TX/RX gains...", thr=1)
+
+        return self.optimal_gains
+    
+
+
+    def set_optimal_gain_piradio(self, client_piradio, client_controller):
+        self.print("Setting optimal TX/RX gains in Pi-Radio", thr=0)
+
+        freq_list = list(self.optimal_gains[self.tx_rx_distance].keys())
+        nearest_fc = min(freq_list, key=lambda x: abs(x - self.stable_fc_piradio/1e9))
+
+        rx_gain_optimal = self.optimal_gains[self.tx_rx_distance][nearest_fc]['rx_gain']
+        tx_gain_optimal = self.optimal_gains[self.tx_rx_distance][nearest_fc]['tx_gain']
+
         client_piradio.set_gain(port='rx-0', gain_db=rx_gain_optimal)
         client_piradio.set_gain(port='rx-1', gain_db=rx_gain_optimal)
+        client_piradio.set_gain(port='tx-0', gain_db=tx_gain_optimal)
+        client_piradio.set_gain(port='tx-1', gain_db=tx_gain_optimal)
         if 'master' in self.mode:
             client_controller.set_gain(port='tx-0', gain_db=tx_gain_optimal)
             client_controller.set_gain(port='tx-1', gain_db=tx_gain_optimal)
 
+        if client_piradio.gain_sw_dly == 0:
+            time.sleep(self.piradio_gain_sw_dly)
 
-        return (tx_gain_optimal, rx_gain_optimal)
-    
+
 
     def set_optimal_losupp_piradio(self, client_piradio, client_controller):
         self.print("Setting optimal LO suppression for TX and RX in Pi-Radio", thr=1)
@@ -714,6 +825,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.print("Nearest frequency: {} GHz, Optimal LO suppression: {}".format(nearest_fc, optimal_lo_supp), thr=1)
         client_piradio.set_lo_suppression(port='rx-0', bias_voltage=optimal_lo_supp[0])
         client_piradio.set_lo_suppression(port='rx-1', bias_voltage=optimal_lo_supp[1])
+        client_piradio.set_lo_suppression(port='tx-0', bias_voltage=optimal_lo_supp[2])
+        client_piradio.set_lo_suppression(port='tx-1', bias_voltage=optimal_lo_supp[3])
         if 'master' in self.mode:
             client_controller.set_lo_suppression(port='tx-0', bias_voltage=optimal_lo_supp[2])
             client_controller.set_lo_suppression(port='tx-1', bias_voltage=optimal_lo_supp[3])

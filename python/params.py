@@ -60,7 +60,7 @@ class Params_Class_Default(object):
         self.TCP_port_Data=8081             # TCP port for data
         self.rfsoc_server_ip='192.168.3.1'  # RFSoC board IP as the server
         self.lintrack_server_ip='192.168.137.100'   # Linear track controller board IP as the server ('10.18.242.48')
-        self.turntable_port = 'COM6'                # Turntable serial port
+        self.turntable_port = '/dev/ttyACM0'                # Turntable serial port
         self.turntable_baudrate = 115200            # Turntable baudrate
         self.piradio_host = '192.168.137.51'        # PIRadio host IP
         self.piradio_ssh_port = '22'                # PIRadio SSH port
@@ -72,9 +72,11 @@ class Params_Class_Default(object):
         self.host_username = 'wirelesslab914'       # Host username
         self.host_password = ''                     # Host password
         self.controller_slave_ip = '192.168.1.1'    # Controller slave IP
-        self.piradio_freq_sw_dly = 0.0              # PIRadio frequency switch delay
-        self.piradio_gain_sw_dly = 0.0              # PIRadio gain change delay
-        self.piradio_losupp_sw_dly = 0.0            # PIRadio LO Suppression change delay
+        self.piradio_freq_sw_dly = 0.1              # PIRadio frequency switch delay
+        self.piradio_gain_sw_dly = 0.1              # PIRadio gain change delay
+        self.piradio_losupp_sw_dly = 0.1            # PIRadio LO Suppression change delay
+        self.piradio_freq_range = [6.0, 22.5e9]     # PIRadio frequency range
+        self.stable_fc_piradio = 10e9          # Most stable carrier frequency for the PIRadio board
 
         # File transfer parameters
         self.update_rfsoc_files = False                     # If True, updates the RFSoC files
@@ -121,6 +123,7 @@ class Params_Class_Default(object):
         # Save parameters
         self.calib_params_dir=os.path.join(os.getcwd(), 'calib/')                           # Calibration parameters directory
         self.calib_params_path=os.path.join(self.calib_params_dir, 'calib_params.npz')      # Calibration parameters path
+        self.optimal_gains_path=os.path.join(self.calib_params_dir, 'optimal_gains.json')   # Calibration parameters path
         self.sig_dir=os.path.join(os.getcwd(), 'sigs/')                             # Signals directory
         self.sig_path=os.path.join(self.sig_dir, 'txtd.npz')                        # Signal load path
         self.sig_save_path=os.path.join(self.sig_dir, 'trx.npz')                    # Signal save path
@@ -213,6 +216,9 @@ class Params_Class_Default(object):
             self.control_rfsoc=False
             self.use_linear_track=False
             self.use_turntable=False
+            self.piradio_freq_sw_dly = 0.0
+            self.piradio_gain_sw_dly = 0.0
+            self.piradio_losupp_sw_dly = 0.0
 
 
         if self.mixer_mode=='digital' and self.mix_freq!=0:

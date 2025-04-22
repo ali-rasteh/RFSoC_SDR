@@ -715,6 +715,7 @@ class REST_Com_Piradio(REST_Com):
         self.freq_sw_dly = getattr(params, 'piradio_freq_sw_dly', 1.0)
         self.gain_sw_dly = getattr(params, 'piradio_gain_sw_dly', 1.0)
         self.losupp_sw_dly = getattr(params, 'piradio_losupp_sw_dly', 1.0)
+        self.freq_range = getattr(params, 'piradio_freq_range', [6.0, 22.5])
 
         self.print("REST_Com_Piradio object init done", thr=1)
 

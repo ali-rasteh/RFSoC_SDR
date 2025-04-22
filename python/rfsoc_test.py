@@ -136,6 +136,10 @@ def rfsoc_run(params):
             signals_inst.client_controller = client_controller
             
             signals_inst.calibrate_rx_phase_offset(client_rfsoc)
+            if params.control_piradio:
+                signals_inst.find_optimal_gain_piradio(client_rfsoc, client_piradio, client_controller)
+                signals_inst.set_optimal_gain_piradio(client_piradio, client_controller)
+                signals_inst.set_optimal_losupp_piradio(client_piradio, client_controller)
             if params.nf_param_estimate:
                 signals_inst.create_near_field_model()
 
