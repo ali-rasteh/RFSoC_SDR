@@ -406,9 +406,9 @@ class Params_Class(Params_Class_Default):
         # parser.add_argument("--bit_file_path", type=str, default="./rfsoc.bit", help="Path to the bit file")
         # params = parser.parse_args()
 
-        self.controller_slave_ip = '192.168.10.2'
-        # self.turntable_port = '/dev/ttyACM1'
-        self.turntable_port = 'COM4'
+        self.controller_slave_ip = '10.18.204.119'
+        self.turntable_port = '/dev/ttyACM0'
+        # self.turntable_port = 'COM4'
 
         self.piradio_freq_sw_dly = 0.1
         self.piradio_gain_sw_dly = 0.1
@@ -427,15 +427,17 @@ class Params_Class(Params_Class_Default):
         # self.update_rfsoc_files = True
         # self.save_parameters=True
         # self.load_parameters=True
+        # self.plot_fonts_dict = {'title_size': 15, 'xaxis_size': 17, 'yaxis_size': 15, 'ticks_size': 15, 'legend_size': 15, 'line_width': 1.2, 'marker_size': 8, 'hspace': 0.4, 'wspace': 0.4}
+        self.plot_fonts_dict = {'title_size': 11, 'title_max_chars': 35, 'xaxis_size': 10, 'yaxis_size': 10, 'ticks_size': 10, 'legend_size': 10, 'line_width': 1.0, 'marker_size': 8, 'hspace': 0.5, 'wspace': 0.5}
+        # self.calibrate_turntable = True
+
         # self.host_files_base_addr = "/home/wirelesslab914/ali/sounder_rfsoc/RFSoC_SDR/python/"
         self.host_files_base_addr = "/Users/alira/OneDrive/Desktop/Current_works/Channel_sounding/RFSoC_SDR_copy/"
         self.host_ip = '192.168.2.1'
         # self.host_username = 'wirelesslab914'
         self.host_username = 'alira'
         self.host_password = ''
-        # self.plot_fonts_dict = {'title_size': 15, 'xaxis_size': 17, 'yaxis_size': 15, 'ticks_size': 15, 'legend_size': 15, 'line_width': 1.2, 'marker_size': 8, 'hspace': 0.4, 'wspace': 0.4}
-        self.plot_fonts_dict = {'title_size': 11, 'title_max_chars': 35, 'xaxis_size': 10, 'yaxis_size': 10, 'ticks_size': 10, 'legend_size': 10, 'line_width': 1.0, 'marker_size': 8, 'hspace': 0.5, 'wspace': 0.5}
-        # self.calibrate_turntable = True
+
 
 
         # self.measurement_type = 'plot_saved_signal'
@@ -673,7 +675,7 @@ class Params_Class(Params_Class_Default):
             self.tx_sig_sim = 'shifted'        # same or orthogonal or shifted
             self.sig_gen_mode = 'ZadoffChu'
 
-            self.save_list = ['signal']           # signal or channel
+            # self.save_list = ['signal']           # signal or channel
             self.save_format = 'mat'
             self.n_save = 256
             

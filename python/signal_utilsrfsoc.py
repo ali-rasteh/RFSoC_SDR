@@ -363,6 +363,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             delay_list = []
             for i in range(self.calib_iter):
                 rxtd = self.receive_data(client_rfsoc, mode='once')
+                rxtd = rxtd[0]
                 phase_diff = self.calc_phase_offset(rxtd[0,:], rxtd[1,:])
                 delay = phase_diff / (2*np.pi*self.fc)
                 phase_diff_list.append(phase_diff)
@@ -410,11 +411,11 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
     def collect_signals(self):
-        collect_count = 32
+        collect_count = 512
         ignore_less_count = False
         # input_folder = self.channel_dir
-        # input_folder = self.sig_dir
-        input_folder = "./sigs_tx1_rx1_rx_rotate"
+        input_folder = self.sig_dir
+        # input_folder = "./sigs_tx1_rx1_rx_rotate"
         output_folder = os.path.join(input_folder, 'collected')
 
         if not os.path.exists(output_folder):
@@ -565,9 +566,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
                     if 'signal' in save_list:
                         measurements['txtd'] = txtd_save
-                        measurements['rxtd_{}'.format(frequency/1e9)] = rxtd_save
+                        measurements['rxtd_{}'.format(frequency/1e9)] = rxtd_save.copy()
                     if 'channel' in save_list:
-                        measurements['h_est_full_{}'.format(frequency/1e9)] = h_est_full_save
+                        measurements['h_est_full_{}'.format(frequency/1e9)] = h_est_full_save.copy()
 
                     freq_switch_time = time.time()-start_time
                     self.print("Time taken to save signals: {:0.3f} s".format(freq_switch_time), thr=2)
@@ -578,21 +579,21 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     if mode != 'calib':
                         angles_dict = {0: 'alpha', 45: 'beta', -45: 'gamma'}
                         postfix = postfix.replace('<rxorient>', angles_dict[angle])
-                        # save_name = f'{frequency/1e9}' + postfix + '.npz'
-                    save_name = postfix + '.npz'
+                        # save_name = f'{frequency/1e9}' + postfix + '.' + self.save_format
+                    save_name = postfix + '.' + self.save_format
                 elif self.measurement_type == 'FR3_nyu_13state':
                     if mode != 'calib':
                         postfix = postfix.replace('<rxorient>', str(angle))
-                        # save_name = f'{frequency/1e9}' + postfix + '.npz'
-                    save_name = postfix + '.npz'
+                        # save_name = f'{frequency/1e9}' + postfix + '.' + self.save_format
+                    save_name = postfix + '.' + self.save_format
                 elif self.measurement_type == 'FR3_ant_calib':
                     if mode != 'calib':
-                        # save_name = '{}_{}'.format(angle, frequency/1e9) + postfix + '.npz'
-                        save_name = '{}'.format(angle) + postfix + '.npz'
+                        # save_name = '{}_{}'.format(angle, frequency/1e9) + postfix + '.' + self.save_format
+                        save_name = '{}'.format(angle) + postfix + '.' + self.save_format
                     else:
-                        save_name = postfix + '.npz'
+                        save_name = postfix + '.' + self.save_format
                 else:
-                    save_name = postfix + '.npz'
+                    save_name = postfix + '.' + self.save_format
                         
                         
                 if 'signal' in save_list:
