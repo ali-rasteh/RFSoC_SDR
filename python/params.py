@@ -452,8 +452,8 @@ class Params_Class(Params_Class_Default):
         # self.measurement_type = 'FR3_demo_simple'
         # self.measurement_type = 'FR3_demo_multi_freq'
         # self.measurement_type = 'FR3_nyu_3state'
-        self.measurement_type = 'FR3_nyu_13state'
-        # self.measurement_type = 'FR3_ant_calib'
+        # self.measurement_type = 'FR3_nyu_13state'
+        self.measurement_type = 'FR3_ant_calib'
 
         # self.mode = 'client'
         self.mode = 'client_master'
