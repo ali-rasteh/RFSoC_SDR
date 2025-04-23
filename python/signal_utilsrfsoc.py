@@ -422,36 +422,136 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
     def compute_sys_response(self):
-        # input_folder = self.sig_dir
-        sys_response_folder = os.path.join(os.getcwd(), 'sigs/')
+        n_rx = 2
 
+        if n_rx == 1:
+            sys_response_folder = os.path.join(os.getcwd(), 'sigs_tx1_rx1_rx_rotate/')
+        elif n_rx == 2:
+            sys_response_folder = os.path.join(os.getcwd(), 'sigs_tx2_rx2_rx_rotate/')
+
+        n_tx = n_rx
+        postfix = "{}x{}".format(n_rx, n_tx)
+        sys_response_path = os.path.join(self.channel_dir, 'sys_response_{}.npz'.format(postfix))
         if not os.path.exists(sys_response_folder):
             os.makedirs(sys_response_folder)
 
-        for file_name in os.listdir(sys_response_folder):
-            if file_name.endswith('.npz') or file_name.endswith('.mat'):
-                self.print("Processing file: {}".format(file_name), thr=0)
-                file_path = os.path.join(sys_response_folder, file_name)
-                if file_name.endswith('.npz'):
-                    data = np.load(file_path)
-                    data_dict = {key: data[key] for key in data.files}
-                elif file_name.endswith('.mat'):
-                    data = scipy.io.loadmat(file_path)
-                    data_dict = {key: value for key, value in data.items() if not key.startswith('__')}
+        if not os.path.exists(sys_response_path):
+            sys_response = {}
 
-                spec_list = file_name.split('_')
-                angle = spec_list[0]
+            for file_name in os.listdir(sys_response_folder):
+                if file_name.endswith('.npz') or file_name.endswith('.mat'):
+                    self.print("Processing file: {}".format(file_name), thr=0)
+                    file_path = os.path.join(sys_response_folder, file_name)
+                    if file_name.endswith('.npz'):
+                        data = np.load(file_path)
+                        data_dict = {key: data[key] for key in data.files}
+                    elif file_name.endswith('.mat'):
+                        data = scipy.io.loadmat(file_path)
+                        data_dict = {key: value for key, value in data.items() if not key.startswith('__')}
 
-                txtd_base = data_dict['txtd']
+                    spec_list = file_name.split('_')
+                    angle = float(spec_list[0])
+                    sys_response[angle] = {}
 
-                rxtd_dict = {}
-                for key, value in data_dict.items():
-                    if 'rxtd_' in key:
-                        frequency = key.split('_')[-1]
-                    rxtd_dict[frequency] = value
-                    
-                for frequency, rxtd in rxtd_dict.items():
-                    (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd)
+                    txtd_base = data_dict['txtd']
+                    txtd_base = txtd_base[0]
+
+                    rxtd_dict = {}
+                    for key, value in data_dict.items():
+                        if not 'rxtd_' in key:
+                            continue
+                        frequency = float(key.split('_')[-1])
+                        rxtd_dict[frequency] = value
+                        
+                    for frequency, rxtd in rxtd_dict.items():
+                        rxtd = np.mean(rxtd, axis=0)
+                        (rxtd_base, h_est_full, H_est, H_est_max, sparse_est_params) = self.rx_operations(txtd_base, rxtd)
+                        max_gain = np.max(np.abs(h_est_full), axis=-1)
+                        sys_response[angle][frequency] = max_gain
+
+
+            angles = [float(angle) for angle in sys_response.keys()]
+            angles = np.array(angles)
+            angles = np.sort(angles)
+            frequencies = np.array(list(sys_response[angles[0]].keys()))
+            frequencies = np.sort(frequencies)
+
+            n_rx_ = np.shape(sys_response[angles[0]][frequencies[0]])[0]
+            n_tx_ = np.shape(sys_response[angles[0]][frequencies[0]])[1]
+            sys_response_matrix = np.zeros((len(angles), len(frequencies), n_rx_, n_tx_))
+            for i, angle in enumerate(angles):
+                for j, frequency in enumerate(frequencies):
+                    sys_response_matrix[i,j] = sys_response[angle][frequency]
+            
+            
+            np.savez(sys_response_path, sys_response_matrix=sys_response_matrix, angles=angles, frequencies=frequencies)
+        
+        else:
+            data = np.load(sys_response_path)
+            sys_response_matrix = data['sys_response_matrix']
+            angles = data['angles']
+            frequencies = data['frequencies']
+        
+
+        sys_response_matrix /= np.max(sys_response_matrix)
+        sys_response_matrix = self.lin_to_db(sys_response_matrix, mode='mag')
+
+
+        plot_params_dict = {'title_size': 18, 'title_weight': 'bold', 'title_max_chars': 45, 'xaxis_size': 16, 'yaxis_size': 16, 'ticks_size': 14, 'legend_size': 16, 'line_width': 2.0, 'marker_size': 8, 'hspace': 0.5, 'wspace': 0.5}
+
+
+        fixed_angles = [-90, -30, 0, 30, 90]
+        if n_rx > 1:
+            fixed_angles = [-90, 0, 30, 90]
+        fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+        lines = []
+        for fixed_angle in fixed_angles:
+            angle_id = np.where(angles==fixed_angle)[0][0]
+            for rx_id in range(n_rx):
+                line, = ax.plot(frequencies, sys_response_matrix[angle_id,:,rx_id,0], label='Angle {}, RX {}'.format(fixed_angle, rx_id))
+                lines.append(line)
+        plot_params_dict['title'] = 'System Response vs Frequency at Different Angles'
+        plot_params_dict['xlabel'] = 'Frequency (GHz)'
+        plot_params_dict['ylabel'] = 'Normalized Response (dB)'
+        self.set_plot_params(ax, lines, plot_params_dict)
+        plt.savefig(os.path.join(self.figs_dir, 'sys_response_vs_freq_{}.pdf'.format(postfix)))
+
+
+        fixed_freqs = [6.0, 8.0, 10.0, 15.0, 20.0]
+        if n_rx > 1:
+            fixed_freqs = [6.0, 10.0, 15.0, 20.0]
+        fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+        lines = []
+        for fixed_freq in fixed_freqs:
+            freq_id = np.where(frequencies==fixed_freq)[0][0]
+            for rx_id in range(n_rx):
+                line, = ax.plot(angles, sys_response_matrix[:,freq_id,rx_id,0], label='Fc {}GHz, RX {}'.format(fixed_freq, rx_id))
+                lines.append(line)
+        plot_params_dict['title'] = 'System Response vs Angle at Different Frequencies'
+        plot_params_dict['xlabel'] = 'Angle (degrees)'
+        plot_params_dict['ylabel'] = 'Normalized Response (dB)'
+        self.set_plot_params(ax, lines, plot_params_dict)
+        plt.show()
+        plt.savefig(os.path.join(self.figs_dir, 'sys_response_vs_angle_{}.pdf'.format(postfix)))
+
+
+        rx_id = 0
+        tx_id = 0
+        for rx_id in range(n_rx):
+            fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+            lines = []
+            cax = ax.imshow(sys_response_matrix[:,:,rx_id,tx_id], extent=[frequencies[0], frequencies[-1], angles[0], angles[-1]], aspect='auto', origin='lower', cmap='viridis')
+            cbar = fig.colorbar(cax, ax=ax, label='Normalized Response')
+            cbar.ax.tick_params(labelsize=plot_params_dict['ticks_size'])
+            cbar.ax.yaxis.label.set_size(plot_params_dict['yaxis_size'])
+            plot_params_dict['title'] = '2D Heat Diagram of System Response for RX {}'.format(rx_id)
+            plot_params_dict['xlabel'] = 'Frequency (GHz)'
+            plot_params_dict['ylabel'] = 'Angle (degrees)'
+            self.set_plot_params(ax, lines, plot_params_dict)
+            plt.savefig(os.path.join(self.figs_dir, 'sys_response_2D_{}_RX{}.pdf'.format(postfix, rx_id)))
+            plt.show()
+
+
 
 
 
@@ -1553,7 +1653,9 @@ if __name__ == "__main__":
     params = Params_Class()
 
     signals_inst = Signal_Utils_Rfsoc(params)
-    signals_inst.collect_signals()
+    # signals_inst.collect_signals()
+    signals_inst.compute_sys_response()
+
 
 
 
