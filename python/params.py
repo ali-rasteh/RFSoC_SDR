@@ -419,7 +419,7 @@ class Params_Class(Params_Class_Default):
         self.turntable_port = '/dev/ttyACM0'
         # self.turntable_port = 'COM4'
 
-        # self.set_piradio_opt_gains = True
+        self.set_piradio_opt_gains = True
         self.set_piradio_opt_losupp = True
         self.piradio_freq_sw_dly_default = 0.1
         self.piradio_gain_sw_dly_default = 0.1
