@@ -419,8 +419,8 @@ class Params_Class(Params_Class_Default):
         self.turntable_port = '/dev/ttyACM0'
         # self.turntable_port = 'COM4'
 
-        self.set_piradio_opt_gains = True
-        self.set_piradio_opt_losupp = True
+        # self.set_piradio_opt_gains = True
+        # self.set_piradio_opt_losupp = True
         self.piradio_freq_sw_dly_default = 0.1
         self.piradio_gain_sw_dly_default = 0.1
         self.piradio_bias_sw_dly_default = 0.1
@@ -455,17 +455,17 @@ class Params_Class(Params_Class_Default):
 
 
         # self.measurement_type = 'plot_saved_signal'
-        # self.measurement_type = 'RFSoC_demo_simple'
+        self.measurement_type = 'RFSoC_demo_simple'
         # self.measurement_type = 'mmw_demo_simple'
         # self.measurement_type = 'FR3_demo_simple'
         # self.measurement_type = 'FR3_demo_multi_freq'
         # self.measurement_type = 'FR3_nyu_3state'
-        self.measurement_type = 'FR3_nyu_13state'
+        # self.measurement_type = 'FR3_nyu_13state'
         # self.measurement_type = 'FR3_ant_calib'
         # self.measurement_type = 'FR3_cfo'
 
-        # self.mode = 'client'
-        self.mode = 'client_master'
+        self.mode = 'client'
+        # self.mode = 'client_master'
         # self.mode = 'client_slave'
 
 
@@ -491,14 +491,14 @@ class Params_Class(Params_Class_Default):
 
         rxfd00 = "rxtd|0|0|fft|fftshift|mag|dbmag"
         rxfd10 = "rxtd|1|0|fft|fftshift|mag|dbmag"
-        rxfd00_ph = "rxtd|0|0|fft|fftshift|phase"
-        rxfd10_ph = "rxtd|1|0|fft|fftshift|phase"
+        rxfd00_ph = "rxtd|0|0|fft|fftshift|phase/2pi"
+        rxfd10_ph = "rxtd|1|0|fft|fftshift|phase/2pi"
         rxfd_ph_diff = [rxfd00_ph, '-', rxfd10_ph]
 
         rxtd00 = "rxtd|0|0|mag"
         rxtd10 = "rxtd|1|0|mag"
-        rxtd00_ph = "rxtd|0|0|phase"
-        rxtd10_ph = "rxtd|1|0|phase"
+        rxtd00_ph = "rxtd|0|0|phase/2pi"
+        rxtd10_ph = "rxtd|1|0|phase/2pi"
         rxtd00_r = "rxtd|0|0|real"
         rxtd00_i = "rxtd|0|0|imag"
         rxtd10_r = "rxtd|1|0|real"
@@ -538,13 +538,14 @@ class Params_Class(Params_Class_Default):
         elif self.measurement_type == 'RFSoC_demo_simple':
             # self.mix_freq=0e6
             # self.do_mixer_settings=True
+            # self.wb_sc_range = [0,300]
 
-            # self.animate_plot_mode = [[h00], [rxtd00_r, rxtd00_i], [rxfd00]]
+            # self.animate_plot_mode = [[h00], [rxtd00_r, rxtd00_i], [rxfd00, rxfd10]]
+            # self.animate_plot_mode = [[rxtd00_r, rxtd10_r], [rxtd10_r, rxtd10_i], [rxfd00, rxfd10]]
             self.animate_plot_mode=[[rxtd00_r, rxtd00_i], rxtd_ph_diff, rxfd_ph_diff]
+
             # self.rx_chain = ['sync_time', 'channel_est']
             self.rx_chain = []
-
-            # self.wb_sc_range = [10,100]
 
             self.tx_sig_sim = 'same'
             # self.sig_gen_mode = 'ZadoffChu'

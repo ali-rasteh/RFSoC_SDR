@@ -1056,6 +1056,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             elif item == 'phase':
                 sig = np.angle(sig)
                 title += "-Phase"
+            elif item == 'phase/2pi':
+                sig = np.angle(sig) / (2*np.pi)
+                title += "-Phase/2pi"
             elif item == 'phase_unwrap':
                 sig = np.unwrap(np.angle(sig))
                 title += "-PhaseUnwrap"
@@ -1178,6 +1181,8 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                         ylabel_mode += '_db'
                 elif 'phase' in signal_process_list:
                     ylabel_mode = 'phase'
+                elif 'phase/2pi' in signal_process_list:
+                    ylabel_mode = 'phase/2pi'
                 else:
                     ylabel_mode = 'mag'
                 if 'IQ' in signal_process_list:
@@ -1279,8 +1284,8 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                     label_final += operation + label
 
                 if not (len(plot) > index+1 and plot[index+1] in supported_operations):
-                    if "phase" in signal_process_list:
-                        sig_final = np.unwrap(sig_final)
+                    # if "phase" in signal_process_list:
+                    #     sig_final = np.unwrap(sig_final)
                     plot_signals.append({'signal_name': signal_name, 'trx_id':[rx_id, tx_id], 'process_list': signal_process_list, 'x': x, 'data': sig_final, 'label': label_final})
                     sig_final = None
                     label_final = None
@@ -1313,6 +1318,8 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                 ylabel = "Magnitude (dB)"
             elif ylabel_mode == 'phase':
                 ylabel = "Phase (rad)"
+            elif ylabel_mode == 'phase/2pi':
+                ylabel = "Phase (2π)"
             elif ylabel_mode == 'IQ':
                 ylabel = "Quadrature (Q)"
             elif ylabel_mode == 'snr':
