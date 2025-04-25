@@ -355,10 +355,17 @@ class RFSoC(Signal_Utils_Rfsoc):
         self.print("ADC init and reset done", thr=1)
 
 
-    def set_dac_mixer(self):
-        cofig_str = 'DAC configs: mix_freq: {:.2e}, mix_phase_off: {:.2f}'.format(self.mix_freq_dac, self.mix_phase_off)
+    def set_dac_mixer(self, mix_freq=None, do_mixer_settings=None):
+        result = True
+
+        if mix_freq is None:
+            mix_freq = self.mix_freq_dac
+        if do_mixer_settings is None:
+            do_mixer_settings = self.do_mixer_settings
+
+        cofig_str = 'DAC configs: mix_freq: {}, mix_phase_off: {:.3f}'.format(mix_freq, self.mix_phase_off)
         cofig_str += ', DynamicPLLConfig: ' + str(self.DynamicPLLConfig)
-        cofig_str += ', do_mixer_settings: ' + str(self.do_mixer_settings)
+        cofig_str += ', do_mixer_settings: ' + str(do_mixer_settings)
         self.print(cofig_str, thr=2)
 
         for tile_id in self.dac_tile_block_dic:
@@ -369,20 +376,29 @@ class RFSoC(Signal_Utils_Rfsoc):
                 if self.do_pll_settings:
                     dac_tile.DynamicPLLConfig(self.DynamicPLLConfig[0], self.DynamicPLLConfig[1], self.DynamicPLLConfig[2])
                 # print(dac_block.MixerSettings)
-                if self.do_mixer_settings:
-                    dac_block.MixerSettings['Freq'] = self.mix_freq_dac/1e6
+                if do_mixer_settings:
+                    dac_block.MixerSettings['Freq'] = mix_freq/1e6
                     dac_block.MixerSettings['PhaseOffset'] = self.mix_phase_off
                     # dac_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_IMMEDIATE
                     dac_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_TILE
                     dac_block.UpdateEvent(xrfdc.EVNT_SRC_TILE)
 
         self.print("DAC Mixer Settings done", thr=1)
+        
+        return result
 
 
-    def set_adc_mixer(self):
-        cofig_str = 'ADC configs: mix_freq: {:.2e}, mix_phase_off: {:.2f}'.format(self.mix_freq_adc, self.mix_phase_off)
+    def set_adc_mixer(self, mix_freq=None, do_mixer_settings=None):
+        result = True
+        
+        if mix_freq is None:
+            mix_freq = self.mix_freq_adc
+        if do_mixer_settings is None:
+            do_mixer_settings = self.do_mixer_settings
+
+        cofig_str = 'ADC configs: mix_freq: {:.2e}, mix_phase_off: {:.2f}'.format(mix_freq, self.mix_phase_off)
         cofig_str += ', DynamicPLLConfig: ' + str(self.DynamicPLLConfig)
-        cofig_str += ', do_mixer_settings: ' + str(self.do_mixer_settings)
+        cofig_str += ', do_mixer_settings: ' + str(do_mixer_settings)
         self.print(cofig_str, thr=2)
 
         for tile_id in self.adc_tile_block_dic:
@@ -392,11 +408,7 @@ class RFSoC(Signal_Utils_Rfsoc):
 
                 if self.do_pll_settings:
                     adc_tile.DynamicPLLConfig(self.DynamicPLLConfig[0], self.DynamicPLLConfig[1], self.DynamicPLLConfig[2])
-                # print(adc_block.MixerSettings)
-                # attributes = dir(adc_block.MixerSettings)
-                # for name in attributes:
-                #     print(name)
-                if self.do_mixer_settings:
+                if do_mixer_settings:
                     # adc_block.NyquistZone = 1
                     # adc_block.MixerSettings = {
                     #     'CoarseMixFreq'  : xrfdc.COARSE_MIX_BYPASS,
@@ -407,15 +419,17 @@ class RFSoC(Signal_Utils_Rfsoc):
                     #     'MixerType'      : xrfdc.MIXER_TYPE_FINE,
                     #     'PhaseOffset'    : 0.0
                     # }
-                    adc_block.MixerSettings['Freq'] = -1*self.mix_freq_adc/1e6
+                    adc_block.MixerSettings['Freq'] = -1*mix_freq/1e6
                     adc_block.MixerSettings['PhaseOffset'] = self.mix_phase_off
                     # adc_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_IMMEDIATE
                     adc_block.MixerSettings['EventSource'] = xrfdc.EVNT_SRC_TILE
                     # adc_block.UpdateEvent(xrfdc.EVENT_MIXER)
                     adc_block.UpdateEvent(xrfdc.EVNT_SRC_TILE)
-                    # adc_block.MixerSettings['Freq'] = -1*self.mix_freq_adc/1e6
+                    # adc_block.MixerSettings['Freq'] = -1*mix_freq/1e6
             
         self.print("ADC Mixer Settings done", thr=1)
+
+        return result
 
 
     def dma_init(self):
