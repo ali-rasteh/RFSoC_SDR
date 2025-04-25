@@ -283,6 +283,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         self.nf_model.nf_channel_param_est(n_paths=n_paths_min, n_epochs=n_epochs, lr_init=lr_init, H_gt=H_gt, tx_ant_vec=tx_ant_vec, rx_ant_vec=rx_ant_vec, trx_unit_vec=trx_unit_vec, path_delay=path_delay, path_gain=path_gain, freq=freq)
 
 
+
     def calibrate_rx_phase_offset(self, client_rfsoc):
         '''
         This function calibrates the phase offset between the receivers ports in RFSoCs
@@ -549,7 +550,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     raise ValueError('Invalid distance value: {}'.format(tx_rx_distance))
                 self.tx_rx_distance = tx_rx_distance
             if self.set_piradio_opt_gains:
-                self.find_optimal_gain_piradio(client_rfsoc, client_piradio, client_controller)
+                # self.find_optimal_gain_piradio(client_rfsoc, client_piradio, client_controller)
                 self.set_optimal_gain_piradio(client_piradio, client_controller)
 
 
@@ -753,10 +754,10 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             return
 
         self.print("Finding optimal gain for TX/RX in Pi-Radio", thr=1)
-        self.tx_rx_distance = input("Enter the distance between the TX and RX in meters: ")
-        if self.tx_rx_distance != '':
+        tx_rx_distance = input("Enter the distance between the TX and RX in meters: ")
+        if tx_rx_distance != '':
             try:
-                self.tx_rx_distance = float(self.tx_rx_distance)
+                self.tx_rx_distance = float(tx_rx_distance)
             except:
                 raise ValueError('Invalid distance value: {}'.format(self.tx_rx_distance))
         else:
@@ -778,7 +779,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         # freq_list = np.arange(client_piradio.freq_range[0], client_piradio.freq_range[1]+freq_step, freq_step)
         freq_list = [self.stable_fc_piradio]
         for frequency in freq_list:
-            self.print("Finding gains for frequency: {} GHz".format(frequency), thr=3)
+            self.print("Finding gains for frequency: {} GHz".format(frequency), thr=1)
             self.hop_freq(client_piradio, client_controller, freq=frequency)
 
             self.optimal_gains[self.tx_rx_distance][frequency] = {}
@@ -790,7 +791,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             for tx_gain_dB in tx_gain_dB_list:
                 if tx_gain_dB < min_tx_gain_dB or tx_gain_dB > max_tx_gain_dB:
                     continue
-                self.print("Setting TX gain to {} dB".format(tx_gain_dB), thr=3)
+                self.print("Setting TX gain to {} dB".format(tx_gain_dB), thr=1)
                 if 'master' in self.mode:
                     client_controller.set_gain_piradio(trx='tx', chan=0, gain_db=tx_gain_dB)
                     client_controller.set_gain_piradio(trx='tx', chan=1, gain_db=tx_gain_dB)
@@ -801,7 +802,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     if tx_gain_dB + rx_gain_dB > max_total_gain_dB:
                         continue
 
-                    self.print("Setting RX gain to {} dB".format(rx_gain_dB), thr=3)
+                    self.print("Setting RX gain to {} dB".format(rx_gain_dB), thr=1)
                     client_piradio.set_gain(trx='rx', chan=0, gain_db=rx_gain_dB)
                     client_piradio.set_gain(trx='rx', chan=1, gain_db=rx_gain_dB)
                     if client_piradio.gain_sw_dly == 0:
@@ -810,15 +811,15 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     rxtd = self.receive_data(client_rfsoc, mode='once')
                     snr = self.calculate_snr(sig_td=rxtd[0,:,:self.n_samples_trx], sig_sc_range=self.sc_range)
                     snr_dB = self.lin_to_db(snr, mode='pow')
-                    self.print("SNR for TX gain {} dB and RX gain {} dB: {} dB".format(tx_gain_dB, rx_gain_dB, snr_dB), thr=3)
+                    self.print("SNR for TX gain {} dB and RX gain {} dB: {:.3f} dB".format(tx_gain_dB, rx_gain_dB, snr_dB), thr=1)
                     if snr_dB > snr_dB_optimal:
                         snr_dB_optimal = snr_dB
                         tx_gain_dB_optimal = tx_gain_dB
                         rx_gain_dB_optimal = rx_gain_dB
 
-            self.print("Optimal TX gain for frequency {}: {} dB".format(frequency,tx_gain_dB_optimal), thr=3)
-            self.print("Optimal RX gain for frequency {}: {} dB".format(frequency,rx_gain_dB_optimal), thr=3)
-            self.print("Optimal SNR for frequency {}: {} dB".format(frequency,snr_dB_optimal), thr=3)
+            self.print("Optimal TX gain for frequency {}: {} dB".format(frequency,tx_gain_dB_optimal), thr=1)
+            self.print("Optimal RX gain for frequency {}: {} dB".format(frequency,rx_gain_dB_optimal), thr=1)
+            self.print("Optimal SNR for frequency {}: {} dB".format(frequency,snr_dB_optimal), thr=1)
 
             self.optimal_gains[self.tx_rx_distance][frequency]['tx_gain'] = int(tx_gain_dB_optimal)
             self.optimal_gains[self.tx_rx_distance][frequency]['rx_gain'] = int(rx_gain_dB_optimal)

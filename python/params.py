@@ -433,7 +433,6 @@ class Params_Class(Params_Class_Default):
         self.n_frame_rd=32
         self.n_rd_rep=1
         self.anim_interval = 100
-        # self.update_rfsoc_files = True
         self.save_parameters=True
         # self.load_parameters=True
         # self.plot_fonts_dict = {'title_size': 15, 'xaxis_size': 17, 'yaxis_size': 15, 'ticks_size': 15, 'legend_size': 15, 'line_width': 1.2, 'marker_size': 8, 'hspace': 0.4, 'wspace': 0.4}
@@ -445,6 +444,7 @@ class Params_Class(Params_Class_Default):
         # self.verbose_level=3
 
 
+        # self.update_rfsoc_files = True
         # self.host_files_base_addr = "/home/wirelesslab914/ali/sounder_rfsoc/RFSoC_SDR/python/"
         self.host_files_base_addr = "/Users/alira/OneDrive/Desktop/Current_works/Channel_sounding/RFSoC_SDR_copy/"
         self.host_ip = '192.168.2.1'
@@ -603,6 +603,11 @@ class Params_Class(Params_Class_Default):
             self.measurement_configs.append("tx2_rx2_rx_rotate")
 
 
+            self.measurement_configs.append('D_alpha_<rxorient>_n')
+            self.measurement_configs.append('D_alpha_<rxorient>_r')
+            self.measurement_configs.append('D_alpha_<rxorient>_b')
+
+
 
         elif self.measurement_type == 'FR3_nyu_3state':
             self.animate_plot_mode=[[h00], [rxtd00_r, rxtd00_i], [rxfd00]]
@@ -683,15 +688,9 @@ class Params_Class(Params_Class_Default):
             # self.measurement_configs.append('calib_1-1_2-2')
             # self.measurement_configs.append('calib_1-2_2-1')
 
-            self.measurement_configs.append('C_beta_<rxorient>_n')
-            self.measurement_configs.append('C_alpha_<rxorient>_n')
-            self.measurement_configs.append('C_gamma_<rxorient>_n')
-            self.measurement_configs.append('C_gamma_<rxorient>_r')
-            self.measurement_configs.append('C_alpha_<rxorient>_r')
-            self.measurement_configs.append('C_beta_<rxorient>_r')
-            self.measurement_configs.append('C_beta_<rxorient>_b')
-            self.measurement_configs.append('C_alpha_<rxorient>_b')
-            self.measurement_configs.append('C_gamma_<rxorient>_b')
+            # self.measurement_configs.append('C_alpha_<rxorient>_n')
+            # self.measurement_configs.append('C_alpha_<rxorient>_r')
+            # self.measurement_configs.append('C_alpha_<rxorient>_b')
 
 
 
