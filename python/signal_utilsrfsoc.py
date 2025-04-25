@@ -640,7 +640,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 mode = 'measurement'
 
             rotation_time = 1.514 + rotation_delay
-            freq_switch_time = 0.052 + client_piradio.freq_sw_dly
+            freq_switch_time = 0.052 + self.piradio_freq_sw_dly_default
             total_time = len(rotation_angles) * (rotation_time + len(self.freq_hop_list)*(freq_switch_time))
             self.print("Anticipated time to save signals: {:0.0f} s".format(total_time), thr=0)
             
@@ -803,9 +803,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     if self.set_piradio_opt_losupp:
                         self.set_optimal_losupp_piradio(client_piradio, client_controller, fc=fc)
 
-                    if client_piradio.freq_sw_dly == 0:
-                        sleep_time = max(self.piradio_bias_sw_dly, self.piradio_freq_sw_dly)
-                        time.sleep(self.piradio_freq_sw_dly)
+                    # if client_piradio.freq_sw_dly == 0:
+                    #     sleep_time = max(self.piradio_bias_sw_dly, self.piradio_freq_sw_dly)
+                    #     time.sleep(self.piradio_freq_sw_dly)
 
                 self.fc_id = fc_id
                 self.fc = fc
@@ -870,7 +870,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     client_piradio.set_gain(trx='rx', chan=0, gain_db=rx_gain)
                     client_piradio.set_gain(trx='rx', chan=1, gain_db=rx_gain)
                     if client_piradio.gain_sw_dly == 0:
-                        time.sleep(2*self.piradio_gain_sw_dly)
+                        time.sleep(2*self.piradio_gain_sw_dly_default)
 
                     rxtd = self.receive_data(client_rfsoc, mode='once')
                     snr = self.calculate_snr(sig_td=rxtd[0], sig_sc_range=self.sc_range)
@@ -911,8 +911,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             client_controller.set_gain(trx='tx', chan=0, gain_db=tx_gain_optimal)
             client_controller.set_gain(trx='tx', chan=1, gain_db=tx_gain_optimal)
 
-        if client_piradio.gain_sw_dly == 0:
-            time.sleep(self.piradio_gain_sw_dly)
+        # if client_piradio.gain_sw_dly == 0:
+        #     time.sleep(self.piradio_gain_sw_dly)
 
 
 
@@ -1029,7 +1029,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             rxtd_base_s = np.array(rxtd_base_s)
         else:
             rxtd_base_s = rxtd_base.copy()
-            rxtd_base_s = np.stack((rxtd_base_s, rxtd_base_s), axis=1)
+            rxtd_base_s = np.stack((rxtd_base_s, rxtd_base_s), axis=2)
         
         if 'sync_freq' in self.rx_chain:
             cfo_coarse = self.estimate_cfo(txtd_base, rxtd_base_s, mode='coarse', sc_range=self.sc_range)
@@ -1119,6 +1119,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             elif item == 'phase':
                 sig = np.angle(sig)
                 title += "-Phase"
+            elif item == 'phase_unwrap':
+                sig = np.unwrap(np.angle(sig))
+                title += "-PhaseUnwrap"
             elif item == 'real':
                 sig = np.real(sig)
                 title += "-Real"
@@ -1238,6 +1241,8 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                         ylabel_mode += '_db'
                 elif 'phase' in signal_process_list:
                     ylabel_mode = 'phase'
+                else:
+                    ylabel_mode = 'mag'
                 if 'IQ' in signal_process_list:
                     xlabel_mode = 'IQ'
                     ylabel_mode = 'IQ'
@@ -1337,6 +1342,8 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                     label_final += operation + label
 
                 if not (len(plot) > index+1 and plot[index+1] in supported_operations):
+                    if "phase" in signal_process_list:
+                        sig_final = np.unwrap(sig_final)
                     plot_signals.append({'signal_name': signal_name, 'trx_id':[rx_id, tx_id], 'process_list': signal_process_list, 'x': x, 'data': sig_final, 'label': label_final})
                     sig_final = None
                     label_final = None

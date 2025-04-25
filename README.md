@@ -101,6 +101,11 @@ as follows:
 
 
 
+## Important points to notice
+There is a constant phase difference between the two DAC ports and the two ADC ports of the RFSoC4x2 (when used in the Mixer mode for IF) which changes whenever the board is power cycled. There is no time delay between these ports though, so there is no frequency varying phase shift. This phase difference should be calibrated in the measurements using a calibration data with a cabled setup or at AoA=0 in the case of OTA measurements.
+
+
+
 ## Citation
 
 If you use this repository or code in your research, please cite it as follows:

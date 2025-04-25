@@ -759,8 +759,7 @@ class REST_Com_Piradio(REST_Com):
         if response == '':
             result = False
         else:
-            # result = (float(response['frequency']) == fc)
-            result = (float(response) == fc)
+            result = (float(response['frequency']) == fc)
         if result:
             time.sleep(self.freq_sw_dly)
             self.print(f"Frequency set to {fc/1e9} GHz", thr=3)
