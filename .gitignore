@@ -170,7 +170,7 @@ desktop.ini
 python/channels
 python/sigs
 python/arxiv/other
-python/calib
+python/calib/calib_prams*
 python/figs
 python/other
 *.npz

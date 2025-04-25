@@ -420,7 +420,7 @@ class Params_Class(Params_Class_Default):
         # self.turntable_port = 'COM4'
 
         # self.set_piradio_opt_gains = True
-        # self.set_piradio_opt_losupp = True
+        self.set_piradio_opt_losupp = True
         self.piradio_freq_sw_dly_default = 0.1
         self.piradio_gain_sw_dly_default = 0.1
         self.piradio_bias_sw_dly_default = 0.1
@@ -460,9 +460,9 @@ class Params_Class(Params_Class_Default):
         # self.measurement_type = 'FR3_demo_simple'
         # self.measurement_type = 'FR3_demo_multi_freq'
         # self.measurement_type = 'FR3_nyu_3state'
-        # self.measurement_type = 'FR3_nyu_13state'
+        self.measurement_type = 'FR3_nyu_13state'
         # self.measurement_type = 'FR3_ant_calib'
-        self.measurement_type = 'FR3_cfo'
+        # self.measurement_type = 'FR3_cfo'
 
         # self.mode = 'client'
         self.mode = 'client_master'
@@ -683,9 +683,15 @@ class Params_Class(Params_Class_Default):
             # self.measurement_configs.append('calib_1-1_2-2')
             # self.measurement_configs.append('calib_1-2_2-1')
 
-            self.measurement_configs.append('A_beta_<rxorient>_n')
-            self.measurement_configs.append('A_alpha_<rxorient>_n')
-            self.measurement_configs.append('A_gamma_<rxorient>_n')
+            self.measurement_configs.append('C_beta_<rxorient>_n')
+            self.measurement_configs.append('C_alpha_<rxorient>_n')
+            self.measurement_configs.append('C_gamma_<rxorient>_n')
+            self.measurement_configs.append('C_gamma_<rxorient>_r')
+            self.measurement_configs.append('C_alpha_<rxorient>_r')
+            self.measurement_configs.append('C_beta_<rxorient>_r')
+            self.measurement_configs.append('C_beta_<rxorient>_b')
+            self.measurement_configs.append('C_alpha_<rxorient>_b')
+            self.measurement_configs.append('C_gamma_<rxorient>_b')
 
 
 
@@ -694,8 +700,8 @@ class Params_Class(Params_Class_Default):
             self.rx_chain = ['sync_time', 'channel_est']
             self.control_piradio=True
             
-            self.freq_hop_config['list'] = [10.0e9, 12.0e9]
-            cfo_ppm = 0
+            self.freq_hop_config['list'] = [10.0e9]
+            cfo_ppm = -100
 
             if self.mode == 'client_master':
                 cfo = cfo_ppm * self.freq_hop_config['list'][0] / 1e6
