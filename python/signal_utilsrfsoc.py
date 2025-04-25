@@ -865,7 +865,6 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         18.5: [0.049, -0.005], 19.5: [0.075, 0.003], 20.5: [0.116, 0.049], 21.5: [0.07, 0.027], 22.5: [-0.025, -0.027]}
         
         nearest_fc = min(lo_supp_lut.keys(), key=lambda x: abs(x - fc / 1e9))
-        print(nearest_fc)
         optimal_lo_supp = lo_supp_lut[nearest_fc]
 
         self.print("Nearest frequency: {} GHz, Optimal LO suppression: {}".format(nearest_fc, optimal_lo_supp), thr=1)
