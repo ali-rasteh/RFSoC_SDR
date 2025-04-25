@@ -147,14 +147,20 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
             self.print("Result of set_mode: {}".format(data),thr=3)
             return data
         
-    def set_frequency(self, fc):
-        self.radio_control.sendall(b"setCarrierFrequency "+str.encode(str(fc)))
+    def set_frequency_sivers(self, fc):
+        self.radio_control.sendall(b"setCarrierFrequencySivers "+str.encode(str(fc)))
         data = self.radio_control.recv(1024)
-        self.print("Result of set_frequency: {}".format(data),thr=3)
+        self.print("Result of set_frequency_sivers: {}".format(data),thr=3)
+        return data
+    
+    def set_frequency_mixer(self, f_mixer_dac, f_mixer_adc):
+        self.radio_control.sendall(b"setFrequencyMixer "+str.encode(str(f_mixer_dac) + " ") + str.encode(str(f_mixer_adc)))
+        data = self.radio_control.recv(1024)
+        self.print("Result of set_frequency_mixer: {}".format(data),thr=3)
         return data
 
     def set_tx_gain(self):
-        self.radio_control.sendall(b"setGainTX " + str.encode(str(int(self.tx_bb_gain)) + " ") \
+        self.radio_control.sendall(b"setGainTXSivers " + str.encode(str(int(self.tx_bb_gain)) + " ") \
                                                     + str.encode(str(int(self.tx_bb_phase)) + " ") \
                                                     + str.encode(str(int(self.tx_bb_iq_gain)) + " ") \
                                                     + str.encode(str(int(self.tx_bfrf_gain))))
@@ -163,7 +169,7 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
         return data
 
     def set_rx_gain(self):
-        self.radio_control.sendall(b"setGainRX " + str.encode(str(int(self.rx_gain_ctrl_bb1)) + " ") \
+        self.radio_control.sendall(b"setGainRXSivers " + str.encode(str(int(self.rx_gain_ctrl_bb1)) + " ") \
                                                     + str.encode(str(int(self.rx_gain_ctrl_bb2)) + " ") \
                                                     + str.encode(str(int(self.rx_gain_ctrl_bb3)) + " ") \
                                                     + str.encode(str(int(self.rx_gain_ctrl_bfrf))))
@@ -261,12 +267,12 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
                 responseToCMD = 'Success'
             else:
                 responseToCMD = self.invalidNumberOfArgumentsMessage
-        elif clientMsgParsed[0] == "getBeamIndexTX":
+        elif clientMsgParsed[0] == "getBeamIndexTXSivers":
             if len(clientMsgParsed) == 1:
                 responseToCMD = str(self.obj_rfsoc.siversControllerObj.getBeamIndexTX())
             else:
                 responseToCMD = self.invalidNumberOfArgumentsMessage 
-        elif clientMsgParsed[0] == "setBeamIndexTX":
+        elif clientMsgParsed[0] == "setBeamIndexTXSivers":
             if len(clientMsgParsed) == 2:
                 beamIndex = int(clientMsgParsed[1])
                 success, status = self.obj_rfsoc.siversControllerObj.setBeamIndexTX(beamIndex)
@@ -276,12 +282,12 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
                     responseToCMD = status 
             else:
                 responseToCMD = self.invalidNumberOfArgumentsMessage  
-        elif clientMsgParsed[0] == "getBeamIndexRX":
+        elif clientMsgParsed[0] == "getBeamIndexRXSivers":
             if len(clientMsgParsed) == 1:
                 responseToCMD = str(self.obj_rfsoc.siversControllerObj.getBeamIndexRX())
             else:
                 responseToCMD = self.invalidNumberOfArgumentsMessage 
-        elif clientMsgParsed[0] == "setBeamIndexRX":
+        elif clientMsgParsed[0] == "setBeamIndexRXSivers":
             if len(clientMsgParsed) == 2:
                 beamIndex = int(clientMsgParsed[1])
                 success, status = self.obj_rfsoc.siversControllerObj.setBeamIndexRX(beamIndex)
@@ -306,7 +312,7 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
                     responseToCMD = status                  
             else:
                 responseToCMD = self.invalidNumberOfArgumentsMessage    
-        elif clientMsgParsed[0] == "getGainRX":
+        elif clientMsgParsed[0] == "getGainRXSivers":
             if len(clientMsgParsed) == 1:
                 rx_gain_ctrl_bb1, rx_gain_ctrl_bb2, rx_gain_ctrl_bb3, rx_gain_ctrl_bfrf,agc_int_bfrf_gain_lvl, agc_int_bb3_gain_lvl = self.obj_rfsoc.siversControllerObj.getGainRX()
                 responseToCMD = 'rx_gain_ctrl_bb1:' + str(hex(rx_gain_ctrl_bb1)) + \
@@ -317,7 +323,7 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
                                 ', agc_int_bb3_gain_lvl:' +   str(hex(agc_int_bb3_gain_lvl))
             else:
                 responseToCMD = self.invalidNumberOfArgumentsMessage 
-        elif clientMsgParsed[0] == "setGainRX":
+        elif clientMsgParsed[0] == "setGainRXSivers":
             if len(clientMsgParsed) == 5:
                 rx_gain_ctrl_bb1 = int(clientMsgParsed[1])
                 rx_gain_ctrl_bb2 = int(clientMsgParsed[2])
@@ -331,7 +337,7 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
                     responseToCMD = status                  
             else:
                 responseToCMD = self.invalidNumberOfArgumentsMessage      
-        elif clientMsgParsed[0] == "getGainTX":
+        elif clientMsgParsed[0] == "getGainTXSivers":
             if len(clientMsgParsed) == 1:
                 tx_bb_gain, tx_bb_phase, tx_bb_iq_gain, tx_bfrf_gain, tx_ctrl = self.obj_rfsoc.siversControllerObj.getGainTX()
                 responseToCMD = 'tx_bb_gain:' + str(hex(tx_bb_gain)) + \
@@ -341,7 +347,7 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
                                 ', tx_ctrl:' +   str(hex(tx_ctrl))
             else:
                 responseToCMD = self.invalidNumberOfArgumentsMessage 
-        elif clientMsgParsed[0] == "setGainTX":
+        elif clientMsgParsed[0] == "setGainTXSivers":
             if len(clientMsgParsed) == 5:
                 self.print(clientMsgParsed[1], thr=2)
                 
@@ -357,16 +363,30 @@ class Tcp_Comm_RFSoC(Tcp_Comm):
                     responseToCMD = status                  
             else:
                 responseToCMD = self.invalidNumberOfArgumentsMessage   
-        elif clientMsgParsed[0] == "getCarrierFrequency":
+        elif clientMsgParsed[0] == "getCarrierFrequencySivers":
             if len(clientMsgParsed) == 1:
                 responseToCMD = str(self.obj_rfsoc.siversControllerObj.getFrequency())
             else:
                 responseToCMD = self.invalidNumberOfArgumentsMessage 
-        elif clientMsgParsed[0] == "setCarrierFrequency":
+        elif clientMsgParsed[0] == "setCarrierFrequencySivers":
             if len(clientMsgParsed) == 2:
                 self.print(clientMsgParsed[1], thr=2)
                 fc = float(clientMsgParsed[1])
                 success, status = self.obj_rfsoc.siversControllerObj.setFrequency(fc)
+                if success == True:
+                    responseToCMD = self.successMessage 
+                else:
+                    responseToCMD = status 
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage
+        elif clientMsgParsed[0] == "setFrequencyMixer":
+            if len(clientMsgParsed) == 3:
+                self.print(clientMsgParsed[1], thr=2)
+
+                f_mixer_dac = float(clientMsgParsed[1])
+                f_mixer_adc = float(clientMsgParsed[2])
+                success = self.obj_rfsoc.set_dac_mixer(mix_freq=f_mixer_dac, do_mixer_settings=True)
+                success &= self.obj_rfsoc.set_adc_mixer(mix_freq=f_mixer_adc, do_mixer_settings=True)
                 if success == True:
                     responseToCMD = self.successMessage 
                 else:
@@ -471,20 +491,54 @@ class Tcp_Comm_Controller(Tcp_Comm):
 
         self.print("Tcp_Comm_Controller object init done", thr=1)
 
-    def set_frequency(self, fc=6.0e9):
+    def set_frequency_piradio(self, fc=6.0e9, lo='high'):
         self.print("Setting frequency to {} GHz".format(fc/1e9), thr=3)
-        self.radio_control.sendall(b"setFrequency "+str.encode(str(fc)))
+        self.radio_control.sendall(b"setFrequencyPiradio "+str.encode(str(fc) + " ") + str.encode(str(lo)))
         data = self.radio_control.recv(1024)
-        self.print("Result of set_frequency: {}".format(data), thr=3)
+        self.print("Result of set_frequency_piradio: {}".format(data), thr=3)
+        return data
+    
+    def set_gain_piradio(self, trx='tx', chan=0, gain_db=0):
+        self.print("Setting gain to {} dB for {}-{}".format(gain_db, trx, chan), thr=3)
+        self.radio_control.sendall(b"setGainPiradio "+str.encode(str(trx) + " ") + str.encode(str(chan) + " ") + str.encode(str(gain_db)))
+        data = self.radio_control.recv(1024)
+        self.print("Result of set_gain_piradio: {}".format(data), thr=3)
+        return data
+    
+    def set_bias_piradio(self, chan, iq='I', bias_voltage=0):
+        self.print("Setting bias to {} V for tx-{}-{}".format(bias_voltage, chan, iq), thr=3)
+        self.radio_control.sendall(b"setBiasPiradio "+str.encode(str(chan) + " ") + str.encode(str(iq) + " ") + str.encode(str(bias_voltage)))
+        data = self.radio_control.recv(1024)
+        self.print("Result of set_bias_piradio: {}".format(data), thr=3)
         return data
     
     def parse_and_execute(self, receivedCMD):
         clientMsg = receivedCMD.decode()
         clientMsgParsed = clientMsg.split()
 
-        if clientMsgParsed[0] == "setFrequency":
-            if len(clientMsgParsed) == 2:
-                result, response = self.obj_piradio.set_frequency(float(clientMsgParsed[1]))
+        if clientMsgParsed[0] == "setFrequencyPiradio":
+            if len(clientMsgParsed) == 3:
+                freq = float(clientMsgParsed[1])
+                lo = clientMsgParsed[2]
+                result, response = self.obj_piradio.set_frequency(freq, lo=lo)
+                responseToCMD = self.successMessage
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage
+        elif clientMsgParsed[0] == "setGainPiradio":
+            if len(clientMsgParsed) == 4:
+                trx = clientMsgParsed[1]
+                chan = int(clientMsgParsed[2])
+                gain_db = float(clientMsgParsed[3])
+                result, response = self.obj_piradio.set_gain(trx=trx, chan=chan, gain_db=gain_db)
+                responseToCMD = self.successMessage
+            else:
+                responseToCMD = self.invalidNumberOfArgumentsMessage
+        elif clientMsgParsed[0] == "setBiasPiradio":
+            if len(clientMsgParsed) == 4:
+                chan = int(clientMsgParsed[1])
+                iq = clientMsgParsed[2]
+                bias_voltage = float(clientMsgParsed[3])
+                result, response = self.obj_piradio.set_bias(chan=chan, iq=iq, bias_voltage=bias_voltage)
                 responseToCMD = self.successMessage
             else:
                 responseToCMD = self.invalidNumberOfArgumentsMessage
@@ -560,45 +614,6 @@ class ssh_Com(General):
             result = False
 
         return result
-    
-
-
-class ssh_Com_Piradio(ssh_Com):
-    def __init__(self, params):
-        params = params.copy()
-        params.host_ip = params.piradio_host
-        params.port = params.piradio_ssh_port
-        params.username = params.piradio_username
-        params.password = params.piradio_password
-        super().__init__(params)
-
-        self.freq_sw_dly = getattr(params, 'piradio_freq_sw_dly', 1.0)
-
-        self.print("ssh_Com_Piradio object init done", thr=1)
-
-
-    def initialize(self, verif_keyword='done'):
-        command = f"cd ~/"
-        result = self.exec_command(command, verif_keyword='')
-        command = './do_everything.sh'
-        result &= self.exec_command(command, verif_keyword=verif_keyword)
-        if result:
-            time.sleep(0.1)
-            self.print("Pi-Radio Initialization done", thr=3)
-        else:
-            self.print("Failed to initialize Pi-Radio", thr=0)
-
-
-    def set_frequency(self, fc=6.0e9, verif_keyword=''):
-        command = f"ls"
-        result = self.exec_command(command, verif_keyword=verif_keyword)
-        if result:
-            time.sleep(self.freq_sw_dly)
-            self.print(f"Frequency set to {fc/1e9} GHz", thr=3)
-        else:
-            self.print(f"Failed to set frequency to {fc/1e9} GHz", thr=0)
-
-        return result
 
 
 
@@ -661,6 +676,9 @@ class REST_Com(General):
         self.protocol = getattr(params, 'protocol', 'http')
         self.timeout = getattr(params, 'timeout', 5)
 
+        self._s = requests.Session()
+        self.url_base = f"{self.protocol}://{self.host_ip}:{self.port}/"
+
         self.print("REST_Com object init done", thr=1)
 
 
@@ -677,14 +695,21 @@ class REST_Com(General):
         self.print("REST_Com object deleted", thr=1)
 
 
-    def call_rest_api(self, command, verif_keyword=''):
-        url = f"{self.protocol}://{self.host_ip}:{self.port}/{command}"
+    def call_rest_api(self, url, params=None, verif_keyword=None):
+        # url = f"{self.protocol}://{self.host_ip}:{self.port}/{command}"
 
         try:
-            response = requests.get(url, timeout=self.timeout)
+            # response = requests.get(url, timeout=self.timeout)
+            if params is None:
+                response = self._s.get(url, timeout=self.timeout)
+            else:
+                response = self._s.get(url, params=params, timeout=self.timeout)
+
             response.raise_for_status()  # Raise an HTTPError for bad responses
             self.print("Successfully called the REST API:{}".format(response.json()), thr=3)
-            response =  response.json()
+
+            # response =  response.json()
+            response = json.loads(response.text)
             if type(response) == int or type(response) == float:
                 response = str(response)
         except requests.exceptions.RequestException as e:
@@ -693,7 +718,9 @@ class REST_Com(General):
 
 
         # Search for the keyword in the output
-        if verif_keyword in response:
+        if verif_keyword is None:
+            result = True
+        elif verif_keyword in response:
             self.print(f"Keyword '{verif_keyword}' found in the output.", thr=3)
             result = True
         else:
@@ -714,7 +741,7 @@ class REST_Com_Piradio(REST_Com):
 
         self.freq_sw_dly = getattr(params, 'piradio_freq_sw_dly', 1.0)
         self.gain_sw_dly = getattr(params, 'piradio_gain_sw_dly', 1.0)
-        self.losupp_sw_dly = getattr(params, 'piradio_losupp_sw_dly', 1.0)
+        self.bias_sw_dly = getattr(params, 'piradio_bias_sw_dly', 1.0)
         self.freq_range = getattr(params, 'piradio_freq_range', [6.0, 22.5])
 
         self.print("REST_Com_Piradio object init done", thr=1)
@@ -724,12 +751,15 @@ class REST_Com_Piradio(REST_Com):
         self.print("Pi-Radio REST Comm Initialization done", thr=3)
 
 
-    def set_frequency(self, fc=6.0e9, verif_keyword=''):
-        command = f'high_lo?freq={fc}'
-        result, response = self.call_rest_api(command, verif_keyword=verif_keyword)
+    def set_frequency(self, fc=6.0e9, lo='high', verif_keyword=None):
+        # command = f'high_lo?freq={fc}'
+        url = f'{self.url_base}{lo}_lo'
+        params = {'freq': fc}
+        result, response = self.call_rest_api(url, params=params, verif_keyword=verif_keyword)
         if response == '':
             result = False
         else:
+            # result = (float(response['frequency']) == fc)
             result = (float(response) == fc)
         if result:
             time.sleep(self.freq_sw_dly)
@@ -739,13 +769,15 @@ class REST_Com_Piradio(REST_Com):
         return result, response
     
 
-    def set_gain(self, port, gain_db, verif_keyword=''):
-        command = f''
-        result, response = self.call_rest_api(command, verif_keyword=verif_keyword)
+    def set_gain(self, trx='tx', chan=0, gain_db=0, verif_keyword=None):
+        chan = str(chan)
+        url = self.url_base + 'gain'
+        params={'trx': trx, 'chan': chan, 'v': gain_db}
+        result, response = self.call_rest_api(url, params=params, verif_keyword=verif_keyword)
         if response == '':
             result = False
         else:
-            result = (float(response) == gain_db)
+            result = (float(response[trx][chan]) == gain_db)
         if result:
             time.sleep(self.gain_sw_dly)
             self.print(f"Gain set to {gain_db} dB", thr=3)
@@ -754,15 +786,17 @@ class REST_Com_Piradio(REST_Com):
         return result, response
     
 
-    def set_lo_suppression(self, port, bias_voltage, verif_keyword=''):
-        command = f''
-        result, response = self.call_rest_api(command, verif_keyword=verif_keyword)
+    def set_bias(self, chan=0, iq='I', bias_voltage=0, verif_keyword=None):
+        chan = str(chan)
+        url = self.url_base + "bias"
+        params={'iq': iq, 'chan': chan, 'v': bias_voltage}
+        result, response = self.call_rest_api(url, params=params, verif_keyword=verif_keyword)
         if response == '':
             result = False
         else:
-            result = (float(response) == bias_voltage)
+            result = (float(response[chan][iq]) == bias_voltage)
         if result:
-            time.sleep(self.losupp_sw_dly)
+            time.sleep(self.bias_sw_dly)
             self.print(f"Bias voltage set to {bias_voltage} V", thr=3)
         else:
             self.print(f"Failed to set bias voltage to {bias_voltage} V", thr=0)

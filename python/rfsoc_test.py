@@ -6,7 +6,7 @@ except Exception as e:
     print("Error importing RFSoC class: ", e)
 from params import Params_Class
 from signal_utilsrfsoc import Signal_Utils_Rfsoc, Animate_Plot
-from tcp_comm import Tcp_Comm_RFSoC, Tcp_Comm_LinTrack, ssh_Com_Piradio, REST_Com_Piradio, Tcp_Comm_Controller
+from tcp_comm import Tcp_Comm_RFSoC, Tcp_Comm_LinTrack, REST_Com_Piradio, Tcp_Comm_Controller
 from serial_comm import Serial_Comm_TurnTable
 from file_utils import File_Utils
 
@@ -97,12 +97,12 @@ def rfsoc_run(params):
             # client_piradio.init_ssh_client()
             # client_piradio.initialize()
             client_piradio = REST_Com_Piradio(params)
-            client_piradio.set_frequency(params.fc)
+            client_piradio.set_frequency(fc=params.fc)
 
         if 'master' in params.mode:
             client_controller = Tcp_Comm_Controller(params)
             client_controller.init_tcp_client()
-            client_controller.set_frequency(params.fc)
+            client_controller.set_frequency_piradio(params.fc)
         elif 'slave' in params.mode:
             controller = Tcp_Comm_Controller(params)
             controller.init_tcp_server()
@@ -120,8 +120,10 @@ def rfsoc_run(params):
                 client_rfsoc.transmit_data(txtd)
                 pass
 
+            
+            client_rfsoc.set_frequency_mixer(params.mix_freq_dac, params.mix_freq_adc)
             if params.RFFE=='sivers':
-                client_rfsoc.set_frequency(params.fc)
+                client_rfsoc.set_frequency_sivers(params.fc)
                 if params.send_signal:
                     client_rfsoc.set_mode('RXen0_TXen1')
                     client_rfsoc.set_tx_gain()
@@ -137,9 +139,11 @@ def rfsoc_run(params):
             
             signals_inst.calibrate_rx_phase_offset(client_rfsoc)
             if params.control_piradio:
-                signals_inst.find_optimal_gain_piradio(client_rfsoc, client_piradio, client_controller)
-                signals_inst.set_optimal_gain_piradio(client_piradio, client_controller)
-                signals_inst.set_optimal_losupp_piradio(client_piradio, client_controller)
+                if params.set_piradio_opt_gains:
+                    signals_inst.find_optimal_gain_piradio(client_rfsoc, client_piradio, client_controller)
+                    signals_inst.set_optimal_gain_piradio(client_piradio, client_controller)
+                if params.set_piradio_opt_losupp:
+                    signals_inst.set_optimal_losupp_piradio(client_piradio, client_controller)
             if params.nf_param_estimate:
                 signals_inst.create_near_field_model()
 

@@ -14,78 +14,82 @@ class Signal_Utils_Rfsoc(Signal_Utils):
     def __init__(self, params):
         super().__init__(params)
 
-        self.fc = params.fc
-        self.f_max = params.f_max
-        self.mode = params.mode
-        self.rx_chain = params.rx_chain
-        self.sig_mode = params.sig_mode
-        self.sig_gain_db = params.sig_gain_db
-        self.wb_bw_mode = params.wb_bw_mode
-        self.wb_bw_range = params.wb_bw_range
-        self.wb_sc_range = params.wb_sc_range
-        self.sc_range = params.sc_range
-        self.null_sc_range = params.null_sc_range
-        self.tone_f_mode = params.tone_f_mode
-        self.f_tone = params.f_tone
-        self.sc_tone = params.sc_tone
-        self.sig_modulation = params.sig_modulation
-        self.sig_gen_mode = params.sig_gen_mode
-        self.tx_sig_sim = params.tx_sig_sim
-        self.sig_dir = params.sig_dir
-        self.sig_path = params.sig_path
-        self.sig_save_path = params.sig_save_path
-        self.measurement_configs = params.measurement_configs
-        self.calib_params_path = params.calib_params_path
-        self.optimal_gains_path = params.optimal_gains_path
-        self.channel_dir = params.channel_dir
-        self.channel_save_path = params.channel_save_path
-        self.sys_response_path = params.sys_response_path
-        self.n_save = params.n_save
-        self.save_format = params.save_format
-        self.mixer_mode = params.mixer_mode
-        self.mix_freq = params.mix_freq
-        self.filter_bw_range = params.filter_bw_range
-        self.plt_tx_ant_id = params.plt_tx_ant_id
-        self.plt_rx_ant_id = params.plt_rx_ant_id
-        self.plt_frame_id = params.plt_frame_id
-        self.n_tx_ant = params.n_tx_ant
-        self.n_rx_ant = params.n_rx_ant
-        self.n_rx_ch_eq = params.n_rx_ch_eq
-        self.beamforming = params.beamforming
-        self.ant_dx_m = params.ant_dx_m
-        self.ant_dy_m = params.ant_dy_m
-        self.ant_dx = params.ant_dx
-        self.ant_dy = params.ant_dy
-        self.nf_param_estimate = params.nf_param_estimate
-        self.use_linear_track = params.use_linear_track
-        self.use_turntable = params.use_turntable
-        self.rotation_angles = params.rotation_angles
-        self.control_piradio = params.control_piradio
-        self.stable_fc_piradio = params.stable_fc_piradio
-        self.piradio_freq_sw_dly = params.piradio_freq_sw_dly
-        self.piradio_gain_sw_dly = params.piradio_gain_sw_dly
-        self.piradio_losupp_sw_dly = params.piradio_losupp_sw_dly
-        self.anim_interval = params.anim_interval
-        self.freq_hop_list = params.freq_hop_list
-        self.snr_est_db = params.snr_est_db
-        self.calib_iter = params.calib_iter
-        self.nf_tx_loc = params.nf_tx_loc
-        self.nf_rx_loc_sep = params.nf_rx_loc_sep
-        self.nf_rx_ant_sep = params.nf_rx_ant_sep
-        self.nf_npath_max = params.nf_npath_max
-        self.nf_walls = params.nf_walls
-        self.nf_rx_sep_dir = params.nf_rx_sep_dir
-        self.nf_stop_thr = params.nf_stop_thr
-        self.nf_rx_ant_loc = params.nf_rx_ant_loc
-        self.nf_tx_ant_loc = params.nf_tx_ant_loc
-        self.n_rd_rep = params.n_rd_rep
-        self.n_frame_rd = params.n_frame_rd
-        self.rx_same_delay = params.rx_same_delay
-        self.sparse_ch_samp_range = params.sparse_ch_samp_range
-        self.sparse_ch_n_ignore = params.sparse_ch_n_ignore
-        self.saved_sig_plot = params.saved_sig_plot
-        self.figs_save_path = params.figs_save_path
-        self.measurement_type = params.measurement_type
+        for attr in dir(params):
+            if not attr.startswith('__') and not callable(getattr(params, attr)):
+                setattr(self, attr, getattr(params, attr))
+
+        # self.fc = params.fc
+        # self.f_max = params.f_max
+        # self.mode = params.mode
+        # self.rx_chain = params.rx_chain
+        # self.sig_mode = params.sig_mode
+        # self.sig_gain_db = params.sig_gain_db
+        # self.wb_bw_mode = params.wb_bw_mode
+        # self.wb_bw_range = params.wb_bw_range
+        # self.wb_sc_range = params.wb_sc_range
+        # self.sc_range = params.sc_range
+        # self.null_sc_range = params.null_sc_range
+        # self.tone_f_mode = params.tone_f_mode
+        # self.f_tone = params.f_tone
+        # self.sc_tone = params.sc_tone
+        # self.sig_modulation = params.sig_modulation
+        # self.sig_gen_mode = params.sig_gen_mode
+        # self.tx_sig_sim = params.tx_sig_sim
+        # self.sig_dir = params.sig_dir
+        # self.sig_path = params.sig_path
+        # self.sig_save_path = params.sig_save_path
+        # self.measurement_configs = params.measurement_configs
+        # self.calib_params_path = params.calib_params_path
+        # self.optimal_gains_path = params.optimal_gains_path
+        # self.channel_dir = params.channel_dir
+        # self.channel_save_path = params.channel_save_path
+        # self.sys_response_path = params.sys_response_path
+        # self.n_save = params.n_save
+        # self.save_format = params.save_format
+        # self.mixer_mode = params.mixer_mode
+        # self.mix_freq = params.mix_freq
+        # self.filter_bw_range = params.filter_bw_range
+        # self.plt_frame_id = params.plt_frame_id
+        # self.n_tx_ant = params.n_tx_ant
+        # self.n_rx_ant = params.n_rx_ant
+        # self.n_rx_ch_eq = params.n_rx_ch_eq
+        # self.beamforming = params.beamforming
+        # self.ant_dx_m = params.ant_dx_m
+        # self.ant_dy_m = params.ant_dy_m
+        # self.ant_dx = params.ant_dx
+        # self.ant_dy = params.ant_dy
+        # self.nf_param_estimate = params.nf_param_estimate
+        # self.use_linear_track = params.use_linear_track
+        # self.use_turntable = params.use_turntable
+        # self.rotation_angles = params.rotation_angles
+        # self.control_piradio = params.control_piradio
+        # self.set_piradio_opt_gains = params.set_piradio_opt_gains
+        # self.set_piradio_opt_losupp = params.set_piradio_opt_losupp
+        # self.stable_fc_piradio = params.stable_fc_piradio
+        # self.piradio_freq_sw_dly = params.piradio_freq_sw_dly
+        # self.piradio_gain_sw_dly = params.piradio_gain_sw_dly
+        # self.piradio_bias_sw_dly = params.piradio_bias_sw_dly
+        # self.anim_interval = params.anim_interval
+        # self.freq_hop_list = params.freq_hop_list
+        # self.snr_est_db = params.snr_est_db
+        # self.calib_iter = params.calib_iter
+        # self.nf_tx_loc = params.nf_tx_loc
+        # self.nf_rx_loc_sep = params.nf_rx_loc_sep
+        # self.nf_rx_ant_sep = params.nf_rx_ant_sep
+        # self.nf_npath_max = params.nf_npath_max
+        # self.nf_walls = params.nf_walls
+        # self.nf_rx_sep_dir = params.nf_rx_sep_dir
+        # self.nf_stop_thr = params.nf_stop_thr
+        # self.nf_rx_ant_loc = params.nf_rx_ant_loc
+        # self.nf_tx_ant_loc = params.nf_tx_ant_loc
+        # self.n_rd_rep = params.n_rd_rep
+        # self.n_frame_rd = params.n_frame_rd
+        # self.rx_same_delay = params.rx_same_delay
+        # self.sparse_ch_samp_range = params.sparse_ch_samp_range
+        # self.sparse_ch_n_ignore = params.sparse_ch_n_ignore
+        # self.saved_sig_plot = params.saved_sig_plot
+        # self.figs_save_path = params.figs_save_path
+        # self.measurement_type = params.measurement_type
 
 
         self.rx_phase_offset = 0
@@ -422,7 +426,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
 
 
     def compute_sys_response(self):
-        n_rx = 2
+        n_rx = 1
 
         if n_rx == 1:
             sys_response_folder = os.path.join(os.getcwd(), 'sigs_tx1_rx1_rx_rotate/')
@@ -528,7 +532,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 line, = ax.plot(angles, sys_response_matrix[:,freq_id,rx_id,0], label='Fc {}GHz, RX {}'.format(fixed_freq, rx_id))
                 lines.append(line)
         plot_params_dict['title'] = 'System Response vs Angle at Different Frequencies'
-        plot_params_dict['xlabel'] = 'Angle (degrees)'
+        plot_params_dict['xlabel'] = 'Angle (Deg)'
         plot_params_dict['ylabel'] = 'Normalized Response (dB)'
         self.set_plot_params(ax, lines, plot_params_dict)
         plt.show()
@@ -541,12 +545,12 @@ class Signal_Utils_Rfsoc(Signal_Utils):
             fig, ax = plt.subplots(1, 1, figsize=(10, 6))
             lines = []
             cax = ax.imshow(sys_response_matrix[:,:,rx_id,tx_id], extent=[frequencies[0], frequencies[-1], angles[0], angles[-1]], aspect='auto', origin='lower', cmap='viridis')
-            cbar = fig.colorbar(cax, ax=ax, label='Normalized Response')
+            cbar = fig.colorbar(cax, ax=ax, label='Normalized Response (dB)')
             cbar.ax.tick_params(labelsize=plot_params_dict['ticks_size'])
             cbar.ax.yaxis.label.set_size(plot_params_dict['yaxis_size'])
             plot_params_dict['title'] = '2D Heat Diagram of System Response for RX {}'.format(rx_id)
             plot_params_dict['xlabel'] = 'Frequency (GHz)'
-            plot_params_dict['ylabel'] = 'Angle (degrees)'
+            plot_params_dict['ylabel'] = 'Angle (Deg)'
             self.set_plot_params(ax, lines, plot_params_dict)
             plt.savefig(os.path.join(self.figs_dir, 'sys_response_2D_{}_RX{}.pdf'.format(postfix, rx_id)))
             plt.show()
@@ -617,8 +621,9 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 except:
                     raise ValueError('Invalid distance value: {}'.format(tx_rx_distance))
                 self.tx_rx_distance = tx_rx_distance
-            self.find_optimal_gain_piradio(client_rfsoc, client_piradio, client_controller)
-            self.set_optimal_gain_piradio(client_piradio, client_controller)
+            if self.set_piradio_opt_gains:
+                self.find_optimal_gain_piradio(client_rfsoc, client_piradio, client_controller)
+                self.set_optimal_gain_piradio(client_piradio, client_controller)
 
 
             self.print("Starting to save signals for configuration: {}".format(config), thr=0)
@@ -741,7 +746,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 elif self.measurement_type == 'FR3_ant_calib':
                     if mode != 'calib':
                         # save_name = '{}_{}'.format(angle, frequency/1e9) + postfix + '.' + self.save_format
-                        save_name = '{}'.format(angle) + postfix + '.' + self.save_format
+                        save_name = '{}_'.format(angle) + postfix + '.' + self.save_format
                     else:
                         save_name = postfix + '.' + self.save_format
                 else:
@@ -793,16 +798,18 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                 if self.control_piradio:
                     client_piradio.set_frequency(fc=fc)
                     if 'master' in self.mode:
-                        client_controller.set_frequency(fc=fc)
+                        client_controller.set_frequency_piradio(fc=fc)
+
+                    if self.set_piradio_opt_losupp:
+                        self.set_optimal_losupp_piradio(client_piradio, client_controller, fc=fc)
+
+                    if client_piradio.freq_sw_dly == 0:
+                        sleep_time = max(self.piradio_bias_sw_dly, self.piradio_freq_sw_dly)
+                        time.sleep(self.piradio_freq_sw_dly)
+
                 self.fc_id = fc_id
                 self.fc = fc
                 self.wl = self.c / self.fc
-
-                self.set_optimal_losupp_piradio(client_piradio, client_controller)
-
-                if client_piradio.freq_sw_dly == 0:
-                    sleep_time = max(self.piradio_losupp_sw_dly, self.piradio_freq_sw_dly)
-                    time.sleep(self.piradio_freq_sw_dly)
 
 
 
@@ -850,8 +857,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                     continue
                 self.print("Setting TX gain to {} dB".format(tx_gain), thr=3)
                 if 'master' in self.mode:
-                    client_controller.set_gain(port='tx-0', gain_db=tx_gain)
-                    client_controller.set_gain(port='tx-1', gain_db=tx_gain)
+                    client_controller.set_gain(trx='tx', chan=0, gain_db=tx_gain)
+                    client_controller.set_gain(trx='tx', chan=1, gain_db=tx_gain)
 
                 for rx_gain in rx_gain_list:
                     if rx_gain < min_rx_gain or rx_gain > max_rx_gain:
@@ -860,13 +867,13 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         continue
 
                     self.print("Setting RX gain to {} dB".format(rx_gain), thr=3)
-                    client_piradio.set_gain(port='rx-0', gain_db=rx_gain)
-                    client_piradio.set_gain(port='rx-1', gain_db=rx_gain)
+                    client_piradio.set_gain(trx='rx', chan=0, gain_db=rx_gain)
+                    client_piradio.set_gain(trx='rx', chan=1, gain_db=rx_gain)
                     if client_piradio.gain_sw_dly == 0:
                         time.sleep(2*self.piradio_gain_sw_dly)
 
                     rxtd = self.receive_data(client_rfsoc, mode='once')
-                    snr = self.calculate_snr(sig=rxtd[0], sig_sc_range=self.sc_range)
+                    snr = self.calculate_snr(sig_td=rxtd[0], sig_sc_range=self.sc_range)
                     if snr > snr_optimal:
                         snr_optimal = snr
                         tx_gain_optimal = tx_gain
@@ -896,40 +903,44 @@ class Signal_Utils_Rfsoc(Signal_Utils):
         rx_gain_optimal = self.optimal_gains[self.tx_rx_distance][nearest_fc]['rx_gain']
         tx_gain_optimal = self.optimal_gains[self.tx_rx_distance][nearest_fc]['tx_gain']
 
-        client_piradio.set_gain(port='rx-0', gain_db=rx_gain_optimal)
-        client_piradio.set_gain(port='rx-1', gain_db=rx_gain_optimal)
-        client_piradio.set_gain(port='tx-0', gain_db=tx_gain_optimal)
-        client_piradio.set_gain(port='tx-1', gain_db=tx_gain_optimal)
+        client_piradio.set_gain(trx='rx', chan=0, gain_db=rx_gain_optimal)
+        client_piradio.set_gain(trx='rx', chan=1, gain_db=rx_gain_optimal)
+        client_piradio.set_gain(trx='tx', chan=0, gain_db=tx_gain_optimal)
+        client_piradio.set_gain(trx='tx', chan=1, gain_db=tx_gain_optimal)
         if 'master' in self.mode:
-            client_controller.set_gain(port='tx-0', gain_db=tx_gain_optimal)
-            client_controller.set_gain(port='tx-1', gain_db=tx_gain_optimal)
+            client_controller.set_gain(trx='tx', chan=0, gain_db=tx_gain_optimal)
+            client_controller.set_gain(trx='tx', chan=1, gain_db=tx_gain_optimal)
 
         if client_piradio.gain_sw_dly == 0:
             time.sleep(self.piradio_gain_sw_dly)
 
 
 
-    def set_optimal_losupp_piradio(self, client_piradio, client_controller):
+    def set_optimal_losupp_piradio(self, client_piradio, client_controller, fc=None):
+        if fc is None:
+            fc = self.fc
+
         self.print("Setting optimal LO suppression for TX and RX in Pi-Radio", thr=1)
         
-        lo_supp_lut = {6: [0.0, 0.0, 0.0, 0.0], 6.5: [0.0, 0.0, 0.0, 0.0], 7: [0.0, 0.0, 0.0, 0.0], 7.5: [0.0, 0.0, 0.0, 0.0], 8: [0.0, 0.0, 0.0, 0.0], 8.5: [0.0, 0.0, 0.0, 0.0], \
-                       9: [0.0, 0.0, 0.0, 0.0], 9.5: [0.0, 0.0, 0.0, 0.0], 10: [0.0, 0.0, 0.0, 0.0], 10.5: [0.0, 0.0, 0.0, 0.0], 11: [0.0, 0.0, 0.0, 0.0], 11.5: [0.0, 0.0, 0.0, 0.0], \
-                        12: [0.0, 0.0, 0.0, 0.0], 12.5: [0.0, 0.0, 0.0, 0.0], 13: [0.0, 0.0, 0.0, 0.0], 13.5: [0.0, 0.0, 0.0, 0.0], 14: [0.0, 0.0, 0.0, 0.0], 14.5: [0.0, 0.0, 0.0, 0.0], \
-                        15: [0.0, 0.0, 0.0, 0.0], 15.5: [0.0, 0.0, 0.0, 0.0], 16: [0.0, 0.0, 0.0, 0.0], 16.5: [0.0, 0.0, 0.0, 0.0], 17: [0.0, 0.0, 0.0, 0.0], 17.5: [0.0, 0.0, 0.0, 0.0], \
-                        18: [0.0, 0.0, 0.0, 0.0], 18.5: [0.0, 0.0, 0.0, 0.0], 19: [0.0, 0.0, 0.0, 0.0], 19.5: [0.0, 0.0, 0.0, 0.0], 20: [0.0, 0.0, 0.0, 0.0], \
-                        20.5: [0.0, 0.0, 0.0, 0.0], 21: [0.0, 0.0, 0.0, 0.0], 21.5: [0.0, 0.0, 0.0, 0.0], 22: [0.0, 0.0, 0.0, 0.0], 22.5: [0.0, 0.0, 0.0, 0.0]}
+        lo_supp_lut = {6.5: [-0.026, -0.021], 7.5: [-0.025, -0.016], 8.5: [-0.001, -0.036], 9.5: [0.078, -0.045],
+                        10.5: [0.192, -0.146], 11.5: [0.113, -0.08], 12.5: [0.055, -0.03], 13.5: [0.04, 0.008],
+                        14.5: [0.016, -0.002], 15.5: [-0.002, -0.022], 16.5: [0.004, -0.065], 17.5: [0.034, -0.065],
+                        18.5: [0.049, -0.005], 19.5: [0.075, 0.003], 20.5: [0.116, 0.049], 21.5: [0.07, 0.027], 22.5: [-0.025, -0.027]}
         
-        nearest_fc = min(lo_supp_lut.keys(), key=lambda x: abs(x - self.fc / 1e9))
+        nearest_fc = min(lo_supp_lut.keys(), key=lambda x: abs(x - fc / 1e9))
+        print(nearest_fc)
         optimal_lo_supp = lo_supp_lut[nearest_fc]
 
         self.print("Nearest frequency: {} GHz, Optimal LO suppression: {}".format(nearest_fc, optimal_lo_supp), thr=1)
-        client_piradio.set_lo_suppression(port='rx-0', bias_voltage=optimal_lo_supp[0])
-        client_piradio.set_lo_suppression(port='rx-1', bias_voltage=optimal_lo_supp[1])
-        client_piradio.set_lo_suppression(port='tx-0', bias_voltage=optimal_lo_supp[2])
-        client_piradio.set_lo_suppression(port='tx-1', bias_voltage=optimal_lo_supp[3])
+        client_piradio.set_bias(chan=0, iq='I', bias_voltage=optimal_lo_supp[0])
+        client_piradio.set_bias(chan=0, iq='Q', bias_voltage=optimal_lo_supp[1])
+        client_piradio.set_bias(chan=1, iq='I', bias_voltage=optimal_lo_supp[0])
+        client_piradio.set_bias(chan=1, iq='Q', bias_voltage=optimal_lo_supp[1])
         if 'master' in self.mode:
-            client_controller.set_lo_suppression(port='tx-0', bias_voltage=optimal_lo_supp[2])
-            client_controller.set_lo_suppression(port='tx-1', bias_voltage=optimal_lo_supp[3])
+            client_controller.set_bias(chan=0, iq='I', bias_voltage=optimal_lo_supp[0])
+            client_controller.set_bias(chan=0, iq='Q', bias_voltage=optimal_lo_supp[1])
+            client_controller.set_bias(chan=1, iq='I', bias_voltage=optimal_lo_supp[0])
+            client_controller.set_bias(chan=1, iq='Q', bias_voltage=optimal_lo_supp[1])
 
 
 
@@ -1326,7 +1337,7 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                     label_final += operation + label
 
                 if not (len(plot) > index+1 and plot[index+1] in supported_operations):
-                    plot_signals.append({'signal_name': signal_name, 'process_list': signal_process_list, 'x': x, 'data': sig_final, 'label': label_final})
+                    plot_signals.append({'signal_name': signal_name, 'trx_id':[rx_id, tx_id], 'process_list': signal_process_list, 'x': x, 'data': sig_final, 'label': label_final})
                     sig_final = None
                     label_final = None
 
@@ -1455,6 +1466,8 @@ class Animate_Plot(Signal_Utils_Rfsoc):
             for signal in signals[i]['plot_signals']:
 
                 signal_name = signal['signal_name']
+                rx_id = signal['trx_id'][0]
+                tx_id = signal['trx_id'][1]
                 signal_data = signal['data']
                 signal_process_list = signal['process_list']
                 
@@ -1474,9 +1487,9 @@ class Animate_Plot(Signal_Utils_Rfsoc):
                     self.ax[i][j].axis('off')
                 elif signal_name == 'h_sparse':
                     (h_tr, dly_est, peaks, npath_est) = signal_data
-                    h_tr = h_tr[self.plt_rx_ant_id, self.plt_tx_ant_id]
-                    dly_est = dly_est[self.plt_rx_ant_id, self.plt_tx_ant_id]
-                    peaks = peaks[self.plt_rx_ant_id, self.plt_tx_ant_id]
+                    h_tr = h_tr[rx_id, tx_id]
+                    dly_est = dly_est[rx_id, tx_id]
+                    peaks = peaks[rx_id, tx_id]
                     
                     # Plot the raw response
                     dly = np.arange(self.n_samples_ch)
@@ -1645,8 +1658,8 @@ class Animate_Plot(Signal_Utils_Rfsoc):
 
 
 
-            
-        
+
+
 
 if __name__ == "__main__":
     from params import Params_Class
