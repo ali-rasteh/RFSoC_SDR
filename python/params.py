@@ -440,9 +440,9 @@ class Params_Class(Params_Class_Default):
         self.plot_fonts_dict = {'title_size': 11, 'title_max_chars': 35, 'xaxis_size': 10, 'yaxis_size': 10, 'ticks_size': 10, 'legend_size': 10, 'line_width': 1.0, 'marker_size': 8, 'hspace': 0.5, 'wspace': 0.5}
         # self.calibrate_turntable = True
 
-        self.overwrite_level=False
-        self.plot_level=0
-        self.verbose_level=3
+        # self.overwrite_level=False
+        # self.plot_level=0
+        # self.verbose_level=3
 
 
         # self.host_files_base_addr = "/home/wirelesslab914/ali/sounder_rfsoc/RFSoC_SDR/python/"
@@ -464,8 +464,8 @@ class Params_Class(Params_Class_Default):
         # self.measurement_type = 'FR3_ant_calib'
         self.measurement_type = 'FR3_cfo'
 
-        self.mode = 'client'
-        # self.mode = 'client_master'
+        # self.mode = 'client'
+        self.mode = 'client_master'
         # self.mode = 'client_slave'
 
 
@@ -702,8 +702,10 @@ class Params_Class(Params_Class_Default):
                 self.mix_freq += cfo
                 self.do_mixer_settings=True
 
-            self.tx_sig_sim = 'orthogonal'
+            # self.sig_gen_mode = 'ZadoffChu'
+            # self.tx_sig_sim = 'shifted'
             self.sig_gen_mode = 'fft'
+            self.tx_sig_sim = 'orthogonal'
             self.sig_modulation = '4qam'
 
             self.save_list = ['signal']
