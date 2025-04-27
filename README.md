@@ -112,7 +112,7 @@ If you use this repository or code in your research, please cite it as follows:
 
 ### BibTeX
 ```bibtex
-@misc{Rasteh_RFSoC_SDR,
+@software{Rasteh2024RFSoCSDR,
   author       = {Rasteh, Ali},
   title        = {Software Defined Radio using Xilinx RFSoC},
   year         = {2024},
