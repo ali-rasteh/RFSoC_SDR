@@ -117,8 +117,8 @@ If you use this repository or code in your research, please cite it as follows:
   title        = {Software Defined Radio using Xilinx RFSoC},
   year         = {2024},
   publisher    = {GitHub},
-  journal      = {GitHub repository},
   howpublished = {GitHub repository, \url{https://github.com/ali-rasteh/RFSoC_SDR}},
+  url          = {https://github.com/ali-rasteh/RFSoC_SDR},
   doi          = {10.5281/zenodo.14846067},
   note         = {Accessed: 2024-06-16}
 }
