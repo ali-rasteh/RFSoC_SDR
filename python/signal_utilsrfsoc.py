@@ -671,9 +671,8 @@ class Signal_Utils_Rfsoc(Signal_Utils):
                         postfix = postfix.replace('<rxorient>', str(angle))
                         # save_name = f'{frequency/1e9}' + postfix + '.' + self.save_format
                     save_name = postfix + '.' + self.save_format
-                elif self.measurement_type == 'FR3_ant_calib':
+                elif self.measurement_type == 'FR3_ant_calib' or self.measurement_type == 'FR3_beamforming':
                     if mode != 'calib':
-                        # save_name = '{}_{}'.format(angle, frequency/1e9) + postfix + '.' + self.save_format
                         save_name = '{}_'.format(angle) + postfix + '.' + self.save_format
                     else:
                         save_name = postfix + '.' + self.save_format
