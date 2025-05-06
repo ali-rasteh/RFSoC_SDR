@@ -141,7 +141,7 @@ def rfsoc_run(params):
             if params.control_piradio:
                 if params.set_piradio_opt_gains:
                     signals_inst.find_optimal_gain_piradio(client_rfsoc, client_piradio, client_controller)
-                    # signals_inst.set_optimal_gain_piradio(client_piradio, client_controller)
+                    signals_inst.set_optimal_gain_piradio(client_piradio, client_controller)
                 if params.set_piradio_opt_losupp:
                     signals_inst.set_optimal_losupp_piradio(client_piradio, client_controller)
             if params.nf_param_estimate:

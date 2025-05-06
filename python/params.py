@@ -419,8 +419,8 @@ class Params_Class(Params_Class_Default):
         self.turntable_port = '/dev/ttyACM0'
         # self.turntable_port = 'COM4'
 
-        # self.set_piradio_opt_gains = True
-        # self.set_piradio_opt_losupp = True
+        self.set_piradio_opt_gains = True
+        self.set_piradio_opt_losupp = True
         self.piradio_freq_sw_dly_default = 0.1
         self.piradio_gain_sw_dly_default = 0.1
         self.piradio_bias_sw_dly_default = 0.1
@@ -621,8 +621,8 @@ class Params_Class(Params_Class_Default):
             # self.freq_hop_config['range'] = [6.0e9, 22.5e9]
             # self.freq_hop_config['step'] = 0.5e9
 
+            self.sig_gen_mode = 'fft'
             self.tx_sig_sim = 'same'
-            self.sig_gen_mode = 'ZadoffChu'
 
             self.beamforming=True
             self.steer_theta_deg = 0
