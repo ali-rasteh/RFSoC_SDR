@@ -415,7 +415,7 @@ class Params_Class(Params_Class_Default):
         # parser.add_argument("--bit_file_path", type=str, default="./rfsoc.bit", help="Path to the bit file")
         # params = parser.parse_args()
 
-        self.controller_slave_ip = '10.18.204.119'
+        self.controller_slave_ip = '10.18.251.169'
         self.turntable_port = '/dev/ttyACM0'
         # self.turntable_port = 'COM4'
 
@@ -455,19 +455,26 @@ class Params_Class(Params_Class_Default):
 
 
         # self.measurement_type = 'plot_saved_signal'
-        self.measurement_type = 'RFSoC_demo_simple'
+        # self.measurement_type = 'RFSoC_demo_simple'
         # self.measurement_type = 'mmw_demo_simple'
         # self.measurement_type = 'FR3_demo_simple'
         # self.measurement_type = 'FR3_demo_multi_freq'
         # self.measurement_type = 'FR3_nyu_3state'
         # self.measurement_type = 'FR3_nyu_13state'
         # self.measurement_type = 'FR3_ant_calib'
+        self.measurement_type = 'FR3_beamforming'
         # self.measurement_type = 'FR3_cfo'
 
-        self.mode = 'client'
-        # self.mode = 'client_master'
+        # self.mode = 'client'
+        self.mode = 'client_master'
         # self.mode = 'client_slave'
 
+
+
+
+
+
+    def populate_measurement_parameters(self):
 
         if self.mode == 'client':
             self.send_signal=True
@@ -479,10 +486,6 @@ class Params_Class(Params_Class_Default):
             self.send_signal=True
             # self.rfsoc_server_ip='192.168.2.99'
 
-
-
-
-    def populate_measurement_parameters(self):
 
         h00 = "h|0|0|circshift|mag|dbmag"
         h01 = "h|0|1|circshift|mag|dbmag"
@@ -604,9 +607,32 @@ class Params_Class(Params_Class_Default):
             self.measurement_configs.append("tx2_rx2_rx_rotate")
 
 
-            self.measurement_configs.append('D_alpha_<rxorient>_n')
-            self.measurement_configs.append('D_alpha_<rxorient>_r')
-            self.measurement_configs.append('D_alpha_<rxorient>_b')
+        elif self.measurement_type == 'FR3_beamforming':
+            self.animate_plot_mode=[[h00], [rxtd00_r, rxtd00_i], [rxfd00]]
+            self.rx_chain = ['sync_time', 'channel_est']
+            self.use_turntable = True
+            self.rotation_range_deg = [-90,90]
+            self.rotation_step_deg = 2
+            self.rotation_delay = 0.5
+
+            self.control_piradio=True
+            self.freq_hop_config['list'] = [10e9]
+            # self.freq_hop_config['mode'] = 'sweep'
+            # self.freq_hop_config['range'] = [6.0e9, 22.5e9]
+            # self.freq_hop_config['step'] = 0.5e9
+
+            self.tx_sig_sim = 'same'
+            self.sig_gen_mode = 'ZadoffChu'
+
+            self.beamforming=True
+            self.steer_theta_deg = 0
+            self.steer_phi_deg = 0
+
+            self.save_list = ['signal']
+            self.n_save = 32
+            self.measurement_configs = []
+            # self.measurement_configs.append("tx1_rx1_rx_rotate")
+            self.measurement_configs.append("bf_phi_{}".format(self.steer_phi_deg))
 
 
 
