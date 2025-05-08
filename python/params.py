@@ -458,11 +458,11 @@ class Params_Class(Params_Class_Default):
         # self.measurement_type = 'RFSoC_demo_simple'
         # self.measurement_type = 'mmw_demo_simple'
         # self.measurement_type = 'FR3_demo_simple'
-        # self.measurement_type = 'FR3_demo_multi_freq'
+        self.measurement_type = 'FR3_demo_multi_freq'
         # self.measurement_type = 'FR3_nyu_3state'
         # self.measurement_type = 'FR3_nyu_13state'
         # self.measurement_type = 'FR3_ant_calib'
-        self.measurement_type = 'FR3_beamforming'
+        # self.measurement_type = 'FR3_beamforming'
         # self.measurement_type = 'FR3_cfo'
 
         # self.mode = 'client'
@@ -507,6 +507,8 @@ class Params_Class(Params_Class_Default):
         rxtd10_r = "rxtd|1|0|real"
         rxtd10_i = "rxtd|1|0|imag"
         rxtd_ph_diff = [rxtd00_ph, '-', rxtd10_ph]
+
+        IQ00 = ["rxtd|0|0|fft|fftshift|IQ"]
         
 
 
