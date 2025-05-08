@@ -14,10 +14,7 @@ class Signal_Utils_Rfsoc(Signal_Utils):
     def __init__(self, params):
         super().__init__(params)
 
-        for attr in dir(params):
-            if not attr.startswith('__') and not callable(getattr(params, attr)):
-                setattr(self, attr, getattr(params, attr))
-
+        self.import_attributes(self, params)
 
         self.rx_phase_offset = 0
         self.rx_delay_offset = 0
