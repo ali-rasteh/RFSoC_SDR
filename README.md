@@ -88,7 +88,7 @@ as follows:
 - Connect the RF ports of the Pi-Radio FR3 Transceiver to the Vivaldi antennas. Please be consistent in antennas port indexing. No passive elements are needed on the RF port if you're connecting them to antennas. But if you're using a cable to connect RF ports you need at least 20dB attenuator.
 - Connect the IF ports of the Pi-Radio to the RFSoC4x2. The RFSoC4x2 outout ports 1,2 are DAC_A, DAC_B respectively. Also its input ports 1,2 are ADC_B and ADC_D respectively. Please connect them to the right port numbers on the Pi-Radio. On the transmitter side, connect a DC blocker and a DC-1300 MHz filter on the RFSoC4x2 ports. On the receive side connect a DC blocker, a DC-1300 MHz filter and a 20dB attenuator on each port.
 - Power on the Pi-Radio FR3 Transceiver.
-- Connect to the Pi-Radio board by running `ssh ubuntu@192.168.137.51` in the Linux shell. The password is `temppwd`
+- Connect to the Pi-Radio board by running `ssh ubuntu@192.168.137.51` in the Linux shell.
 - run `./do_everything.sh` to configure the board on the right frequency. At this point the Pi-Radio FR3 Transceiver is ready to use.
 - Alternatively you can connect to the board's Web GUI at [This Link](http://192.168.137.51:5006) and configure all needed parameters.
 - Connect the RFSoC4x2 to your laptop/PC using a USB cable.
